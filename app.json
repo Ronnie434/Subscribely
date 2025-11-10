@@ -1,11 +1,14 @@
 {
   "expo": {
     "name": "Smart Subscription Tracker",
+    "sdkVersion": "54.0.0",
     "slug": "smart-subscription-tracker",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "splash": {
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#000000"
     },
@@ -14,8 +17,7 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.yourname.smartsubscriptiontracker",
-      "buildNumber": "1",
+      "bundleIdentifier": "com.ronnie39.smartsubscriptiontracker",
       "infoPlist": {
         "NSUserTrackingUsageDescription": "This app does not track you. This permission is required by Apple but we respect your privacy.",
         "NSCameraUsageDescription": "Camera access is not used by this app.",
@@ -34,6 +36,12 @@
             "NSPrivacyAccessedAPITypeReasons": [
               "CA92.1"
             ]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "CA92.1"
+            ]
           }
         ]
       }
@@ -46,30 +54,24 @@
       },
       "permissions": [
         "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE",
+        "RECEIVE_BOOT_COMPLETED",
         "VIBRATE"
       ]
     },
     "web": {
       "bundler": "metro"
     },
-    "plugins": [
-      [
-        "expo-notifications",
-        {
-          "color": "#007AFF",
-          "sounds": []
-        }
-      ]
-    ],
-    "extra": {
-      "eas": {
-        "projectId": "959f3f53-14e4-4631-b00a-450833921a1f"
-      }
-    },
     "scheme": "smartsubscriptiontracker",
     "privacy": "public",
     "description": "Track and manage all your subscriptions in one place. Never miss a renewal date and stay on top of your monthly expenses.",
     "githubUrl": "https://github.com/yourusername/smart-subscription-tracker",
-    "owner": "ronnie434"
+    "runtimeVersion": "1.0.0",
+    "extra": {
+      "eas": {
+        "projectId": "6ba49749-39ac-4332-b0a9-1f6a9f00ee3c"
+      }
+    },
+    "owner": "ronnie39"
   }
 }

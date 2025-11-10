@@ -1,11 +1,11 @@
 {
   "name": "subscription-tracker",
   "version": "1.0.0",
-  "main": "expo/AppEntry.js",
+  "main": "node_modules/expo/AppEntry.js",
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "web": "expo start --web"
   },
   "dependencies": {
@@ -27,6 +27,7 @@
     "expo-secure-store": "^15.0.7",
     "expo-sharing": "~14.0.7",
     "expo-status-bar": "~3.0.8",
+    "expo-updates": "~29.0.12",
     "expo-web-browser": "^15.0.9",
     "react": "19.1.0",
     "react-native": "0.81.5",
@@ -34,10 +35,11 @@
     "react-native-reanimated": "~4.1.1",
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0",
-    "react-native-worklets": "^0.6.1"
+    "react-native-worklets": "0.5.1"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
+    "@react-native-community/cli": "^20.0.2",
     "@types/react": "~19.1.10",
     "babel-preset-expo": "^54.0.7",
     "typescript": "^5.3.3"

@@ -7,12 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		02C4CB481FD710014B4CA3FD /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A60BE5F30E6F012B8A1191F5 /* ExpoModulesProvider.swift */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
-		14BAB772239CABB55099F680 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78CF0DE410B5C83A71E36915 /* ExpoModulesProvider.swift */; };
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
-		5EBB3AFE8922467EA289C902 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 2C82B4AEEE324988A0BCFBFB /* PrivacyInfo.xcprivacy */; };
+		97891F6694CC898E2397972D /* libPods-SmartSubscriptionTracker.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 252AEA3FAADBAFFBEE707CC3 /* libPods-SmartSubscriptionTracker.a */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
-		C3B94A0F863D3BE03605A82A /* libPods-SmartSubscriptionTracker.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 55EED6EE4D59A961F6A2A062 /* libPods-SmartSubscriptionTracker.a */; };
+		DF1319F6BA904619BBE54AE7 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = B2B5FABCEE7E454B966A7744 /* PrivacyInfo.xcprivacy */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
 /* End PBXBuildFile section */
 
@@ -20,13 +20,13 @@
 		13B07F961A680F5B00A75B9A /* SmartSubscriptionTracker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SmartSubscriptionTracker.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = SmartSubscriptionTracker/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = SmartSubscriptionTracker/Info.plist; sourceTree = "<group>"; };
-		2C82B4AEEE324988A0BCFBFB /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = PrivacyInfo.xcprivacy; path = SmartSubscriptionTracker/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
-		55EED6EE4D59A961F6A2A062 /* libPods-SmartSubscriptionTracker.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-SmartSubscriptionTracker.a"; sourceTree = BUILT_PRODUCTS_DIR; };
-		78CF0DE410B5C83A71E36915 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-SmartSubscriptionTracker/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
+		252AEA3FAADBAFFBEE707CC3 /* libPods-SmartSubscriptionTracker.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-SmartSubscriptionTracker.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		A0048E9A3740E836B6A0A1FE /* Pods-SmartSubscriptionTracker.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SmartSubscriptionTracker.release.xcconfig"; path = "Target Support Files/Pods-SmartSubscriptionTracker/Pods-SmartSubscriptionTracker.release.xcconfig"; sourceTree = "<group>"; };
+		A60BE5F30E6F012B8A1191F5 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-SmartSubscriptionTracker/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = SmartSubscriptionTracker/SplashScreen.storyboard; sourceTree = "<group>"; };
+		AF35CD9F4E3915E44812776F /* Pods-SmartSubscriptionTracker.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SmartSubscriptionTracker.debug.xcconfig"; path = "Target Support Files/Pods-SmartSubscriptionTracker/Pods-SmartSubscriptionTracker.debug.xcconfig"; sourceTree = "<group>"; };
+		B2B5FABCEE7E454B966A7744 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = PrivacyInfo.xcprivacy; path = SmartSubscriptionTracker/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
-		C536B6D9A201DED3E39D4920 /* Pods-SmartSubscriptionTracker.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SmartSubscriptionTracker.release.xcconfig"; path = "Target Support Files/Pods-SmartSubscriptionTracker/Pods-SmartSubscriptionTracker.release.xcconfig"; sourceTree = "<group>"; };
-		C70B67E8308D53EB217D3C54 /* Pods-SmartSubscriptionTracker.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SmartSubscriptionTracker.debug.xcconfig"; path = "Target Support Files/Pods-SmartSubscriptionTracker/Pods-SmartSubscriptionTracker.debug.xcconfig"; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = SmartSubscriptionTracker/AppDelegate.swift; sourceTree = "<group>"; };
 		F11748442D0722820044C1D9 /* SmartSubscriptionTracker-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "SmartSubscriptionTracker-Bridging-Header.h"; path = "SmartSubscriptionTracker/SmartSubscriptionTracker-Bridging-Header.h"; sourceTree = "<group>"; };
@@ -37,21 +37,19 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				C3B94A0F863D3BE03605A82A /* libPods-SmartSubscriptionTracker.a in Frameworks */,
+				97891F6694CC898E2397972D /* libPods-SmartSubscriptionTracker.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		11DBB4CF4EB30E5E6922838C /* Pods */ = {
+		0E062A81B4B4CE55D9C94573 /* ExpoModulesProviders */ = {
 			isa = PBXGroup;
 			children = (
-				C70B67E8308D53EB217D3C54 /* Pods-SmartSubscriptionTracker.debug.xcconfig */,
-				C536B6D9A201DED3E39D4920 /* Pods-SmartSubscriptionTracker.release.xcconfig */,
+				36EE711EEDEB4915FCF275D2 /* SmartSubscriptionTracker */,
 			);
-			name = Pods;
-			path = Pods;
+			name = ExpoModulesProviders;
 			sourceTree = "<group>";
 		};
 		13B07FAE1A68108700A75B9A /* SmartSubscriptionTracker */ = {
@@ -63,15 +61,7 @@
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */,
-				2C82B4AEEE324988A0BCFBFB /* PrivacyInfo.xcprivacy */,
-			);
-			name = SmartSubscriptionTracker;
-			sourceTree = "<group>";
-		};
-		202E21C82833EC9306A35910 /* SmartSubscriptionTracker */ = {
-			isa = PBXGroup;
-			children = (
-				78CF0DE410B5C83A71E36915 /* ExpoModulesProvider.swift */,
+				B2B5FABCEE7E454B966A7744 /* PrivacyInfo.xcprivacy */,
 			);
 			name = SmartSubscriptionTracker;
 			sourceTree = "<group>";
@@ -80,17 +70,26 @@
 			isa = PBXGroup;
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
-				55EED6EE4D59A961F6A2A062 /* libPods-SmartSubscriptionTracker.a */,
+				252AEA3FAADBAFFBEE707CC3 /* libPods-SmartSubscriptionTracker.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
-		48AB9520654FE037BC7AF2EF /* ExpoModulesProviders */ = {
+		36EE711EEDEB4915FCF275D2 /* SmartSubscriptionTracker */ = {
 			isa = PBXGroup;
 			children = (
-				202E21C82833EC9306A35910 /* SmartSubscriptionTracker */,
+				A60BE5F30E6F012B8A1191F5 /* ExpoModulesProvider.swift */,
 			);
-			name = ExpoModulesProviders;
+			name = SmartSubscriptionTracker;
+			sourceTree = "<group>";
+		};
+		70E31BCAF988855F42AC6B39 /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				AF35CD9F4E3915E44812776F /* Pods-SmartSubscriptionTracker.debug.xcconfig */,
+				A0048E9A3740E836B6A0A1FE /* Pods-SmartSubscriptionTracker.release.xcconfig */,
+			);
+			path = Pods;
 			sourceTree = "<group>";
 		};
 		832341AE1AAA6A7D00B99B32 /* Libraries */ = {
@@ -107,8 +106,8 @@
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
-				11DBB4CF4EB30E5E6922838C /* Pods */,
-				48AB9520654FE037BC7AF2EF /* ExpoModulesProviders */,
+				70E31BCAF988855F42AC6B39 /* Pods */,
+				0E062A81B4B4CE55D9C94573 /* ExpoModulesProviders */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -140,13 +139,13 @@
 			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "SmartSubscriptionTracker" */;
 			buildPhases = (
 				08A4A3CD28434E44B6B9DE2E /* [CP] Check Pods Manifest.lock */,
-				D2ACDEDE7E7834AAE41D121F /* [Expo] Configure project */,
+				8B251EB6DC6639881AEB834E /* [Expo] Configure project */,
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
 				800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */,
-				DA11BCD79B409991C5736BDB /* [CP] Embed Pods Frameworks */,
+				56CBE268E93BD92A7C610B11 /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
@@ -196,7 +195,7 @@
 				BB2F792D24A3F905000567C9 /* Expo.plist in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */,
-				5EBB3AFE8922467EA289C902 /* PrivacyInfo.xcprivacy in Resources */,
+				DF1319F6BA904619BBE54AE7 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -242,6 +241,28 @@
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
 		};
+		56CBE268E93BD92A7C610B11 /* [CP] Embed Pods Frameworks */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-SmartSubscriptionTracker/Pods-SmartSubscriptionTracker-frameworks.sh",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/React-Core-prebuilt/React.framework/React",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/ReactNativeDependencies/ReactNativeDependencies.framework/ReactNativeDependencies",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/hermes-engine/Pre-built/hermes.framework/hermes",
+			);
+			name = "[CP] Embed Pods Frameworks";
+			outputPaths = (
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/React.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/ReactNativeDependencies.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/hermes.framework",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-SmartSubscriptionTracker/Pods-SmartSubscriptionTracker-frameworks.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
 		800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
@@ -282,7 +303,7 @@
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-SmartSubscriptionTracker/Pods-SmartSubscriptionTracker-resources.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
-		D2ACDEDE7E7834AAE41D121F /* [Expo] Configure project */ = {
+		8B251EB6DC6639881AEB834E /* [Expo] Configure project */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
@@ -306,28 +327,6 @@
 			shellPath = /bin/sh;
 			shellScript = "# This script configures Expo modules and generates the modules provider file.\nbash -l -c \"./Pods/Target\\ Support\\ Files/Pods-SmartSubscriptionTracker/expo-configure-project.sh\"\n";
 		};
-		DA11BCD79B409991C5736BDB /* [CP] Embed Pods Frameworks */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-SmartSubscriptionTracker/Pods-SmartSubscriptionTracker-frameworks.sh",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/React-Core-prebuilt/React.framework/React",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/ReactNativeDependencies/ReactNativeDependencies.framework/ReactNativeDependencies",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/hermes-engine/Pre-built/hermes.framework/hermes",
-			);
-			name = "[CP] Embed Pods Frameworks";
-			outputPaths = (
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/React.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/ReactNativeDependencies.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/hermes.framework",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-SmartSubscriptionTracker/Pods-SmartSubscriptionTracker-frameworks.sh\"\n";
-			showEnvVarsInLog = 0;
-		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -336,7 +335,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */,
-				14BAB772239CABB55099F680 /* ExpoModulesProvider.swift in Sources */,
+				02C4CB481FD710014B4CA3FD /* ExpoModulesProvider.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -345,12 +344,15 @@
 /* Begin XCBuildConfiguration section */
 		13B07F941A680F5B00A75B9A /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = C70B67E8308D53EB217D3C54 /* Pods-SmartSubscriptionTracker.debug.xcconfig */;
+			baseConfigurationReference = AF35CD9F4E3915E44812776F /* Pods-SmartSubscriptionTracker.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = SmartSubscriptionTracker/SmartSubscriptionTracker.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = JRBD76VZ75;
 				ENABLE_BITCODE = NO;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(inherited)",
@@ -371,6 +373,7 @@
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
 				PRODUCT_BUNDLE_IDENTIFIER = com.ronnie39.smartsubscriptiontracker;
 				PRODUCT_NAME = SmartSubscriptionTracker;
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_OBJC_BRIDGING_HEADER = "SmartSubscriptionTracker/SmartSubscriptionTracker-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
@@ -381,12 +384,15 @@
 		};
 		13B07F951A680F5B00A75B9A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = C536B6D9A201DED3E39D4920 /* Pods-SmartSubscriptionTracker.release.xcconfig */;
+			baseConfigurationReference = A0048E9A3740E836B6A0A1FE /* Pods-SmartSubscriptionTracker.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = SmartSubscriptionTracker/SmartSubscriptionTracker.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = JRBD76VZ75;
 				INFOPLIST_FILE = SmartSubscriptionTracker/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -402,6 +408,7 @@
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_RELEASE";
 				PRODUCT_BUNDLE_IDENTIFIER = com.ronnie39.smartsubscriptiontracker;
 				PRODUCT_NAME = SmartSubscriptionTracker;
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_OBJC_BRIDGING_HEADER = "SmartSubscriptionTracker/SmartSubscriptionTracker-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
