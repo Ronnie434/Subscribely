@@ -5,10 +5,10 @@
     "slug": "smart-subscription-tracker",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/Composed_Icon Exports/Composed_Icon-iOS-Default-1024x1024@1x.png",
     "userInterfaceStyle": "automatic",
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "./assets/Composed_Icon Exports/Composed_Icon-iOS-Default-1024x1024@1x.png",
       "resizeMode": "contain",
       "backgroundColor": "#000000"
     },
@@ -50,6 +50,7 @@
       "package": "com.yourname.smartsubscriptiontracker",
       "versionCode": 1,
       "adaptiveIcon": {
+        "foregroundImage": "./assets/Composed_Icon Exports/Composed_Icon-iOS-Default-1024x1024@1x.png",
         "backgroundColor": "#000000"
       },
       "permissions": [

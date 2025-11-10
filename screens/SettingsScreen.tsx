@@ -90,7 +90,7 @@ export default function SettingsScreen() {
             <View style={styles.divider} />
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>App Name</Text>
-              <Text style={styles.infoValue}>SubTrack</Text>
+              <Text style={styles.infoValue}>Subscribely</Text>
             </View>
           </View>
         </View>

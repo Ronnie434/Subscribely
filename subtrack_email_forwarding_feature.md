@@ -1,6 +1,6 @@
 
-# SubTrack — Email-to-Subscription Auto-Add Feature
-**Purpose:** Provide a privacy-friendly, low-cost way for users to forward subscription emails to a unique app email address. SubTrack will parse those emails with an AI parser, map them to the correct user, and auto-add or suggest subscription entries in the user's account (Supabase).
+# Subscribely — Email-to-Subscription Auto-Add Feature
+**Purpose:** Provide a privacy-friendly, low-cost way for users to forward subscription emails to a unique app email address. Subscribely will parse those emails with an AI parser, map them to the correct user, and auto-add or suggest subscription entries in the user's account (Supabase).
 
 ---
 
@@ -28,7 +28,7 @@
 ---
 
 ## 1. Overview
-Users forward subscription receipts or confirmation emails to a unique forwarding address (e.g., `ronak@subs.subtrack.ai`) or a shared inbox (`subscriptions@subtrack.ai`). The system receives the email via webhook, maps the sender to a user account, sends the email body to an AI parser which extracts structured fields (vendor, amount, currency, billing date, frequency, subscription id if found), and then inserts or updates the subscription row in Supabase. Optionally, notify user and ask for confirmation for ambiguous cases.
+Users forward subscription receipts or confirmation emails to a unique forwarding address (e.g., `ronak@subs.subscribely.ai`) or a shared inbox (`subscriptions@subscribely.ai`). The system receives the email via webhook, maps the sender to a user account, sends the email body to an AI parser which extracts structured fields (vendor, amount, currency, billing date, frequency, subscription id if found), and then inserts or updates the subscription row in Supabase. Optionally, notify user and ask for confirmation for ambiguous cases.
 
 ---
 
@@ -50,7 +50,7 @@ Users forward subscription receipts or confirmation emails to a unique forwardin
 ## 3. Architecture Diagram (text)
 ```
 User's Email Client
-   └─ forwards → subs@subtrack.ai (or user-specific alias)
+   └─ forwards → subs@subscribely.ai (or user-specific alias)
         └─ ForwardEmail / Resend / Mailgun (webhook) →
            Supabase Edge Function (POST /email/ingest)
              ├─ Validate & Map → Supabase (users table)
@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS users (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   email text UNIQUE NOT NULL,
   name text,
-  forwarding_alias text UNIQUE, -- optional: unique alias per user e.g. ronak+abc@subs.subtrack.ai
+  forwarding_alias text UNIQUE, -- optional: unique alias per user e.g. ronak+abc@subs.subscribely.ai
   device_token text, -- for push notifications
   created_at timestamptz DEFAULT now()
 );
@@ -125,16 +125,16 @@ CREATE INDEX idx_subs_user_vendor ON subscriptions(user_id, vendor_normalized);
 - **Mailgun / AWS SES** (more configuration, more ops).
 
 **Recommendation:** Start with ForwardEmail.net (or Resend if you want stable SLA). Use custom alias per user to avoid spoofing:
-- Generate alias: `user+<randomtoken>@subs.subtrack.ai` or `randomtoken@subs.subtrack.ai`.
+- Generate alias: `user+<randomtoken>@subs.subscribely.ai` or `randomtoken@subs.subscribely.ai`.
 - Show the alias to user inside app with copy button and small instructions.
 
 **DNS / Domain Setup**
-- Create a subdomain like `subs.subtrack.ai`.
+- Create a subdomain like `subs.subscribely.ai`.
 - Configure MX records to the chosen provider (ForwardEmail or Resend docs).
 - Configure SPF/DKIM if supported to improve deliverability and verify metadata.
 
 **Webhook Configuration**
-- Configure provider to POST incoming email payload to: `https://api.subtrack.app/email/ingest` (use Supabase Edge Function URL).
+- Configure provider to POST incoming email payload to: `https://api.subscribely.app/email/ingest` (use Supabase Edge Function URL).
 - Ensure you enable signing headers (if supported) or include a secret to verify requests.
 
 ---
@@ -378,7 +378,7 @@ async function parseEmailWithOpenRouter(emailText) {
 ```json
 {
   "from": "billing@netflix.com",
-  "to": ["ronak+abc@subs.subtrack.ai"],
+  "to": ["ronak+abc@subs.subscribely.ai"],
   "subject": "Your Netflix payment receipt",
   "text": "Hi Ronak, your payment of $15.49 for Netflix subscription on Nov 1, 2025 is complete. Next billing date: Dec 1, 2025.",
   "html": "<p>Hi Ronak, your payment of <strong>$15.49</strong> ...</p>"

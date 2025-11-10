@@ -54,10 +54,10 @@ WHERE table_schema = 'public';
 2. Clear app data:
    ```bash
    # For iOS Simulator
-   xcrun simctl uninstall booted com.yourcompany.subtrack
+   xcrun simctl uninstall booted com.yourcompany.subscribely
    
    # For Android
-   adb shell pm clear com.yourcompany.subtrack
+   adb shell pm clear com.yourcompany.subscribely
    ```
 3. If issue persists, check Supabase project status
 
@@ -292,10 +292,10 @@ If all else fails, start fresh:
 ```bash
 # 1. Clear app data
 # iOS Simulator
-xcrun simctl uninstall booted com.yourcompany.subtrack
+xcrun simctl uninstall booted com.yourcompany.subscribely
 
 # Android
-adb shell pm clear com.yourcompany.subtrack
+adb shell pm clear com.yourcompany.subscribely
 
 # 2. Clear caches
 rm -rf node_modules .expo .expo-shared

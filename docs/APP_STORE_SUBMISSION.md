@@ -106,8 +106,8 @@ fastlane snapshot
 
 ### App Name
 **Maximum**: 30 characters  
-**Recommended**: Smart Subscription Tracker (28 chars)  
-**Alternative**: SubTracker Pro (15 chars)
+**Recommended**: Smart Subscription Tracker (28 chars)
+**Alternative**: Subscribely Pro (15 chars)
 
 **Guidelines**:
 - Must be unique

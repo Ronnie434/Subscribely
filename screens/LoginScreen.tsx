@@ -9,8 +9,8 @@ import {
   Platform,
   ScrollView,
   Alert,
+  Image,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { theme } from '../constants/theme';
 import AuthInput from '../components/AuthInput';
@@ -113,9 +113,13 @@ export default function LoginScreen({
         {/* Logo and Branding */}
         <View style={styles.header}>
           <View style={styles.logoContainer}>
-            <Ionicons name="trending-up" size={48} color="#FFFFFF" />
+            <Image
+              source={require('../assets/app-logo.png')}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
           </View>
-          <Text style={styles.appName}>SubTrack</Text>
+          <Text style={styles.appName}>Subscribely</Text>
           <Text style={styles.tagline}>Track your subscriptions smartly</Text>
         </View>
 
@@ -201,13 +205,14 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.xxl,
   },
   logoContainer: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: theme.colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: theme.spacing.lg,
+  },
+  logoImage: {
+    width: 96,
+    height: 96,
+    borderRadius: 21.5,
   },
   appName: {
     fontSize: 36,

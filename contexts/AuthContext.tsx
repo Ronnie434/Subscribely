@@ -210,7 +210,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setLoading(true);
 
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: 'subtrack://reset-password',
+        redirectTo: 'subscribely://reset-password',
       });
 
       if (error) {
