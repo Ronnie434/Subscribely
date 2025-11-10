@@ -7,7 +7,6 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "prebuildCommand": "npx expo prebuild --platform ios",
       "ios": {
         "simulator": true,
         "buildConfiguration": "Debug"

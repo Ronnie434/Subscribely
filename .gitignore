@@ -12,6 +12,8 @@ npm-debug.*
 web-build/
 .DS_Store
 
+/android
+
 # Environment variables
 .env
 .env.local
