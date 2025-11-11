@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import { useTheme } from '../contexts/ThemeContext';
 import { Subscription } from '../types';
 import { calculations } from '../utils/calculations';
 import { parseLocalDate } from '../utils/dateHelpers';
+import AnimatedPressable from './AnimatedPressable';
 
 interface RenewalItemProps {
   subscription: Subscription;
@@ -23,7 +24,7 @@ export default function RenewalItem({ subscription, onPress }: RenewalItemProps)
   const getUrgencyColor = () => {
     if (daysUntil === 0) return theme.colors.error;
     if (daysUntil <= 3) return theme.colors.warning;
-    return theme.colors.textSecondary;
+    return theme.colors.primary;
   };
 
   const renewalDate = parseLocalDate(subscription.renewalDate);
@@ -35,9 +36,21 @@ export default function RenewalItem({ subscription, onPress }: RenewalItemProps)
   const styles = StyleSheet.create({
     container: {
       backgroundColor: theme.colors.card,
-      borderRadius: theme.borderRadius.md,
-      padding: theme.spacing.md,
-      marginBottom: theme.spacing.sm,
+      borderRadius: 12,
+      padding: 16,
+      marginHorizontal: 16,
+      marginBottom: 12,
+      ...Platform.select({
+        ios: {
+          shadowColor: theme.colors.shadow,
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: theme.isDark ? 0.3 : 0.06,
+          shadowRadius: 8,
+        },
+        android: {
+          elevation: 2,
+        },
+      }),
     },
     content: {
       flex: 1,
@@ -46,17 +59,20 @@ export default function RenewalItem({ subscription, onPress }: RenewalItemProps)
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: theme.spacing.xs,
+      marginBottom: 8,
     },
     name: {
-      ...theme.typography.bodyBold,
+      fontSize: 17,
+      fontWeight: '600',
       color: theme.colors.text,
       flex: 1,
+      letterSpacing: -0.2,
     },
     cost: {
-      ...theme.typography.bodyBold,
+      fontSize: 17,
+      fontWeight: '700',
       color: theme.colors.primary,
-      marginLeft: theme.spacing.sm,
+      marginLeft: 12,
     },
     footer: {
       flexDirection: 'row',
@@ -64,19 +80,20 @@ export default function RenewalItem({ subscription, onPress }: RenewalItemProps)
       alignItems: 'center',
     },
     date: {
-      ...theme.typography.caption,
+      fontSize: 14,
       color: theme.colors.textSecondary,
     },
     daysUntil: {
-      ...theme.typography.captionBold,
+      fontSize: 14,
+      fontWeight: '600',
     },
   });
 
   return (
-    <TouchableOpacity
-      style={[styles.container, theme.shadows.sm]}
+    <AnimatedPressable
+      style={styles.container}
       onPress={onPress}
-      activeOpacity={0.7}
+      scaleOnPress={0.98}
     >
       <View style={styles.content}>
         <View style={styles.header}>
@@ -90,6 +107,6 @@ export default function RenewalItem({ subscription, onPress }: RenewalItemProps)
           </Text>
         </View>
       </View>
-    </TouchableOpacity>
+    </AnimatedPressable>
   );
 }

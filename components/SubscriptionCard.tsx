@@ -1,9 +1,9 @@
 import React, { useState, memo } from 'react';
-import { View, Text, StyleSheet, Pressable, Platform, Image, Linking, Alert } from 'react-native';
+import { View, Text, StyleSheet, Image, Linking, Alert, Platform } from 'react-native';
 import { useTheme } from '../contexts/ThemeContext';
 import { Subscription } from '../types';
 import { calculations } from '../utils/calculations';
-import * as Haptics from 'expo-haptics';
+import AnimatedPressable from './AnimatedPressable';
 
 interface SubscriptionCardProps {
   subscription: Subscription;
@@ -19,6 +19,10 @@ const SERVICE_COLORS: { [key: string]: string } = {
   'apple': '#000000',
   'youtube': '#FF0000',
   'amazon': '#FF9900',
+  'disney': '#113CCF',
+  'hulu': '#1CE783',
+  'adobe': '#FF0000',
+  'microsoft': '#00A4EF',
 };
 
 const SubscriptionCard = memo(function SubscriptionCard({
@@ -29,20 +33,6 @@ const SubscriptionCard = memo(function SubscriptionCard({
   const { theme } = useTheme();
   const [logoError, setLogoError] = useState(false);
   const monthlyCost = calculations.getMonthlyCost(subscription);
-
-  const handlePress = () => {
-    if (Platform.OS === 'ios') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-    onPress();
-  };
-
-  const handleLongPress = () => {
-    if (Platform.OS === 'ios') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    }
-    onLongPress?.();
-  };
 
   // Get service icon color based on service name
   const getIconColor = (): string => {
@@ -71,9 +61,6 @@ const SubscriptionCard = memo(function SubscriptionCard({
       const canOpen = await Linking.canOpenURL(url);
       
       if (canOpen) {
-        if (Platform.OS === 'ios') {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        }
         await Linking.openURL(url);
       } else {
         Alert.alert('Error', 'Unable to open this website');
@@ -86,37 +73,41 @@ const SubscriptionCard = memo(function SubscriptionCard({
 
   const styles = StyleSheet.create({
     card: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.borderRadius.md,
+      backgroundColor: theme.colors.card,
+      borderRadius: 12,
       padding: 16,
-      marginBottom: theme.spacing.md,
-    },
-    pressed: {
-      opacity: 0.7,
-      transform: [{ scale: 0.98 }],
+      marginBottom: 12,
+      ...Platform.select({
+        ios: {
+          shadowColor: theme.colors.shadow,
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: theme.isDark ? 0.3 : 0.06,
+          shadowRadius: 8,
+        },
+        android: {
+          elevation: 2,
+        },
+      }),
     },
     container: {
       flexDirection: 'row',
       alignItems: 'center',
     },
     iconContainer: {
-      width: 50,
-      height: 50,
-      borderRadius: 25,
+      width: 48,
+      height: 48,
+      borderRadius: 12,
       justifyContent: 'center',
       alignItems: 'center',
     },
     logoContainer: {
-      width: 50,
-      height: 50,
-    },
-    logoPressed: {
-      opacity: 0.6,
+      width: 48,
+      height: 48,
     },
     logoImage: {
-      width: 50,
-      height: 50,
-      borderRadius: 12,
+      width: 48,
+      height: 48,
+      borderRadius: 10,
     },
     iconText: {
       color: '#FFFFFF',
@@ -126,18 +117,28 @@ const SubscriptionCard = memo(function SubscriptionCard({
     contentContainer: {
       marginLeft: 12,
       flex: 1,
-      justifyContent: 'space-between',
+      justifyContent: 'center',
     },
     name: {
-      ...theme.typography.body,
-      color: theme.colors.text,
       fontSize: 17,
-      marginBottom: 2,
+      fontWeight: '600',
+      color: theme.colors.text,
+      marginBottom: 4,
+      letterSpacing: -0.2,
+    },
+    priceContainer: {
+      flexDirection: 'row',
+      alignItems: 'baseline',
     },
     price: {
-      ...theme.typography.caption,
-      color: theme.colors.textSecondary,
       fontSize: 15,
+      fontWeight: '600',
+      color: theme.colors.textSecondary,
+    },
+    priceLabel: {
+      fontSize: 13,
+      color: theme.colors.textSecondary,
+      marginLeft: 2,
     },
   });
 
@@ -145,15 +146,13 @@ const SubscriptionCard = memo(function SubscriptionCard({
   const renderIcon = () => {
     if (subscription.domain && !logoError) {
       return (
-        <Pressable
-          onPress={(e) => {
-            e.stopPropagation();
+        <AnimatedPressable
+          onPress={(e: any) => {
+            e?.stopPropagation?.();
             handleLogoPress();
           }}
-          style={({ pressed }) => [
-            styles.logoContainer,
-            pressed && styles.logoPressed,
-          ]}>
+          style={styles.logoContainer}
+          scaleOnPress={0.92}>
           <Image
             source={{
               uri: `https://logo.clearbit.com/${subscription.domain}`
@@ -161,7 +160,7 @@ const SubscriptionCard = memo(function SubscriptionCard({
             style={styles.logoImage}
             onError={() => setLogoError(true)}
           />
-        </Pressable>
+        </AnimatedPressable>
       );
     }
 
@@ -174,13 +173,11 @@ const SubscriptionCard = memo(function SubscriptionCard({
   };
 
   return (
-    <Pressable
-      onPress={handlePress}
-      onLongPress={handleLongPress}
-      style={({ pressed }) => [
-        styles.card,
-        pressed && styles.pressed,
-      ]}
+    <AnimatedPressable
+      onPress={onPress}
+      onLongPress={onLongPress}
+      style={styles.card}
+      scaleOnPress={0.98}
       accessible={true}
       accessibilityLabel={`${subscription.name} subscription, costs $${monthlyCost.toFixed(2)} per month`}
       accessibilityHint="Tap to edit, long press to delete"
@@ -191,13 +188,17 @@ const SubscriptionCard = memo(function SubscriptionCard({
 
         {/* Content Container */}
         <View style={styles.contentContainer}>
-          <Text style={styles.name}>{subscription.name}</Text>
-          <Text style={styles.price}>${monthlyCost.toFixed(2)}/mo</Text>
+          <Text style={styles.name} numberOfLines={1}>
+            {subscription.name}
+          </Text>
+          <View style={styles.priceContainer}>
+            <Text style={styles.price}>${monthlyCost.toFixed(2)}</Text>
+            <Text style={styles.priceLabel}>/month</Text>
+          </View>
         </View>
       </View>
-    </Pressable>
+    </AnimatedPressable>
   );
 });
 
 export default SubscriptionCard;
-

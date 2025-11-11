@@ -13,6 +13,34 @@ export function createTheme(mode: ThemeColorMode) {
   
   return {
     colors: colorPalette,
+    gradients: {
+      primary: ['#007AFF', '#0056D2'],
+      accent: ['#007AFF', '#5856D6'],
+      surface: mode === 'light'
+        ? ['#F8F9FA', '#FFFFFF']
+        : ['#1A1A1C', '#2C2C2E'],
+      card: mode === 'light'
+        ? ['#FFFFFF', '#F8F9FA']
+        : ['#1C1C1E', '#2C2C2E'],
+      success: mode === 'light'
+        ? ['#34C759', '#30D158']
+        : ['#32D74B', '#30D158'],
+      error: mode === 'light'
+        ? ['#FF3B30', '#FF453A']
+        : ['#FF453A', '#FF6961'],
+    },
+    animation: {
+      timing: {
+        fast: 150,
+        normal: 250,
+        slow: 400,
+      },
+      spring: {
+        damping: 15,
+        mass: 1,
+        stiffness: 150,
+      },
+    },
     spacing: {
       xs: 4,
       sm: 8,

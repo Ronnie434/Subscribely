@@ -1,23 +1,29 @@
 import React from 'react';
-import { ActivityIndicator, View, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { useTheme } from '../contexts/ThemeContext';
+import { SkeletonCard } from './SkeletonLoader';
 
-export default function LoadingIndicator() {
+interface LoadingIndicatorProps {
+  count?: number;
+}
+
+export default function LoadingIndicator({ count = 5 }: LoadingIndicatorProps) {
   const { theme } = useTheme();
-  
+
   const styles = StyleSheet.create({
     container: {
       flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      padding: theme.spacing.xl,
+      backgroundColor: theme.colors.background,
+      padding: 16,
+      paddingTop: 24,
     },
   });
 
   return (
     <View style={styles.container}>
-      <ActivityIndicator size="large" color={theme.colors.primary} />
+      {Array.from({ length: count }).map((_, index) => (
+        <SkeletonCard key={index} />
+      ))}
     </View>
   );
 }
-

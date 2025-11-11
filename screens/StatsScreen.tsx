@@ -6,6 +6,7 @@ import {
   ScrollView,
   RefreshControl,
   Alert,
+  Platform,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -14,7 +15,6 @@ import { Subscription } from '../types';
 import { storage } from '../utils/storage';
 import { calculations } from '../utils/calculations';
 import { parseLocalDate } from '../utils/dateHelpers';
-import StatCard from '../components/StatCard';
 import CategoryBar from '../components/CategoryBar';
 import InsightCard from '../components/InsightCard';
 import RenewalItem from '../components/RenewalItem';
@@ -86,9 +86,7 @@ export default function StatsScreen() {
   useFocusEffect(
     useCallback(() => {
       loadSubscriptions(true);
-      return () => {
-        // Cleanup if needed
-      };
+      return () => {};
     }, [])
   );
 
@@ -128,8 +126,6 @@ export default function StatsScreen() {
     if (daysUntil === 1) return 'Tomorrow';
     if (daysUntil <= 7) return `${daysUntil} days`;
     
-    // Use parseLocalDate to prevent timezone conversion issues
-    // "2025-12-13" should display as "Dec 13", not "Dec 12"
     const date = parseLocalDate(nextRenewal);
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
@@ -140,71 +136,145 @@ export default function StatsScreen() {
       backgroundColor: theme.colors.background,
     },
     scrollContent: {
-      paddingHorizontal: theme.spacing.md,
-      paddingTop: theme.spacing.md,
-      paddingBottom: theme.spacing.xxl,
+      paddingBottom: 32,
     },
     emptyContainer: {
       flex: 1,
       justifyContent: 'center',
       alignItems: 'center',
-      padding: theme.spacing.md,
+      padding: 16,
     },
-    heroSection: {
-      marginBottom: theme.spacing.lg,
-    },
-    section: {
-      marginBottom: theme.spacing.lg,
-    },
-    sectionTitle: {
-      ...theme.typography.h3,
-      color: theme.colors.text,
-      marginBottom: theme.spacing.md,
-    },
-    statsGrid: {
-      flexDirection: 'row',
-      gap: theme.spacing.md,
-      marginBottom: theme.spacing.md,
-    },
+    
+    // Card styles matching HomeScreen
     card: {
       backgroundColor: theme.colors.card,
-      borderRadius: theme.borderRadius.lg,
-      padding: theme.spacing.md,
-      ...theme.shadows.md,
+      marginHorizontal: 16,
+      marginBottom: 12,
+      borderRadius: 16,
+      padding: 20,
+      ...Platform.select({
+        ios: {
+          shadowColor: theme.colors.shadow,
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: theme.isDark ? 0.3 : 0.08,
+          shadowRadius: 8,
+        },
+        android: {
+          elevation: 3,
+        },
+      }),
     },
+    cardHeader: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: theme.colors.textSecondary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginBottom: 12,
+    },
+    largeValue: {
+      fontSize: 48,
+      fontWeight: '700',
+      color: theme.colors.text,
+      marginBottom: 8,
+      letterSpacing: -1,
+    },
+    subtitle: {
+      fontSize: 15,
+      fontWeight: '500',
+      color: theme.colors.textSecondary,
+    },
+    
+    // Stats grid
+    statsRow: {
+      flexDirection: 'row',
+      gap: 12,
+      marginHorizontal: 16,
+      marginBottom: 12,
+    },
+    statCard: {
+      flex: 1,
+      backgroundColor: theme.colors.card,
+      borderRadius: 12,
+      padding: 16,
+      ...Platform.select({
+        ios: {
+          shadowColor: theme.colors.shadow,
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: theme.isDark ? 0.3 : 0.06,
+          shadowRadius: 8,
+        },
+        android: {
+          elevation: 2,
+        },
+      }),
+    },
+    statLabel: {
+      fontSize: 13,
+      fontWeight: '500',
+      color: theme.colors.textSecondary,
+      marginBottom: 8,
+    },
+    statValue: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: theme.colors.text,
+      letterSpacing: -0.5,
+    },
+    statSubtext: {
+      fontSize: 12,
+      color: theme.colors.textSecondary,
+      marginTop: 4,
+    },
+    
+    // Section headers
+    sectionHeader: {
+      paddingHorizontal: 16,
+      paddingTop: 16,
+      paddingBottom: 12,
+    },
+    sectionTitle: {
+      fontSize: 17,
+      fontWeight: '600',
+      color: theme.colors.text,
+      letterSpacing: -0.2,
+    },
+    
+    // Billing cycle specific
     billingRow: {
       flexDirection: 'row',
-      alignItems: 'center',
+      gap: 16,
     },
     billingItem: {
       flex: 1,
       alignItems: 'center',
     },
     billingValue: {
-      ...theme.typography.h2,
-      color: theme.colors.text,
+      fontSize: 32,
       fontWeight: '700',
-      marginBottom: theme.spacing.xs,
+      color: theme.colors.text,
+      marginBottom: 4,
+      letterSpacing: -0.5,
     },
     billingLabel: {
-      ...theme.typography.body,
+      fontSize: 13,
+      fontWeight: '500',
       color: theme.colors.textSecondary,
     },
-    billingDivider: {
-      width: 1,
-      height: 40,
-      backgroundColor: theme.colors.border,
-    },
+    
+    // Renewal groups
     renewalGroup: {
-      marginBottom: theme.spacing.lg,
+      marginBottom: 20,
     },
     renewalGroupTitle: {
-      ...theme.typography.bodyBold,
+      fontSize: 15,
+      fontWeight: '600',
       color: theme.colors.text,
-      marginBottom: theme.spacing.md,
+      marginBottom: 12,
+      paddingHorizontal: 16,
     },
     emptyText: {
-      ...theme.typography.body,
+      fontSize: 15,
       color: theme.colors.textSecondary,
       textAlign: 'center',
     },
@@ -234,74 +304,62 @@ export default function StatsScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Scrollable Content */}
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={handleRefresh}
+            tintColor={theme.colors.primary}
+          />
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* Hero Section - Monthly Total */}
-        <View style={styles.heroSection}>
-          <StatCard
-            label="Monthly Spending"
-            value={`$${totalMonthly.toFixed(2)}`}
-            subtitle={`$${totalYearly.toFixed(2)} per year`}
-            size="large"
-            variant="accent"
-          />
+        {/* Main Monthly Total Card - Clean Design */}
+        <View style={[styles.card, { marginTop: 16 }]}>
+          <Text style={styles.cardHeader}>MONTHLY SPENDING</Text>
+          <Text style={styles.largeValue}>${totalMonthly.toFixed(2)}</Text>
+          <Text style={styles.subtitle}>${totalYearly.toFixed(2)} per year</Text>
         </View>
 
-        {/* Quick Stats Grid */}
-        <View style={styles.section}>
-          <View style={styles.statsGrid}>
-            <StatCard
-              label="Yearly Total"
-              value={`$${totalYearly.toFixed(2)}`}
-            />
-            <StatCard
-              label="Subscriptions"
-              value={subscriptions.length.toString()}
-            />
+        {/* Quick Stats Row */}
+        <View style={styles.statsRow}>
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>Average</Text>
+            <Text style={styles.statValue}>${averageCost.toFixed(2)}</Text>
+            <Text style={styles.statSubtext}>per month</Text>
           </View>
-          <View style={styles.statsGrid}>
-            <StatCard
-              label="Average Cost"
-              value={`$${averageCost.toFixed(2)}`}
-              subtitle="per month"
-            />
-            <StatCard
-              label="Next Renewal"
-              value={formatNextRenewal()}
-            />
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>Total Subs</Text>
+            <Text style={styles.statValue}>{subscriptions.length}</Text>
           </View>
         </View>
 
-        {/* Billing Cycle Breakdown */}
-        <View style={styles.section}>
+        {/* Billing Cycles Card */}
+        <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Billing Cycles</Text>
-          <View style={styles.card}>
-            <View style={styles.billingRow}>
-              <View style={styles.billingItem}>
-                <Text style={styles.billingValue}>{billingDistribution.monthly}</Text>
-                <Text style={styles.billingLabel}>Monthly</Text>
-              </View>
-              <View style={styles.billingDivider} />
-              <View style={styles.billingItem}>
-                <Text style={styles.billingValue}>{billingDistribution.yearly}</Text>
-                <Text style={styles.billingLabel}>Yearly</Text>
-              </View>
+        </View>
+        <View style={styles.card}>
+          <View style={styles.billingRow}>
+            <View style={styles.billingItem}>
+              <Text style={styles.billingValue}>{billingDistribution.monthly}</Text>
+              <Text style={styles.billingLabel}>Monthly</Text>
+            </View>
+            <View style={styles.billingItem}>
+              <Text style={styles.billingValue}>{billingDistribution.yearly}</Text>
+              <Text style={styles.billingLabel}>Yearly</Text>
             </View>
           </View>
         </View>
 
-        {/* Category Spending Breakdown */}
+        {/* Category Breakdown */}
         {categoryBreakdown.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Spending by Category</Text>
+          <>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Spending by Category</Text>
+            </View>
             <View style={styles.card}>
-              {categoryBreakdown.map((item, index) => (
+              {categoryBreakdown.map((item) => (
                 <CategoryBar
                   key={item.category}
                   category={item.category}
@@ -311,13 +369,15 @@ export default function StatsScreen() {
                 />
               ))}
             </View>
-          </View>
+          </>
         )}
 
-        {/* Actionable Insights */}
+        {/* Insights */}
         {insights.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Insights</Text>
+          <>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Insights</Text>
+            </View>
             {insights.map((insight, index) => (
               <InsightCard
                 key={index}
@@ -326,60 +386,60 @@ export default function StatsScreen() {
                 priority={insight.priority}
               />
             ))}
+          </>
+        )}
+
+        {/* Upcoming Renewals */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Upcoming Renewals (30 days)</Text>
+        </View>
+
+        {renewalTimeline.thisWeek.length > 0 && (
+          <View style={styles.renewalGroup}>
+            <Text style={styles.renewalGroupTitle}>This Week</Text>
+            {renewalTimeline.thisWeek.map((subscription) => (
+              <RenewalItem
+                key={subscription.id}
+                subscription={subscription}
+                onPress={() => handleRenewalPress(subscription)}
+              />
+            ))}
           </View>
         )}
 
-        {/* Upcoming Renewals Timeline */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Upcoming Renewals (30 days)</Text>
-          
-          {renewalTimeline.thisWeek.length > 0 && (
-            <View style={styles.renewalGroup}>
-              <Text style={styles.renewalGroupTitle}>This Week</Text>
-              {renewalTimeline.thisWeek.map((subscription) => (
-                <RenewalItem
-                  key={subscription.id}
-                  subscription={subscription}
-                  onPress={() => handleRenewalPress(subscription)}
-                />
-              ))}
+        {renewalTimeline.nextWeek.length > 0 && (
+          <View style={styles.renewalGroup}>
+            <Text style={styles.renewalGroupTitle}>Next Week</Text>
+            {renewalTimeline.nextWeek.map((subscription) => (
+              <RenewalItem
+                key={subscription.id}
+                subscription={subscription}
+                onPress={() => handleRenewalPress(subscription)}
+              />
+            ))}
+          </View>
+        )}
+
+        {renewalTimeline.thisMonth.length > 0 && (
+          <View style={styles.renewalGroup}>
+            <Text style={styles.renewalGroupTitle}>This Month</Text>
+            {renewalTimeline.thisMonth.map((subscription) => (
+              <RenewalItem
+                key={subscription.id}
+                subscription={subscription}
+                onPress={() => handleRenewalPress(subscription)}
+              />
+            ))}
+          </View>
+        )}
+
+        {renewalTimeline.thisWeek.length === 0 &&
+          renewalTimeline.nextWeek.length === 0 &&
+          renewalTimeline.thisMonth.length === 0 && (
+            <View style={styles.card}>
+              <Text style={styles.emptyText}>No renewals in the next 30 days</Text>
             </View>
           )}
-
-          {renewalTimeline.nextWeek.length > 0 && (
-            <View style={styles.renewalGroup}>
-              <Text style={styles.renewalGroupTitle}>Next Week</Text>
-              {renewalTimeline.nextWeek.map((subscription) => (
-                <RenewalItem
-                  key={subscription.id}
-                  subscription={subscription}
-                  onPress={() => handleRenewalPress(subscription)}
-                />
-              ))}
-            </View>
-          )}
-
-          {renewalTimeline.thisMonth.length > 0 && (
-            <View style={styles.renewalGroup}>
-              <Text style={styles.renewalGroupTitle}>This Month</Text>
-              {renewalTimeline.thisMonth.map((subscription) => (
-                <RenewalItem
-                  key={subscription.id}
-                  subscription={subscription}
-                  onPress={() => handleRenewalPress(subscription)}
-                />
-              ))}
-            </View>
-          )}
-
-          {renewalTimeline.thisWeek.length === 0 &&
-            renewalTimeline.nextWeek.length === 0 &&
-            renewalTimeline.thisMonth.length === 0 && (
-              <View style={styles.card}>
-                <Text style={styles.emptyText}>No renewals in the next 30 days</Text>
-              </View>
-            )}
-        </View>
       </ScrollView>
     </View>
   );

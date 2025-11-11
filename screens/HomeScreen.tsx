@@ -7,18 +7,19 @@ import {
   RefreshControl,
   Alert,
   Platform,
-  Pressable,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '../contexts/ThemeContext';
 import { Subscription } from '../types';
 import { storage } from '../utils/storage';
 import { calculations } from '../utils/calculations';
 import SubscriptionCard from '../components/SubscriptionCard';
 import EmptyState from '../components/EmptyState';
-import LoadingIndicator from '../components/LoadingIndicator';
+import AnimatedPressable from '../components/AnimatedPressable';
+import { SkeletonCard } from '../components/SkeletonLoader';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../contexts/AuthContext';
 import { useRealtimeSubscriptions } from '../hooks/useRealtimeSubscriptions';
@@ -49,7 +50,6 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         console.log('Real-time INSERT:', newSubscription.name);
       }
       setSubscriptions((prev) => {
-        // Prevent duplicates - check if subscription already exists
         const exists = prev.some((sub) => sub.id === newSubscription.id);
         if (exists) {
           if (__DEV__) {
@@ -57,7 +57,6 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
           }
           return prev;
         }
-        // Add new subscription at the beginning (most recent first)
         return [newSubscription, ...prev];
       });
     },
@@ -71,10 +70,8 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
           if (__DEV__) {
             console.log('Subscription not found for update, adding it');
           }
-          // If not found, add it (edge case: might have been created on another device)
           return [updatedSubscription, ...prev];
         }
-        // Update existing subscription
         const updated = [...prev];
         updated[index] = updatedSubscription;
         return updated;
@@ -107,26 +104,19 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   useEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <Pressable
+        <AnimatedPressable
           onPress={() => {
-            if (Platform.OS === 'ios') {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            }
             navigation.navigate('AddSubscription', {});
           }}
-          style={({ pressed }) => [
-            styles.addButton,
-            pressed && styles.addButtonPressed,
-          ]}>
+          style={styles.addButton}>
           <Ionicons name="add" size={28} color={theme.colors.primary} />
-        </Pressable>
+        </AnimatedPressable>
       ),
     });
   }, [navigation]);
 
   const loadSubscriptions = async (forceRefresh = false) => {
     try {
-      // Use refresh when force refreshing or when coming back from add/edit
       const data = forceRefresh ? await storage.refresh() : await storage.getAll();
       setSubscriptions(data);
       if (__DEV__ && data.length > 0) {
@@ -147,30 +137,24 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     }
   };
 
-  // Refresh data when screen comes into focus (after adding/editing)
+  // Refresh data when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       if (__DEV__) {
         console.log('HomeScreen focused - force refreshing from Supabase...');
       }
-      // Force refresh from Supabase to get latest data
       loadSubscriptions(true);
-      return () => {
-        // Cleanup if needed
-      };
+      return () => {};
     }, [])
   );
 
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      // Use the dedicated refresh method which forces a fetch from Supabase
       const data = await storage.refresh();
       setSubscriptions(data);
     } catch (error) {
       console.error('Error refreshing subscriptions:', error);
-      // Silently fail on refresh - data might already be loaded
-      // Just reload from cache if refresh fails
       await loadSubscriptions();
     } finally {
       setRefreshing(false);
@@ -198,16 +182,13 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
             }
             
-            // Optimistic delete: Remove from UI immediately
             const previousSubscriptions = [...subscriptions];
             setSubscriptions(prev => prev.filter(s => s.id !== subscription.id));
             
-            // Delete in background
             try {
               const success = await storage.delete(subscription.id);
               
               if (!success) {
-                // Rollback on failure
                 setSubscriptions(previousSubscriptions);
                 if (Platform.OS === 'ios') {
                   Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -218,10 +199,8 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
                   [{ text: 'OK' }]
                 );
               }
-              // If successful, real-time sync will handle updates on other devices
             } catch (error) {
               console.error('Error deleting subscription:', error);
-              // Rollback on error
               setSubscriptions(previousSubscriptions);
               if (Platform.OS === 'ios') {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -239,8 +218,6 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   };
 
   const totalMonthlyCost = calculations.getTotalMonthlyCost(subscriptions);
-  
-  // Calculate breakdown of monthly vs yearly subscriptions
   const monthlyCount = subscriptions.filter(sub => sub.billingCycle === 'monthly').length;
   const yearlyCount = subscriptions.filter(sub => sub.billingCycle === 'yearly').length;
 
@@ -249,36 +226,68 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       flex: 1,
       backgroundColor: theme.colors.background,
     },
-    header: {
-      paddingHorizontal: 24,
-      paddingTop: 16,
-      paddingBottom: 24,
+    headerCard: {
+      backgroundColor: theme.colors.card,
+      marginTop: 16,
+      marginBottom: 12,
+      borderRadius: 16,
+      padding: 20,
+      ...Platform.select({
+        ios: {
+          shadowColor: theme.colors.shadow,
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: theme.isDark ? 0.3 : 0.08,
+          shadowRadius: 8,
+        },
+        android: {
+          elevation: 3,
+        },
+      }),
     },
-    monthlyTotal: {
-      fontSize: 48,
-      fontWeight: 'bold',
-      color: theme.colors.text,
+    headerLabel: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: theme.colors.textSecondary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
       marginBottom: 8,
     },
-    perMonthLabel: {
-      fontSize: 15,
-      color: theme.colors.textSecondary,
-      marginBottom: 4,
-    },
-    breakdownLabel: {
-      fontSize: 13,
-      color: theme.colors.textSecondary,
+    totalAmount: {
+      fontSize: 48,
+      fontWeight: '700',
+      color: theme.colors.text,
       marginBottom: 12,
+      letterSpacing: -1,
+    },
+    statsRow: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    statBadge: {
+      backgroundColor: theme.isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 8,
+    },
+    statText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: theme.colors.text,
+    },
+    sectionHeader: {
+      paddingHorizontal: 16,
+      paddingTop: 16,
+      paddingBottom: 12,
     },
     sectionTitle: {
-      fontSize: 28,
-      fontWeight: 'bold',
+      fontSize: 17,
+      fontWeight: '600',
       color: theme.colors.text,
+      letterSpacing: -0.2,
     },
     listContainer: {
       paddingHorizontal: 16,
       paddingBottom: 24,
-      gap: 12,
     },
     emptyContainer: {
       flex: 1,
@@ -287,51 +296,93 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       paddingHorizontal: 16,
       paddingVertical: 8,
     },
-    addButtonPressed: {
-      opacity: 0.6,
+    skeletonContainer: {
+      paddingHorizontal: 16,
+      paddingTop: 8,
     },
   });
 
+  // Render skeleton loading
   if (loading) {
-    return <LoadingIndicator />;
+    return (
+      <View style={styles.container}>
+        <View style={styles.headerCard}>
+          <Text style={styles.headerLabel}>MONTHLY TOTAL</Text>
+          <Text style={styles.totalAmount}>$---.--</Text>
+          <View style={styles.statsRow}>
+            <View style={styles.statBadge}>
+              <Text style={styles.statText}>-- monthly</Text>
+            </View>
+          </View>
+        </View>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Your Subscriptions</Text>
+        </View>
+        <View style={styles.skeletonContainer}>
+          {[1, 2, 3, 4].map((i) => (
+            <SkeletonCard key={i} />
+          ))}
+        </View>
+      </View>
+    );
   }
 
   return (
     <View style={styles.container}>
-      {/* Header Section */}
-      <View style={styles.header}>
-        <Text style={styles.monthlyTotal}>${totalMonthlyCost.toFixed(2)}</Text>
-        <Text style={styles.perMonthLabel}>monthly total</Text>
-        {subscriptions.length > 0 && (
-          <Text style={styles.breakdownLabel}>
-            {monthlyCount > 0 && `${monthlyCount} monthly`}
-            {monthlyCount > 0 && yearlyCount > 0 && ' • '}
-            {yearlyCount > 0 && `${yearlyCount} yearly`}
-          </Text>
-        )}
-        <Text style={styles.sectionTitle}>Subscriptions</Text>
-      </View>
-
-      {/* Subscription List */}
       <FlatList
         data={subscriptions}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <SubscriptionCard
-            subscription={item}
-            onPress={() => handleEdit(item)}
-            onLongPress={() => handleDelete(item)}
-          />
+        renderItem={({ item, index }) => (
+          <Animated.View
+            entering={FadeInDown.delay(index * 50).springify()}>
+            <SubscriptionCard
+              subscription={item}
+              onPress={() => handleEdit(item)}
+              onLongPress={() => handleDelete(item)}
+            />
+          </Animated.View>
         )}
+        ListHeaderComponent={
+          <>
+            {/* Summary Card */}
+            <View style={styles.headerCard}>
+              <Text style={styles.headerLabel}>MONTHLY TOTAL</Text>
+              <Text style={styles.totalAmount}>${totalMonthlyCost.toFixed(2)}</Text>
+              {subscriptions.length > 0 && (
+                <View style={styles.statsRow}>
+                  {monthlyCount > 0 && (
+                    <View style={styles.statBadge}>
+                      <Text style={styles.statText}>{monthlyCount} monthly</Text>
+                    </View>
+                  )}
+                  {yearlyCount > 0 && (
+                    <View style={styles.statBadge}>
+                      <Text style={styles.statText}>{yearlyCount} yearly</Text>
+                    </View>
+                  )}
+                </View>
+              )}
+            </View>
+
+            {/* Section Title */}
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Your Subscriptions</Text>
+            </View>
+          </>
+        }
         ListEmptyComponent={<EmptyState />}
         contentContainerStyle={
           subscriptions.length === 0 ? styles.emptyContainer : styles.listContainer
         }
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={handleRefresh}
+            tintColor={theme.colors.primary}
+          />
         }
+        showsVerticalScrollIndicator={false}
       />
     </View>
   );
 }
-

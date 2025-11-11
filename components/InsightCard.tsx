@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import { useTheme } from '../contexts/ThemeContext';
 
 interface InsightCardProps {
@@ -45,13 +45,25 @@ export default function InsightCard({ type, message, priority = 'medium' }: Insi
     container: {
       flexDirection: 'row',
       backgroundColor: theme.colors.card,
-      borderRadius: theme.borderRadius.md,
-      padding: theme.spacing.md,
-      marginBottom: theme.spacing.md,
+      borderRadius: 12,
+      padding: 16,
+      marginHorizontal: 16,
+      marginBottom: 12,
       borderLeftWidth: 4,
+      ...Platform.select({
+        ios: {
+          shadowColor: theme.colors.shadow,
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: theme.isDark ? 0.3 : 0.06,
+          shadowRadius: 8,
+        },
+        android: {
+          elevation: 2,
+        },
+      }),
     },
     iconContainer: {
-      marginRight: theme.spacing.md,
+      marginRight: 12,
       justifyContent: 'center',
     },
     icon: {
@@ -62,7 +74,8 @@ export default function InsightCard({ type, message, priority = 'medium' }: Insi
       justifyContent: 'center',
     },
     message: {
-      ...theme.typography.body,
+      fontSize: 15,
+      lineHeight: 22,
       color: theme.colors.text,
     },
   });
@@ -71,7 +84,6 @@ export default function InsightCard({ type, message, priority = 'medium' }: Insi
     <View
       style={[
         styles.container,
-        theme.shadows.sm,
         { borderLeftColor: getBorderColor() },
       ]}
     >
