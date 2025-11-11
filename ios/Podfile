@@ -1,17 +1,5 @@
-require 'json'
-require 'open3'
-
-def node_resolve(package)
-  stdout, stderr, status = Open3.capture3("node --print \"require.resolve('#{package}/package.json')\"")
-  if status.success?
-    return File.dirname(stdout.strip)
-  else
-    raise "Failed to resolve #{package}: #{stderr}"
-  end
-end
-
-require File.join(node_resolve('expo'), 'scripts/autolinking')
-require File.join(node_resolve('react-native'), 'scripts/react_native_pods')
+require File.join(File.dirname(`node --print "require.resolve('expo/package.json')"`), "scripts/autolinking")
+require File.join(File.dirname(`node --print "require.resolve('react-native/package.json')"`), "scripts/react_native_pods")
 
 require 'json'
 podfile_properties = JSON.parse(File.read(File.join(__dir__, 'Podfile.properties.json'))) rescue {}
