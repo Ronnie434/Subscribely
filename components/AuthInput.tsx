@@ -47,12 +47,13 @@ export default function AuthInput({
     inputContainer: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: '#1C1C1E',
+      backgroundColor: theme.colors.card,
       borderRadius: theme.borderRadius.md,
       borderWidth: 1,
-      borderColor: 'transparent',
+      borderColor: theme.colors.border,
       paddingHorizontal: theme.spacing.md,
       height: 52,
+      ...theme.shadows.sm,
     },
     inputContainerFocused: {
       borderColor: theme.colors.primary,
@@ -91,7 +92,7 @@ export default function AuthInput({
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
-          placeholderTextColor="#8E8E93"
+          placeholderTextColor={theme.colors.textSecondary}
           secureTextEntry={actualSecureTextEntry}
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
@@ -109,7 +110,7 @@ export default function AuthInput({
             <Ionicons
               name={isPasswordVisible ? 'eye-off-outline' : 'eye-outline'}
               size={22}
-              color="#8E8E93"
+              color={theme.colors.textSecondary}
             />
           </TouchableOpacity>
         )}

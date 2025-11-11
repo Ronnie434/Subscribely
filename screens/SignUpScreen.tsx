@@ -169,12 +169,12 @@ export default function SignUpScreen({ onNavigateToSignIn }: SignUpScreenProps) 
     scrollContent: {
       flexGrow: 1,
       paddingHorizontal: theme.spacing.xl,
-      paddingTop: 60,
+      paddingTop: 120,
       paddingBottom: 40,
     },
     header: {
       alignItems: 'center',
-      marginBottom: theme.spacing.xl,
+      marginBottom: theme.spacing.xxl,
     },
     logoContainer: {
       justifyContent: 'center',
@@ -182,9 +182,10 @@ export default function SignUpScreen({ onNavigateToSignIn }: SignUpScreenProps) 
       marginBottom: theme.spacing.lg,
     },
     logoImage: {
-      width: 96,
-      height: 96,
+      width: 120,
+      height: 120,
       borderRadius: 21.5,
+      resizeMode: 'contain' as const,
     },
     appName: {
       fontSize: 36,
@@ -194,11 +195,11 @@ export default function SignUpScreen({ onNavigateToSignIn }: SignUpScreenProps) 
     },
     tagline: {
       fontSize: 16,
-      color: '#8E8E93',
+      color: theme.colors.textSecondary,
     },
     formContainer: {
       flex: 1,
-      paddingTop: theme.spacing.md,
+      paddingTop: theme.spacing.lg,
     },
     strengthContainer: {
       flexDirection: 'row',

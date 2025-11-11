@@ -110,7 +110,7 @@ export default function LoginScreen({
     scrollContent: {
       flexGrow: 1,
       paddingHorizontal: theme.spacing.xl,
-      paddingTop: 80,
+      paddingTop: 120,
       paddingBottom: 40,
     },
     header: {
@@ -123,9 +123,10 @@ export default function LoginScreen({
       marginBottom: theme.spacing.lg,
     },
     logoImage: {
-      width: 96,
-      height: 96,
+      width: 120,
+      height: 120,
       borderRadius: 21.5,
+      resizeMode: 'contain' as const,
     },
     appName: {
       fontSize: 36,
@@ -135,7 +136,7 @@ export default function LoginScreen({
     },
     tagline: {
       fontSize: 16,
-      color: '#8E8E93',
+      color: theme.colors.textSecondary,
     },
     formContainer: {
       flex: 1,

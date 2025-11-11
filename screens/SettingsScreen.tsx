@@ -366,22 +366,6 @@ export default function SettingsScreen() {
             </View>
             <Text style={styles.tapToChangeText}>Tap to change icon</Text>
           </TouchableOpacity>
-
-          {/* Sign Out Button */}
-          <TouchableOpacity
-            style={[styles.signOutButton, isLoading && styles.signOutButtonDisabled]}
-            onPress={handleSignOut}
-            disabled={isLoading}
-            activeOpacity={0.8}>
-            {isLoading ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <>
-                <Ionicons name="log-out-outline" size={20} color="#FFFFFF" />
-                <Text style={styles.signOutButtonText}>Sign Out</Text>
-              </>
-            )}
-          </TouchableOpacity>
         </View>
 
         {/* Appearance Section */}
@@ -403,17 +387,9 @@ export default function SettingsScreen() {
                 <Text style={styles.themeLabel}>Theme</Text>
               </View>
               <View style={styles.themeToggleContainer}>
-                {themeMode === 'dark' ? (
-                  <>
-                    <Ionicons name="chevron-back" size={16} color={theme.colors.textSecondary} />
-                    <Text style={styles.themeToggleText}>Dark Mode</Text>
-                  </>
-                ) : (
-                  <>
-                    <Text style={styles.themeToggleText}>Light Mode</Text>
-                    <Ionicons name="chevron-forward" size={16} color={theme.colors.textSecondary} />
-                  </>
-                )}
+                <Text style={styles.themeToggleText}>
+                  {themeMode === 'dark' ? 'Dark Mode' : 'Light Mode'}
+                </Text>
               </View>
             </View>
           </TouchableOpacity>
@@ -433,6 +409,24 @@ export default function SettingsScreen() {
               <Text style={styles.infoValue}>Subscribely</Text>
             </View>
           </View>
+        </View>
+
+        {/* Sign Out Button */}
+        <View style={styles.section}>
+          <TouchableOpacity
+            style={[styles.signOutButton, isLoading && styles.signOutButtonDisabled]}
+            onPress={handleSignOut}
+            disabled={isLoading}
+            activeOpacity={0.8}>
+            {isLoading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <>
+                <Ionicons name="log-out-outline" size={20} color="#FFFFFF" />
+                <Text style={styles.signOutButtonText}>Sign Out</Text>
+              </>
+            )}
+          </TouchableOpacity>
         </View>
 
         {/* Footer */}
