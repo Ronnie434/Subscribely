@@ -55,8 +55,6 @@
       },
       "permissions": [
         "RECEIVE_BOOT_COMPLETED",
-        "VIBRATE",
-        "RECEIVE_BOOT_COMPLETED",
         "VIBRATE"
       ]
     },
@@ -64,7 +62,6 @@
       "bundler": "metro"
     },
     "scheme": "smartsubscriptiontracker",
-    "privacy": "public",
     "description": "Track and manage all your subscriptions in one place. Never miss a renewal date and stay on top of your monthly expenses.",
     "githubUrl": "https://github.com/yourusername/smart-subscription-tracker",
     "runtimeVersion": "1.0.0",
@@ -73,6 +70,9 @@
         "projectId": "6ba49749-39ac-4332-b0a9-1f6a9f00ee3c"
       }
     },
-    "owner": "ronnie39"
+    "owner": "ronnie39",
+    "plugins": [
+      "expo-font"
+    ]
   }
 }

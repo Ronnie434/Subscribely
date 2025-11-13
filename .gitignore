@@ -13,6 +13,7 @@ web-build/
 .DS_Store
 
 /android
+/ios
 
 # Environment variables
 .env
@@ -37,4 +38,6 @@ app-store-assets/
 # Credentials
 credentials.json
 
+# IDE
+.vscode/
 
