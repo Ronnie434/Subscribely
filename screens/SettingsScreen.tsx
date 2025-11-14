@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme, ThemeMode } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -81,7 +82,7 @@ export default function SettingsScreen() {
 
   const handleThemeToggle = async () => {
     if (Platform.OS === 'ios') {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
     
     try {
@@ -94,7 +95,17 @@ export default function SettingsScreen() {
     }
   };
 
+  const handleRowPress = (callback: () => void) => {
+    if (Platform.OS === 'ios') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    callback();
+  };
+
   const handleSignOut = () => {
+    if (Platform.OS === 'ios') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
     Alert.alert(
       'Sign Out',
       'Are you sure you want to sign out?',
@@ -136,13 +147,13 @@ export default function SettingsScreen() {
     },
     scrollContent: {
       paddingTop: 0,
-      paddingBottom: theme.spacing.xl,
+      paddingBottom: theme.spacing.lg,
     },
     section: {
-      marginTop: theme.spacing.lg,
+      marginTop: theme.spacing.md + 4,
     },
     firstSection: {
-      marginTop: theme.spacing.lg,
+      marginTop: theme.spacing.md + 4,
     },
     sectionTitle: {
       fontSize: 13,
@@ -150,22 +161,44 @@ export default function SettingsScreen() {
       color: theme.colors.textSecondary,
       textTransform: 'uppercase',
       letterSpacing: 0.5,
-      marginBottom: theme.spacing.sm,
+      marginBottom: theme.spacing.xs + 2,
       marginHorizontal: 16,
       paddingHorizontal: 2,
     },
     card: {
       backgroundColor: theme.colors.card,
       borderRadius: 16,
-      padding: 20,
+      padding: 16,
       marginHorizontal: 16,
       marginBottom: 0,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
       ...Platform.select({
         ios: {
-          shadowColor: theme.colors.shadow,
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: theme.isDark ? 0.3 : 0.08,
-          shadowRadius: 8,
+          shadowColor: '#00000010',
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.06,
+          shadowRadius: 4,
+        },
+        android: {
+          elevation: 2,
+        },
+      }),
+    },
+    accountCard: {
+      backgroundColor: theme.isDark ? theme.colors.card : '#F9F9F9',
+      borderRadius: 16,
+      padding: 16,
+      marginHorizontal: 16,
+      marginBottom: 0,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#00000010',
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.06,
+          shadowRadius: 4,
         },
         android: {
           elevation: 3,
@@ -204,20 +237,33 @@ export default function SettingsScreen() {
     themeToggleText: {
       fontSize: 16,
       color: theme.colors.textSecondary,
-      fontWeight: '500',
+      fontWeight: '400',
+    },
+    themeChevron: {
+      marginLeft: 4,
     },
     userInfoRow: {
       flexDirection: 'row',
       alignItems: 'center',
     },
+    chevronContainer: {
+      width: 20,
+      alignItems: 'flex-end',
+    },
     avatarContainer: {
-      width: 56,
-      height: 56,
-      borderRadius: 28,
-      backgroundColor: `${theme.colors.primary}20`,
+      width: 64,
+      height: 64,
+      borderRadius: 32,
       justifyContent: 'center',
       alignItems: 'center',
       marginRight: theme.spacing.md,
+      overflow: 'hidden',
+    },
+    avatarGradient: {
+      width: '100%',
+      height: '100%',
+      justifyContent: 'center',
+      alignItems: 'center',
     },
     userInfo: {
       flex: 1,
@@ -227,25 +273,29 @@ export default function SettingsScreen() {
       fontWeight: '600',
       color: theme.colors.text,
       marginBottom: 2,
+      lineHeight: 22,
     },
     userEmail: {
       fontSize: 14,
+      fontWeight: '400',
       color: theme.colors.textSecondary,
+      lineHeight: 18,
     },
     tapToChangeText: {
-      fontSize: 12,
-      color: theme.colors.textSecondary,
-      marginTop: theme.spacing.xs,
+      fontSize: 11,
+      color: '#8E8E93',
+      marginTop: theme.spacing.xs - 2,
       textAlign: 'center',
+      opacity: 0.65,
     },
     signOutButton: {
       backgroundColor: theme.colors.error,
-      borderRadius: theme.borderRadius.md,
+      borderRadius: 26,
       paddingVertical: 16,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: theme.spacing.sm,
+      gap: 12,
     },
     signOutButtonDisabled: {
       opacity: 0.6,
@@ -260,35 +310,41 @@ export default function SettingsScreen() {
       justifyContent: 'space-between',
       alignItems: 'center',
       paddingVertical: theme.spacing.xs + 2,
+      minHeight: 44,
     },
     infoLabel: {
       fontSize: 16,
       color: theme.colors.text,
       fontWeight: '500',
+      lineHeight: 22,
     },
     infoValue: {
       fontSize: 16,
-      color: theme.colors.textSecondary,
+      color: theme.isDark ? '#A8A8AD' : '#787880',
+      fontWeight: '400',
+      lineHeight: 22,
     },
     divider: {
-      height: 1,
-      backgroundColor: theme.colors.border,
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: theme.isDark ? theme.colors.border : '#E5E5EA',
       marginVertical: theme.spacing.xs - 2,
     },
     signOutSection: {
-      marginTop: theme.spacing.md,
+      marginTop: theme.spacing.md - 4,
       marginHorizontal: 16,
     },
     footer: {
-      marginTop: theme.spacing.lg,
+      marginTop: theme.spacing.md + 4,
       marginHorizontal: 16,
       alignItems: 'center',
-      marginBottom: theme.spacing.md,
+      marginBottom: theme.spacing.sm,
+      paddingVertical: theme.spacing.xs,
     },
     footerText: {
-      fontSize: 14,
+      fontSize: 13,
       color: theme.colors.textSecondary,
       textAlign: 'center',
+      opacity: 0.75,
     },
     modalOverlay: {
       flex: 1,
@@ -378,18 +434,26 @@ export default function SettingsScreen() {
           
           {/* User Info Card */}
           <TouchableOpacity 
-            style={styles.card} 
-            onPress={handleAvatarPress}
-            activeOpacity={0.8}>
+            style={styles.accountCard} 
+            onPress={() => handleRowPress(handleAvatarPress)}
+            activeOpacity={0.7}>
             <View style={styles.userInfoRow}>
               <View style={styles.avatarContainer}>
-                <Ionicons name={selectedIcon as any} size={24} color={theme.colors.primary} />
+                <LinearGradient
+                  colors={theme.gradients.primary}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.avatarGradient}>
+                  <Ionicons name={selectedIcon as any} size={28} color="#FFFFFF" />
+                </LinearGradient>
               </View>
               <View style={styles.userInfo}>
                 <Text style={styles.userName}>{user?.user_metadata?.name || 'User'}</Text>
                 <Text style={styles.userEmail}>{user?.email}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
+              <View style={styles.chevronContainer}>
+                <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
+              </View>
             </View>
             <Text style={styles.tapToChangeText}>Tap to change icon</Text>
           </TouchableOpacity>
@@ -418,7 +482,7 @@ export default function SettingsScreen() {
           <Text style={styles.sectionTitle}>Appearance</Text>
           <TouchableOpacity
             style={styles.card}
-            onPress={handleThemeToggle}
+            onPress={() => handleRowPress(handleThemeToggle)}
             activeOpacity={0.7}>
             <View style={styles.themeRow}>
               <View style={styles.themeRowLeft}>
@@ -435,6 +499,9 @@ export default function SettingsScreen() {
                 <Text style={styles.themeToggleText}>
                   {themeMode === 'dark' ? 'Dark Mode' : 'Light Mode'}
                 </Text>
+                <View style={styles.themeChevron}>
+                  <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
+                </View>
               </View>
             </View>
           </TouchableOpacity>
