@@ -34,6 +34,7 @@ export default function SettingsScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedIcon, setSelectedIcon] = useState<string>('person');
   const [showIconPicker, setShowIconPicker] = useState(false);
+  const [showThemePicker, setShowThemePicker] = useState(false);
 
   // Load saved icon preference
   useEffect(() => {
@@ -80,18 +81,41 @@ export default function SettingsScreen() {
     setShowIconPicker(true);
   };
 
-  const handleThemeToggle = async () => {
+  const handleThemeSelect = async (mode: ThemeMode) => {
     if (Platform.OS === 'ios') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
     
     try {
-      // Toggle between light and dark only
-      const newMode: ThemeMode = themeMode === 'dark' ? 'light' : 'dark';
-      await setThemeMode(newMode);
+      await setThemeMode(mode);
+      setShowThemePicker(false);
+      
+      if (Platform.OS === 'ios') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
     } catch (error) {
       console.error('Error changing theme:', error);
       Alert.alert('Error', 'Failed to change theme. Please try again.');
+    }
+  };
+
+  const handleThemePress = () => {
+    if (Platform.OS === 'ios') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    setShowThemePicker(true);
+  };
+
+  const getThemeLabel = (mode: ThemeMode): string => {
+    switch (mode) {
+      case 'light':
+        return 'Light Mode';
+      case 'dark':
+        return 'Dark Mode';
+      case 'auto':
+        return 'System';
+      default:
+        return 'System';
     }
   };
 
@@ -423,6 +447,57 @@ export default function SettingsScreen() {
       color: theme.colors.primary,
       fontWeight: '600',
     },
+    themeOptionsContainer: {
+      padding: 16,
+    },
+    themeOption: {
+      backgroundColor: theme.colors.card,
+      borderRadius: 12,
+      padding: 16,
+      marginBottom: 12,
+      borderWidth: 2,
+      borderColor: 'transparent',
+    },
+    themeOptionSelected: {
+      backgroundColor: theme.colors.primary,
+      borderColor: theme.colors.primary,
+    },
+    themeOptionContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    themeOptionIconContainer: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: `${theme.colors.primary}20`,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 16,
+    },
+    themeOptionIconContainerSelected: {
+      backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    },
+    themeOptionTextContainer: {
+      flex: 1,
+    },
+    themeOptionLabel: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: theme.colors.text,
+      marginBottom: 4,
+    },
+    themeOptionLabelSelected: {
+      color: '#FFFFFF',
+    },
+    themeOptionDescription: {
+      fontSize: 14,
+      fontWeight: '400',
+      color: theme.colors.textSecondary,
+    },
+    themeOptionDescriptionSelected: {
+      color: 'rgba(255, 255, 255, 0.8)',
+    },
   });
 
   return (
@@ -482,13 +557,13 @@ export default function SettingsScreen() {
           <Text style={styles.sectionTitle}>Appearance</Text>
           <TouchableOpacity
             style={styles.card}
-            onPress={() => handleRowPress(handleThemeToggle)}
+            onPress={() => handleRowPress(handleThemePress)}
             activeOpacity={0.7}>
             <View style={styles.themeRow}>
               <View style={styles.themeRowLeft}>
                 <View style={styles.themeIconContainer}>
                   <Ionicons
-                    name={themeMode === 'dark' ? 'moon' : 'sunny'}
+                    name={theme.isDark ? 'moon' : 'sunny'}
                     size={22}
                     color={theme.colors.primary}
                   />
@@ -497,7 +572,7 @@ export default function SettingsScreen() {
               </View>
               <View style={styles.themeToggleContainer}>
                 <Text style={styles.themeToggleText}>
-                  {themeMode === 'dark' ? 'Dark Mode' : 'Light Mode'}
+                  {getThemeLabel(themeMode)}
                 </Text>
                 <View style={styles.themeChevron}>
                   <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
@@ -582,6 +657,134 @@ export default function SettingsScreen() {
                 </TouchableOpacity>
               ))}
             </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Theme Picker Modal */}
+      <Modal
+        visible={showThemePicker}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowThemePicker(false)}>
+        <View style={styles.modalOverlay}>
+          <Pressable 
+            style={styles.modalBackdrop} 
+            onPress={() => setShowThemePicker(false)} 
+          />
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Choose Theme</Text>
+              <TouchableOpacity
+                onPress={() => setShowThemePicker(false)}
+                style={styles.modalCloseButton}>
+                <Ionicons name="close" size={24} color={theme.colors.text} />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.themeOptionsContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.themeOption,
+                  themeMode === 'light' && styles.themeOptionSelected,
+                ]}
+                onPress={() => handleThemeSelect('light')}
+                activeOpacity={0.7}>
+                <View style={styles.themeOptionContent}>
+                  <View style={[
+                    styles.themeOptionIconContainer,
+                    themeMode === 'light' && styles.themeOptionIconContainerSelected,
+                  ]}>
+                    <Ionicons name="sunny" size={24} color={themeMode === 'light' ? '#FFFFFF' : theme.colors.primary} />
+                  </View>
+                  <View style={styles.themeOptionTextContainer}>
+                    <Text style={[
+                      styles.themeOptionLabel,
+                      themeMode === 'light' && styles.themeOptionLabelSelected,
+                    ]}>
+                      Light Mode
+                    </Text>
+                    <Text style={[
+                      styles.themeOptionDescription,
+                      themeMode === 'light' && styles.themeOptionDescriptionSelected,
+                    ]}>
+                      Always use light theme
+                    </Text>
+                  </View>
+                  {themeMode === 'light' && (
+                    <Ionicons name="checkmark-circle" size={24} color="#FFFFFF" />
+                  )}
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.themeOption,
+                  themeMode === 'dark' && styles.themeOptionSelected,
+                ]}
+                onPress={() => handleThemeSelect('dark')}
+                activeOpacity={0.7}>
+                <View style={styles.themeOptionContent}>
+                  <View style={[
+                    styles.themeOptionIconContainer,
+                    themeMode === 'dark' && styles.themeOptionIconContainerSelected,
+                  ]}>
+                    <Ionicons name="moon" size={24} color={themeMode === 'dark' ? '#FFFFFF' : theme.colors.primary} />
+                  </View>
+                  <View style={styles.themeOptionTextContainer}>
+                    <Text style={[
+                      styles.themeOptionLabel,
+                      themeMode === 'dark' && styles.themeOptionLabelSelected,
+                    ]}>
+                      Dark Mode
+                    </Text>
+                    <Text style={[
+                      styles.themeOptionDescription,
+                      themeMode === 'dark' && styles.themeOptionDescriptionSelected,
+                    ]}>
+                      Always use dark theme
+                    </Text>
+                  </View>
+                  {themeMode === 'dark' && (
+                    <Ionicons name="checkmark-circle" size={24} color="#FFFFFF" />
+                  )}
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.themeOption,
+                  themeMode === 'auto' && styles.themeOptionSelected,
+                ]}
+                onPress={() => handleThemeSelect('auto')}
+                activeOpacity={0.7}>
+                <View style={styles.themeOptionContent}>
+                  <View style={[
+                    styles.themeOptionIconContainer,
+                    themeMode === 'auto' && styles.themeOptionIconContainerSelected,
+                  ]}>
+                    <Ionicons name="phone-portrait" size={24} color={themeMode === 'auto' ? '#FFFFFF' : theme.colors.primary} />
+                  </View>
+                  <View style={styles.themeOptionTextContainer}>
+                    <Text style={[
+                      styles.themeOptionLabel,
+                      themeMode === 'auto' && styles.themeOptionLabelSelected,
+                    ]}>
+                      System
+                    </Text>
+                    <Text style={[
+                      styles.themeOptionDescription,
+                      themeMode === 'auto' && styles.themeOptionDescriptionSelected,
+                    ]}>
+                      Follow system theme
+                    </Text>
+                  </View>
+                  {themeMode === 'auto' && (
+                    <Ionicons name="checkmark-circle" size={24} color="#FFFFFF" />
+                  )}
+                </View>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
