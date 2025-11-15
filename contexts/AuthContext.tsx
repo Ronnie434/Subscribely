@@ -5,7 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { migrateLocalSubscriptions } from '../services/subscriptionService';
 import { useInactivityTimer } from '../hooks/useInactivityTimer';
 import * as SecureStore from 'expo-secure-store';
-import { Platform, AppState, AppStateStatus } from 'react-native';
+import { Platform } from 'react-native';
 
 interface AuthContextType {
   user: User | null;
@@ -735,65 +735,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     signOutRef.current = signOut;
   }, [signOut]);
 
-  // Clear session when app goes to background (when user closes/swipes away the app)
-  // This ensures that when they reopen the app, they need to log in again
-  useEffect(() => {
-    const handleAppStateChange = async (nextAppState: AppStateStatus) => {
-      // When app goes to background, clear the session from storage
-      if (nextAppState.match(/inactive|background/)) {
-        if (user) {
-          if (__DEV__) {
-            console.log('[AuthContext] App going to background, clearing session from storage');
-          }
-          
-          // Clear session from storage immediately when app goes to background
-          try {
-            const supabaseUrl = supabase.supabaseUrl.replace('https://', '').replace('http://', '');
-            const projectRef = supabaseUrl.split('.')[0];
-            
-            const storageKeys = [
-              `sb-${projectRef}-auth-token`,
-              `sb-${projectRef}-auth-token-code-verifier`,
-              `sb-${supabaseUrl}-auth-token`,
-              `sb-${supabaseUrl}-auth-token-code-verifier`,
-            ];
-            
-            if (Platform.OS !== 'web') {
-              for (const key of storageKeys) {
-                try {
-                  await SecureStore.deleteItemAsync(key);
-                } catch (e) {
-                  // Ignore if key doesn't exist
-                }
-              }
-            } else {
-              for (const key of storageKeys) {
-                try {
-                  await AsyncStorage.removeItem(key);
-                } catch (e) {
-                  // Ignore if key doesn't exist
-                }
-              }
-            }
-            
-            if (__DEV__) {
-              console.log('[AuthContext] Session cleared from storage on app background');
-            }
-          } catch (storageError) {
-            if (__DEV__) {
-              console.warn('[AuthContext] Error clearing session on background:', storageError);
-            }
-          }
-        }
-      }
-    };
-
-    const subscription = AppState.addEventListener('change', handleAppStateChange);
-
-    return () => {
-      subscription.remove();
-    };
-  }, [user]);
+  // Note: Session clearing on background is handled by useInactivityTimer
+  // which waits 2 minutes before calling signOut. This ensures users can
+  // quickly switch apps without being logged out immediately.
 
   // Set up inactivity timer for auto-logout
   // Only enabled when user is authenticated
