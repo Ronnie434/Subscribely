@@ -532,13 +532,24 @@ export default function SubscriptionForm({ subscription, onSubmit, onCancel, isS
     modalOverlay: {
       flex: 1,
       justifyContent: 'flex-end',
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      backgroundColor: theme.isDark ? 'rgba(0, 0, 0, 0.5)' : 'rgba(0, 0, 0, 0.4)',
     },
     modalContent: {
-      backgroundColor: theme.colors.surface,
+      backgroundColor: theme.isDark ? theme.colors.card : '#FFFFFF',
       borderTopLeftRadius: 20,
       borderTopRightRadius: 20,
       paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000000',
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: theme.isDark ? 0.3 : 0.1,
+          shadowRadius: 8,
+        },
+        android: {
+          elevation: 8,
+        },
+      }),
     },
     modalHeader: {
       flexDirection: 'row',
@@ -562,6 +573,12 @@ export default function SubscriptionForm({ subscription, onSubmit, onCancel, isS
       fontSize: 17,
       fontWeight: '600',
       color: theme.colors.primary,
+    },
+    pickerContainer: {
+      backgroundColor: theme.isDark ? theme.colors.card : '#FFFFFF',
+      paddingVertical: 16,
+      paddingHorizontal: 16,
+      alignItems: 'center',
     },
     submitButtonDisabled: {
       opacity: 0.6,
@@ -877,17 +894,20 @@ export default function SubscriptionForm({ subscription, onSubmit, onCancel, isS
                       <Text style={styles.modalDoneText}>Done</Text>
                     </Pressable>
                   </View>
-                  <DateTimePicker
-                    value={customRenewalDate}
-                    mode="date"
-                    display="spinner"
-                    onChange={(event, selectedDate) => {
-                      if (selectedDate) {
-                        setCustomRenewalDate(selectedDate);
-                      }
-                    }}
-                    minimumDate={new Date()}
-                  />
+                  <View style={styles.pickerContainer}>
+                    <DateTimePicker
+                      value={customRenewalDate}
+                      mode="date"
+                      display="inline"
+                      onChange={(event, selectedDate) => {
+                        if (selectedDate) {
+                          setCustomRenewalDate(selectedDate);
+                        }
+                      }}
+                      minimumDate={new Date()}
+                      themeVariant={theme.isDark ? 'dark' : 'light'}
+                    />
+                  </View>
                 </View>
               </View>
             </Modal>
