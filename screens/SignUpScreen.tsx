@@ -46,6 +46,8 @@ export default function SignUpScreen({ onNavigateToSignIn }: SignUpScreenProps) 
   const [passwordError, setPasswordError] = useState('');
   const [confirmPasswordError, setConfirmPasswordError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  // Logo is preloaded at app startup, so it should be available immediately
+  // No need for loading state since it's a local asset
 
   const passwordStrength = password ? getPasswordStrength(password) : null;
   const isProcessing = isLoading || authLoading;
@@ -132,7 +134,12 @@ export default function SignUpScreen({ onNavigateToSignIn }: SignUpScreenProps) 
     <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
         <View style={styles.logoContainer}>
-          <Image source={require('../assets/app-logo.png')} style={styles.logoImage} />
+          <Image
+            source={require('../assets/app-logo.png')}
+            style={styles.logoImage}
+            fadeDuration={0}
+            resizeMode="contain"
+          />
         </View>
         <Text style={styles.appName}>Subscribely</Text>
         <Text style={styles.tagline}>Track your subscriptions smartly</Text>

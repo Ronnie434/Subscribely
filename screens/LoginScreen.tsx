@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -90,6 +90,17 @@ export default function LoginScreen({
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [logoLoaded, setLogoLoaded] = useState(false);
+
+  // Preload logo image to prevent flickering
+  useEffect(() => {
+    // For local assets, they should be available immediately from the bundle
+    // Set loaded to true after a minimal delay to ensure smooth rendering
+    const timer = setTimeout(() => {
+      setLogoLoaded(true);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
 
   const validateEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -271,8 +282,10 @@ export default function LoginScreen({
           <View style={styles.logoContainer}>
             <Image
               source={require('../assets/app-logo.png')}
-              style={styles.logoImage}
+              style={[styles.logoImage, !logoLoaded && { opacity: 0 }]}
               resizeMode="contain"
+              onLoad={() => setLogoLoaded(true)}
+              fadeDuration={0}
             />
           </View>
           <Text style={styles.appName}>Subscribely</Text>

@@ -4,6 +4,8 @@ import { supabase } from '../config/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { migrateLocalSubscriptions } from '../services/subscriptionService';
 import { useInactivityTimer } from '../hooks/useInactivityTimer';
+import * as SecureStore from 'expo-secure-store';
+import { Platform, AppState, AppStateStatus } from 'react-native';
 
 interface AuthContextType {
   user: User | null;
@@ -92,20 +94,60 @@ export function AuthProvider({ children }: AuthProviderProps) {
         // Only log errors, don't show to user during initialization
         // Most auth errors during init are expected (no session, expired session, etc.)
         console.error('Error getting session:', error);
+        // Clear any stale session data
+        setSession(null);
+        setUser(null);
         // Don't set error state - these are usually expected scenarios
-      } else {
-        setSession(session);
-        setUser(session?.user ?? null);
+      } else if (session) {
+        // Validate that the session is not expired
+        // Supabase sessions have expires_at in seconds (Unix timestamp)
+        const expiresAt = session.expires_at;
+        const now = Math.floor(Date.now() / 1000); // Current time in seconds
         
-        // Trigger migration if user is authenticated
-        if (session?.user) {
-          performMigration();
+        if (__DEV__) {
+          console.log('[AuthContext] Checking session:', {
+            hasSession: !!session,
+            hasUser: !!session.user,
+            expiresAt,
+            now,
+            isExpired: expiresAt ? expiresAt < now : 'unknown',
+            expiresIn: expiresAt ? `${Math.floor((expiresAt - now) / 60)} minutes` : 'unknown'
+          });
         }
+        
+        if (expiresAt && expiresAt < now) {
+          // Session is expired, clear it
+          if (__DEV__) {
+            console.log('[AuthContext] Session expired, clearing session');
+          }
+          await supabase.auth.signOut();
+          setSession(null);
+          setUser(null);
+        } else {
+          // Session is valid, set it
+          if (__DEV__) {
+            console.log('[AuthContext] Valid session found, restoring user');
+          }
+          setSession(session);
+          setUser(session.user ?? null);
+          
+          // Trigger migration if user is authenticated
+          if (session.user) {
+            performMigration();
+          }
+        }
+      } else {
+        // No session found
+        setSession(null);
+        setUser(null);
       }
     } catch (err) {
       // Only log initialization errors, don't show to user
       // These are usually network issues or setup problems that shouldn't block the app
       console.error('Error initializing auth:', err);
+      // Clear session on error
+      setSession(null);
+      setUser(null);
       // Don't set error state - let user try to sign in
     } finally {
       setLoading(false);
@@ -588,6 +630,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // Clear local subscription data
       await AsyncStorage.removeItem('subscriptions');
 
+      // Sign out from Supabase - this should clear the session from SecureStore
       const { error } = await supabase.auth.signOut();
       
       if (error) {
@@ -599,8 +642,69 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if (!silent && !isExpectedAuthError) {
           setError(error.message);
         }
-        // Always log errors for debugging, but don't show to user during auto-logout
-        console.error('Error signing out:', error);
+        // Log expected errors at debug level, unexpected errors as warnings
+        if (isExpectedAuthError) {
+          if (__DEV__) {
+            console.log('Expected auth error during sign out (session already expired):', error.message);
+          }
+        } else {
+          console.warn('Error signing out:', error);
+        }
+      }
+
+      // Manually ensure session is cleared from SecureStore/AsyncStorage
+      // This is critical for both manual logout and inactivity logout
+      // We want to prevent auto-login on app restart after any logout
+      // Supabase's signOut should handle this, but we ensure it's cleared even if signOut had errors
+      try {
+        // Supabase uses a specific key format based on the URL
+        // Format: sb-{project-ref}-auth-token and sb-{project-ref}-auth-token-code-verifier
+        const supabaseUrl = supabase.supabaseUrl.replace('https://', '').replace('http://', '');
+        const projectRef = supabaseUrl.split('.')[0];
+        
+        // List of all possible Supabase auth storage keys
+        const storageKeys = [
+          `sb-${projectRef}-auth-token`,
+          `sb-${projectRef}-auth-token-code-verifier`,
+          // Also try with full URL hash (Supabase might use this in some cases)
+          `sb-${supabaseUrl}-auth-token`,
+          `sb-${supabaseUrl}-auth-token-code-verifier`,
+        ];
+        
+        // Clear all possible keys from storage
+        if (Platform.OS !== 'web') {
+          // Clear from SecureStore (iOS/Android)
+          for (const key of storageKeys) {
+            try {
+              await SecureStore.deleteItemAsync(key);
+              if (__DEV__) {
+                console.log(`[AuthContext] Cleared storage key: ${key}`);
+              }
+            } catch (e) {
+              // Ignore if key doesn't exist - this is expected
+            }
+          }
+        } else {
+          // Clear from AsyncStorage (Web)
+          for (const key of storageKeys) {
+            try {
+              await AsyncStorage.removeItem(key);
+              if (__DEV__) {
+                console.log(`[AuthContext] Cleared storage key: ${key}`);
+              }
+            } catch (e) {
+              // Ignore if key doesn't exist - this is expected
+            }
+          }
+        }
+        
+        if (__DEV__) {
+          console.log('[AuthContext] Session cleared from storage, user logged out');
+        }
+      } catch (storageError) {
+        if (__DEV__) {
+          console.warn('[AuthContext] Error clearing session storage:', storageError);
+        }
       }
 
       // Reset state
@@ -631,10 +735,71 @@ export function AuthProvider({ children }: AuthProviderProps) {
     signOutRef.current = signOut;
   }, [signOut]);
 
+  // Clear session when app goes to background (when user closes/swipes away the app)
+  // This ensures that when they reopen the app, they need to log in again
+  useEffect(() => {
+    const handleAppStateChange = async (nextAppState: AppStateStatus) => {
+      // When app goes to background, clear the session from storage
+      if (nextAppState.match(/inactive|background/)) {
+        if (user) {
+          if (__DEV__) {
+            console.log('[AuthContext] App going to background, clearing session from storage');
+          }
+          
+          // Clear session from storage immediately when app goes to background
+          try {
+            const supabaseUrl = supabase.supabaseUrl.replace('https://', '').replace('http://', '');
+            const projectRef = supabaseUrl.split('.')[0];
+            
+            const storageKeys = [
+              `sb-${projectRef}-auth-token`,
+              `sb-${projectRef}-auth-token-code-verifier`,
+              `sb-${supabaseUrl}-auth-token`,
+              `sb-${supabaseUrl}-auth-token-code-verifier`,
+            ];
+            
+            if (Platform.OS !== 'web') {
+              for (const key of storageKeys) {
+                try {
+                  await SecureStore.deleteItemAsync(key);
+                } catch (e) {
+                  // Ignore if key doesn't exist
+                }
+              }
+            } else {
+              for (const key of storageKeys) {
+                try {
+                  await AsyncStorage.removeItem(key);
+                } catch (e) {
+                  // Ignore if key doesn't exist
+                }
+              }
+            }
+            
+            if (__DEV__) {
+              console.log('[AuthContext] Session cleared from storage on app background');
+            }
+          } catch (storageError) {
+            if (__DEV__) {
+              console.warn('[AuthContext] Error clearing session on background:', storageError);
+            }
+          }
+        }
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+    return () => {
+      subscription.remove();
+    };
+  }, [user]);
+
   // Set up inactivity timer for auto-logout
   // Only enabled when user is authenticated
   const { resetTimer } = useInactivityTimer({
-    timeout: 5 * 60 * 1000, // 5 minutes
+    timeout: 5 * 60 * 1000, // 5 minutes for foreground inactivity
+    backgroundTimeout: 2 * 60 * 1000, // 2 minutes when app goes to background
     onTimeout: async () => {
       console.log('Auto-logout triggered due to inactivity');
       if (signOutRef.current) {
