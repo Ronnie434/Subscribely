@@ -1,6 +1,7 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { Subscription } from '../types';
+import { dateHelpers } from './dateHelpers';
 
 /**
  * Requests notification permissions from the user.
@@ -105,11 +106,14 @@ export async function scheduleRenewalNotification(
     const daysUntilNotification = Math.ceil((triggerDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
     console.log(`  Days until notification: ${daysUntilNotification}`);
 
+    // Format the renewal date for the notification message
+    const formattedRenewalDate = dateHelpers.formatDate(renewalDate);
+
     // Schedule the notification
     const notificationId = await Notifications.scheduleNotificationAsync({
       content: {
         title: 'Subscription Renews Tomorrow',
-        body: `Your ${subscription.name} subscription ($${subscription.cost.toFixed(2)}) renews tomorrow`,
+        body: `Your ${subscription.name} subscription ($${subscription.cost.toFixed(2)}) renews tomorrow on ${formattedRenewalDate}`,
         data: {
           subscriptionId: subscription.id,
           subscriptionName: subscription.name,
@@ -117,7 +121,9 @@ export async function scheduleRenewalNotification(
         sound: true,
       },
       trigger: {
-        date: triggerDate,
+        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+        seconds: Math.floor((triggerDate.getTime() - Date.now()) / 1000),
+        repeats: false,
         channelId: Platform.OS === 'android' ? 'subscription-reminders' : undefined,
       },
     });
