@@ -19,6 +19,8 @@ import { useTheme } from '../contexts/ThemeContext';
 import { SUBSCRIPTION_PLANS } from '../config/stripe';
 import { paymentService } from '../services/paymentService';
 import { usageTrackingService } from '../services/usageTrackingService';
+import { subscriptionLimitService } from '../services/subscriptionLimitService';
+import { subscriptionTierService } from '../services/subscriptionTierService';
 
 type RootStackParamList = {
   PlanSelection: undefined;
@@ -80,25 +82,36 @@ export default function PaymentScreen({
     setProcessingPayment(true);
 
     try {
+      console.log('=== Payment Flow Started ===');
+      console.log('Plan:', plan);
+      console.log('Amount:', amount);
+      
       // Track payment initiation
       await usageTrackingService.trackPaymentInitiated(plan, amount);
 
-      // Initiate subscription with backend
-      const { clientSecret, subscriptionId } = await paymentService.initiateSubscription(
-        plan,
-        planDetails.priceId
-      );
+      // Step 1: Get client secret from backend
+      console.log('Step 1: Initiating subscription for plan:', plan);
+      const response = await paymentService.initiateSubscription(plan);
+      console.log('Received response:', response);
 
-      if (!clientSecret) {
-        throw new Error('Failed to initialize payment');
+      if (!response.clientSecret) {
+        console.error('No client secret in response:', response);
+        throw new Error('Failed to initialize payment - no client secret received');
       }
 
-      // Confirm payment with Stripe
-      const { error, paymentIntent } = await confirmPayment(clientSecret, {
+      console.log('Client secret received:', response.clientSecret.substring(0, 30) + '...');
+      console.log('Subscription ID:', response.subscriptionId);
+      console.log('Status:', response.status);
+
+      // Step 2: Confirm payment with Stripe
+      console.log('Step 2: Confirming payment with Stripe...');
+      const { error, paymentIntent } = await confirmPayment(response.clientSecret, {
         paymentMethodType: 'Card',
       });
 
       if (error) {
+        console.error('Payment confirmation failed:', error);
+        
         // Track payment failure
         await usageTrackingService.trackPaymentFailed(
           plan,
@@ -114,7 +127,18 @@ export default function PaymentScreen({
           error.message || 'Your payment could not be processed. Please try again.',
           [{ text: 'OK' }]
         );
-      } else if (paymentIntent?.status === 'Succeeded') {
+        return;
+      }
+
+      console.log('Payment confirmed!');
+      console.log('Payment Intent ID:', paymentIntent?.id);
+      console.log('Payment Intent Status:', paymentIntent?.status);
+
+      // Step 3: Verify payment succeeded
+      if (paymentIntent?.status === 'succeeded' || paymentIntent?.status === 'Succeeded') {
+        console.log('=== Payment Succeeded ===');
+        console.log('Payment Intent ID:', paymentIntent.id);
+        
         // Track payment completion
         await usageTrackingService.trackPaymentCompleted(
           plan,
@@ -126,7 +150,21 @@ export default function PaymentScreen({
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }
 
+        // Step 4: Refresh subscription status and tier info
+        console.log('Refreshing subscription status and tier info...');
+        try {
+          await Promise.all([
+            subscriptionLimitService.refreshLimitStatus(),
+            subscriptionTierService.refreshTierInfo(),
+          ]);
+          console.log('✅ Cache refreshed successfully');
+        } catch (refreshError) {
+          console.error('⚠️ Error refreshing cache (non-critical):', refreshError);
+          // Continue anyway - the webhook will update the database
+        }
+
         // Show success message and navigate
+        console.log('Showing success alert...');
         Alert.alert(
           'Payment Successful!',
           'Welcome to Premium! You now have access to all premium features.',
@@ -134,24 +172,26 @@ export default function PaymentScreen({
             {
               text: 'Continue',
               onPress: () => {
-                // Navigate to subscription management screen
-                navigation.reset({
-                  index: 0,
-                  routes: [{ name: 'SubscriptionManagement' }],
-                });
+                console.log('Navigating to Home screen...');
+                // Navigate to home screen
+                navigation.navigate('Home' as any);
               },
             },
           ]
         );
       } else {
-        throw new Error('Payment status unknown');
+        console.error('Unexpected payment status:', paymentIntent?.status);
+        throw new Error(`Payment status is ${paymentIntent?.status || 'unknown'}`);
       }
     } catch (error) {
-      console.error('Payment error:', error);
+      console.error('=== Payment Error ===');
+      console.error('Error details:', error);
       
-      const errorMessage = error instanceof Error 
-        ? error.message 
+      const errorMessage = error instanceof Error
+        ? error.message
         : 'An unexpected error occurred';
+
+      console.error('Error message:', errorMessage);
 
       await usageTrackingService.trackPaymentFailed(plan, errorMessage).catch(console.error);
 
@@ -161,11 +201,12 @@ export default function PaymentScreen({
 
       Alert.alert(
         'Payment Error',
-        'Unable to process your payment. Please check your card details and try again.',
+        errorMessage || 'Unable to process your payment. Please check your card details and try again.',
         [{ text: 'OK' }]
       );
     } finally {
       setProcessingPayment(false);
+      console.log('=== Payment Flow Completed ===');
     }
   };
 

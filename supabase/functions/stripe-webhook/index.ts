@@ -26,8 +26,8 @@ serve(async (req) => {
   try {
     // Initialize Supabase client with service role
     const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      Deno.env.get('PROJECT_URL') ?? '',
+      Deno.env.get('SERVICE_ROLE_KEY') ?? ''
     );
 
     // Get raw body for signature verification
@@ -102,7 +102,9 @@ serve(async (req) => {
       .insert({
         event_id: event.id,
         event_type: event.type,
-        processed: true,
+        event_data: event,
+        processing_status: 'processed',
+        processed_at: new Date().toISOString(),
       });
 
     // Always return 200 to acknowledge receipt
@@ -258,7 +260,10 @@ async function handlePaymentSucceeded(supabase: any, event: Stripe.Event) {
     return;
   }
 
-  console.log(`Payment succeeded for invoice: ${invoice.id}`);
+  console.log('Processing invoice.payment_succeeded event');
+  console.log('Invoice paid:', invoice.id);
+  console.log('Subscription:', invoice.subscription);
+  console.log('Amount:', invoice.amount_paid / 100);
 
   // Get subscription record
   const { data: subRecord } = await supabase
@@ -272,22 +277,7 @@ async function handlePaymentSucceeded(supabase: any, event: Stripe.Event) {
     return;
   }
 
-  // Record payment transaction
-  const { error: txError } = await supabase
-    .from('payment_transactions')
-    .insert({
-      user_subscription_id: subRecord.id,
-      stripe_payment_intent_id: invoice.payment_intent as string,
-      amount: invoice.amount_paid / 100, // Convert from cents
-      currency: invoice.currency,
-      status: 'succeeded',
-    });
-
-  if (txError) {
-    console.error('Error recording payment transaction:', txError);
-  }
-
-  // Update subscription status to active
+  // 1. Update subscription status to active
   const { error: updateError } = await supabase
     .from('user_subscriptions')
     .update({
@@ -297,8 +287,55 @@ async function handlePaymentSucceeded(supabase: any, event: Stripe.Event) {
     .eq('id', subRecord.id);
 
   if (updateError) {
-    console.error('Error updating subscription status:', updateError);
-    throw updateError;
+    console.error('Failed to update subscription status:', updateError);
+  } else {
+    console.log('✅ Subscription status updated to active');
+  }
+
+  // 2. Record payment transaction with all required fields
+  const { error: txError } = await supabase
+    .from('payment_transactions')
+    .insert({
+      user_subscription_id: subRecord.id,
+      stripe_payment_intent_id: invoice.payment_intent as string,
+      stripe_invoice_id: invoice.id,
+      amount: invoice.amount_paid / 100, // Convert from cents
+      currency: invoice.currency,
+      status: 'succeeded',
+      payment_method_type: 'card',
+      metadata: {
+        billing_reason: invoice.billing_reason,
+        subscription_id: invoice.subscription,
+      },
+    });
+
+  if (txError) {
+    console.error('Failed to insert payment transaction:', txError);
+  } else {
+    console.log('✅ Payment transaction recorded');
+  }
+
+  // 3. Track payment_completed event
+  const billingCycle = invoice.lines?.data?.[0]?.plan?.interval || 'unknown';
+  const { error: trackError } = await supabase
+    .from('usage_tracking_events')
+    .insert({
+      user_id: subRecord.user_id,
+      event_type: 'payment_completed',
+      event_context: 'webhook_payment_success',
+      event_data: {
+        amount: invoice.amount_paid / 100,
+        subscription_id: invoice.subscription,
+        billing_cycle: billingCycle,
+        invoice_id: invoice.id,
+        payment_intent_id: invoice.payment_intent,
+      },
+    });
+
+  if (trackError) {
+    console.error('Failed to track payment_completed:', trackError);
+  } else {
+    console.log('✅ Payment completed event tracked');
   }
 }
 

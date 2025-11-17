@@ -5,11 +5,23 @@
 
 import Stripe from 'https://esm.sh/stripe@14.0.0';
 
+// Verify Stripe key and log initialization
+const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY');
+console.log('🔑 Stripe key format check:', stripeSecretKey ? `${stripeSecretKey.substring(0, 7)}...` : 'MISSING');
+console.log('🔑 Stripe key starts with sk_test_:', stripeSecretKey?.startsWith('sk_test_'));
+console.log('🔑 Stripe key starts with sk_live_:', stripeSecretKey?.startsWith('sk_live_'));
+
+if (!stripeSecretKey) {
+  console.error('❌ CRITICAL: STRIPE_SECRET_KEY is missing from environment variables!');
+}
+
 // Initialize Stripe client with secret key from environment
-export const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
+export const stripe = new Stripe(stripeSecretKey || '', {
   apiVersion: '2023-10-16',
   httpClient: Stripe.createFetchHttpClient(),
 });
+
+console.log('✅ Stripe SDK initialized successfully');
 
 // Webhook secret for verifying Stripe webhook signatures
 export const WEBHOOK_SECRET = Deno.env.get('STRIPE_WEBHOOK_SECRET') || '';

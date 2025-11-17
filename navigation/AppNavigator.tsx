@@ -126,6 +126,7 @@ function SubscriptionsNavigator() {
           title: 'Edit Subscription',
           headerShown: true,
         }}
+      />
       <SubscriptionsStack.Screen
         name="PlanSelection"
         component={PlanSelectionScreen}
@@ -149,7 +150,6 @@ function SubscriptionsNavigator() {
           title: 'Manage Subscription',
           headerShown: true,
         }}
-      />
       />
     </SubscriptionsStack.Navigator>
   );

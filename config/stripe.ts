@@ -19,7 +19,7 @@ export const stripeConfig = {
 // NOTE: Replace these Price IDs with your actual Stripe Price IDs from the Stripe Dashboard
 export const SUBSCRIPTION_PLANS = {
   monthly: {
-    priceId: process.env.STRIPE_PRICE_ID_MONTHLY || 'price_xxx', // Replace with actual Stripe Price ID
+    priceId: 'price_1SUXJY2MEnHaTSaA3VeJyYdX', // Replace with actual Stripe Price ID
     amount: 4.99,
     interval: 'month' as const,
     displayName: 'Monthly Premium',
@@ -32,7 +32,7 @@ export const SUBSCRIPTION_PLANS = {
     ],
   },
   yearly: {
-    priceId: process.env.STRIPE_PRICE_ID_YEARLY || 'price_yyy', // Replace with actual Stripe Price ID
+    priceId: 'price_1SUXJY2MEnHaTSaAmQrK7lbY', // Replace with actual Stripe Price ID
     amount: 39.00,
     interval: 'year' as const,
     displayName: 'Yearly Premium',

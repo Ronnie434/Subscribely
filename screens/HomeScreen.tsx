@@ -28,6 +28,7 @@ import LimitReachedBanner from '../components/LimitReachedBanner';
 import { subscriptionLimitService } from '../services/subscriptionLimitService';
 import { usageTrackingService } from '../services/usageTrackingService';
 import { useRealtimeSubscriptions } from '../hooks/useRealtimeSubscriptions';
+import { supabase } from '../config/supabase';
 
 type SubscriptionsStackParamList = {
   Home: undefined;
@@ -140,6 +141,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       setLoading(false);
       setRefreshing(false);
     }
+  };
 
   // Update limit status when subscriptions change
   useEffect(() => {
@@ -190,7 +192,6 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     }
     navigation.navigate('PlanSelection' as any);
   };
-  };
 
   // Refresh data when screen comes into focus
   useFocusEffect(
@@ -198,7 +199,33 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       if (__DEV__) {
         console.log('HomeScreen focused - force refreshing from Supabase...');
       }
-      loadSubscriptions(true);
+      
+      // Refresh subscriptions and subscription status
+      const refreshAll = async () => {
+        try {
+          // Refresh subscription limit status (clears cache and re-fetches)
+          console.log('Refreshing subscription limit status...');
+          await subscriptionLimitService.refreshLimitStatus();
+          
+          // Get fresh status
+          const status = await subscriptionLimitService.getSubscriptionLimitStatus();
+          console.log('Updated limit status:', status);
+          setLimitStatus({
+            currentCount: status.currentCount,
+            maxCount: status.maxAllowed || 5,
+            atLimit: !status.canAddMore,
+          });
+          
+          // Refresh subscriptions list
+          await loadSubscriptions(true);
+        } catch (error) {
+          console.error('Error refreshing on focus:', error);
+          // Still try to load subscriptions even if limit refresh fails
+          await loadSubscriptions(true);
+        }
+      };
+      
+      refreshAll();
       return () => {};
     }, [])
   );
@@ -434,6 +461,18 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
           </>
         }
         ListEmptyComponent={<EmptyState />}
+        contentContainerStyle={
+          subscriptions.length === 0 ? styles.emptyContainer : styles.listContainer
+        }
+        refreshControl={
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={handleRefresh}
+            tintColor={theme.colors.primary}
+          />
+        }
+        showsVerticalScrollIndicator={false}
+      />
 
       {/* Paywall Modal */}
       <PaywallModal
@@ -457,18 +496,6 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
           onUpgradePress={handleUpgradePromptPress}
         />
       )}
-        contentContainerStyle={
-          subscriptions.length === 0 ? styles.emptyContainer : styles.listContainer
-        }
-        refreshControl={
-          <RefreshControl 
-            refreshing={refreshing} 
-            onRefresh={handleRefresh}
-            tintColor={theme.colors.primary}
-          />
-        }
-        showsVerticalScrollIndicator={false}
-      />
     </View>
   );
 }
