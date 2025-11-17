@@ -22,6 +22,11 @@ import AnimatedPressable from '../components/AnimatedPressable';
 import { SkeletonCard } from '../components/SkeletonLoader';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../contexts/AuthContext';
+import PaywallModal from '../components/PaywallModal';
+import UpgradePrompt from '../components/UpgradePrompt';
+import LimitReachedBanner from '../components/LimitReachedBanner';
+import { subscriptionLimitService } from '../services/subscriptionLimitService';
+import { usageTrackingService } from '../services/usageTrackingService';
 import { useRealtimeSubscriptions } from '../hooks/useRealtimeSubscriptions';
 
 type SubscriptionsStackParamList = {
@@ -42,6 +47,8 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [paywallVisible, setPaywallVisible] = useState(false);
+  const [limitStatus, setLimitStatus] = useState({ currentCount: 0, maxCount: 5, atLimit: false });
 
   // Set up real-time subscriptions
   const { isConnected, error: realtimeError } = useRealtimeSubscriptions(user?.id, {
@@ -105,9 +112,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     navigation.setOptions({
       headerRight: () => (
         <AnimatedPressable
-          onPress={() => {
-            navigation.navigate('AddSubscription', {});
-          }}
+          onPress={handleAddSubscription}
           style={styles.addButton}>
           <Ionicons name="add" size={28} color={theme.colors.primary} />
         </AnimatedPressable>
@@ -135,6 +140,56 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       setLoading(false);
       setRefreshing(false);
     }
+
+  // Update limit status when subscriptions change
+  useEffect(() => {
+    const count = subscriptions.length;
+    setLimitStatus({
+      currentCount: count,
+      maxCount: 5,
+      atLimit: count >= 5,
+    });
+  }, [subscriptions]);
+
+  const handleAddSubscription = async () => {
+    try {
+      // Check if user can add more subscriptions
+      const check = await subscriptionLimitService.checkCanAddSubscription();
+      
+      if (!check.canAdd) {
+        // Track limit reached event
+        await usageTrackingService.trackLimitReached();
+        
+        // Show paywall modal
+        setPaywallVisible(true);
+        
+        if (Platform.OS === 'ios') {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        }
+        return;
+      }
+      
+      // User can add, navigate to add screen
+      navigation.navigate('AddSubscription', {});
+    } catch (error) {
+      console.error('Error checking subscription limit:', error);
+      // On error, allow navigation (fail open)
+      navigation.navigate('AddSubscription', {});
+    }
+  };
+
+  const handleUpgradePress = (plan: 'monthly' | 'yearly') => {
+    setPaywallVisible(false);
+    // Navigate to plan selection screen
+    navigation.navigate('PlanSelection' as any);
+  };
+
+  const handleUpgradePromptPress = () => {
+    if (Platform.OS === 'ios') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+    navigation.navigate('PlanSelection' as any);
+  };
   };
 
   // Refresh data when screen comes into focus
@@ -379,6 +434,29 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
           </>
         }
         ListEmptyComponent={<EmptyState />}
+
+      {/* Paywall Modal */}
+      <PaywallModal
+        visible={paywallVisible}
+        onClose={() => setPaywallVisible(false)}
+        onUpgradePress={handleUpgradePress}
+        currentCount={limitStatus.currentCount}
+        maxCount={limitStatus.maxCount}
+      />
+
+      {/* Upgrade Prompt for Free Users (shown when not at limit) */}
+      {!loading && subscriptions.length > 0 && subscriptions.length < 5 && (
+        <UpgradePrompt onPress={handleUpgradePromptPress} />
+      )}
+
+      {/* Limit Reached Banner (sticky, can't be dismissed) */}
+      {!loading && limitStatus.atLimit && (
+        <LimitReachedBanner
+          currentCount={limitStatus.currentCount}
+          maxCount={limitStatus.maxCount}
+          onUpgradePress={handleUpgradePromptPress}
+        />
+      )}
         contentContainerStyle={
           subscriptions.length === 0 ? styles.emptyContainer : styles.listContainer
         }

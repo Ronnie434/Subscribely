@@ -8,6 +8,9 @@ import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme, ThemeMode } from '../contexts/ThemeContext';
+import TierBadge from '../components/TierBadge';
+import { subscriptionLimitService } from '../services/subscriptionLimitService';
+import { SubscriptionLimitStatus } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 
 // Available user icon options
@@ -35,6 +38,7 @@ export default function SettingsScreen() {
   const [selectedIcon, setSelectedIcon] = useState<string>('person');
   const [showIconPicker, setShowIconPicker] = useState(false);
   const [showThemePicker, setShowThemePicker] = useState(false);
+  const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionLimitStatus | null>(null);
 
   // Load saved icon preference
   useEffect(() => {
@@ -42,6 +46,20 @@ export default function SettingsScreen() {
   }, []);
 
   // Reset inactivity timer when screen comes into focus
+
+  // Load subscription status
+  useEffect(() => {
+    loadSubscriptionStatus();
+  }, []);
+
+  const loadSubscriptionStatus = async () => {
+    try {
+      const status = await subscriptionLimitService.getSubscriptionLimitStatus();
+      setSubscriptionStatus(status);
+    } catch (error) {
+      console.error('Error loading subscription status:', error);
+    }
+  };
   useFocusEffect(
     useCallback(() => {
       resetInactivityTimer();
@@ -530,6 +548,58 @@ export default function SettingsScreen() {
                 <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
               </View>
             </View>
+
+        {/* Subscription Section */}
+        {subscriptionStatus && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Subscription</Text>
+            
+            <View style={styles.card}>
+              {/* Current Tier with Badge */}
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Current Plan</Text>
+                <TierBadge 
+                  tier={subscriptionStatus.isPremium ? 'premium' : 'free'} 
+                  size="small" 
+                />
+              </View>
+              
+              {/* Usage for Free Tier */}
+              {!subscriptionStatus.isPremium && (
+                <>
+                  <View style={styles.divider} />
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Subscriptions</Text>
+                    <Text style={styles.infoValue}>
+                      {subscriptionStatus.currentCount} of {subscriptionStatus.maxAllowed} used
+                    </Text>
+                  </View>
+                </>
+              )}
+              
+              <View style={styles.divider} />
+              
+              {/* Manage Subscription Button */}
+              <TouchableOpacity
+                style={[styles.infoRow, { paddingVertical: 0 }]}
+                onPress={() => {
+                  if (Platform.OS === 'ios') {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }
+                  // Navigate to subscription management screen
+                  // Note: You'll need to add navigation prop to SettingsScreen
+                  // For now, this is a placeholder
+                  Alert.alert('Manage Subscription', 'This feature will navigate to subscription management.');
+                }}
+                activeOpacity={0.7}>
+                <Text style={[styles.infoLabel, { color: theme.colors.primary, fontWeight: '600' }]}>
+                  {subscriptionStatus.isPremium ? 'Manage Subscription' : 'Upgrade to Premium'}
+                </Text>
+                <Ionicons name="chevron-forward" size={20} color={theme.colors.primary} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
             <Text style={styles.tapToChangeText}>Tap to change icon</Text>
           </TouchableOpacity>
         </View>

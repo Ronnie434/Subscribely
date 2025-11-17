@@ -2,6 +2,7 @@ import React from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StyleSheet, Image } from 'react-native';
+import { StripeProvider } from '@stripe/stripe-react-native';
 import AppNavigator from './navigation/AppNavigator';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -9,6 +10,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import ActivityTracker from './components/ActivityTracker';
 import * as Notifications from 'expo-notifications';
 import { requestNotificationPermissions } from './utils/notificationService';
+import { stripeConfig } from './config/stripe';
 // Import dev tools (only loads in development)
 import './utils/devTools';
 
@@ -63,17 +65,22 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <GestureHandlerRootView style={styles.container}>
-        <SafeAreaProvider>
-          <ThemeProvider>
-            <AuthProvider>
-              <ActivityTracker>
-                <AppNavigator />
-              </ActivityTracker>
-            </AuthProvider>
-          </ThemeProvider>
-        </SafeAreaProvider>
-      </GestureHandlerRootView>
+      <StripeProvider
+        publishableKey={stripeConfig.publishableKey}
+        merchantIdentifier={stripeConfig.merchantIdentifier}
+        urlScheme={stripeConfig.urlScheme}>
+        <GestureHandlerRootView style={styles.container}>
+          <SafeAreaProvider>
+            <ThemeProvider>
+              <AuthProvider>
+                <ActivityTracker>
+                  <AppNavigator />
+                </ActivityTracker>
+              </AuthProvider>
+            </ThemeProvider>
+          </SafeAreaProvider>
+        </GestureHandlerRootView>
+      </StripeProvider>
     </ErrorBoundary>
   );
 }
@@ -83,4 +90,3 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 });
-

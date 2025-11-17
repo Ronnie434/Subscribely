@@ -1,6 +1,9 @@
 import { supabase } from '../config/supabase';
 import { Subscription, Database } from '../types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { subscriptionLimitService } from './subscriptionLimitService';
+import { usageTrackingService } from './usageTrackingService';
+import { SubscriptionLimitError } from '../utils/paywallErrors';
 
 type DbSubscription = Database['public']['Tables']['subscriptions']['Row'];
 type DbSubscriptionInsert = Database['public']['Tables']['subscriptions']['Insert'];
@@ -139,6 +142,23 @@ export async function createSubscription(
       return { data: null, error: 'No active session' };
     }
 
+    // CHECK SUBSCRIPTION LIMIT BEFORE ADDING
+    const limitCheck = await subscriptionLimitService.checkCanAddSubscription();
+    
+    if (!limitCheck.canAdd) {
+      // Track that user hit the limit
+      await usageTrackingService.trackLimitReached('create_subscription').catch(err => {
+        console.error('Failed to track limit reached:', err);
+      });
+      
+      // Return error with detailed message
+      const errorMessage = limitCheck.isPremium
+        ? `You've reached your Premium plan limit of ${limitCheck.limit} subscriptions. Please contact support if you need more.`
+        : `You've reached the free plan limit of ${limitCheck.limit} subscriptions. Upgrade to Premium for unlimited subscriptions.`;
+      
+      return { data: null, error: errorMessage };
+    }
+
     // Convert to database format and insert
     const dbSubscription = appToDbInsert(subscription, session.user.id);
     
@@ -151,6 +171,11 @@ export async function createSubscription(
     if (error) {
       return { data: null, error: error.message };
     }
+
+    // Refresh limit status after successful creation
+    await subscriptionLimitService.refreshLimitStatus().catch(err => {
+      console.error('Failed to refresh limit status:', err);
+    });
 
     // Convert back to app format
     const newSubscription = dbToApp(data);
@@ -235,6 +260,11 @@ export async function deleteSubscription(id: string): Promise<{
     if (error) {
       return { success: false, error: error.message };
     }
+
+    // Refresh limit status after deletion to update count
+    await subscriptionLimitService.refreshLimitStatus().catch(err => {
+      console.error('Failed to refresh limit status:', err);
+    });
 
     return { success: true, error: null };
   } catch (err) {

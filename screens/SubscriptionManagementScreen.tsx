@@ -1,0 +1,609 @@
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Alert,
+  ActivityIndicator,
+  Platform,
+  Linking,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
+import { useTheme } from '../contexts/ThemeContext';
+import { subscriptionTierService } from '../services/subscriptionTierService';
+import { subscriptionLimitService } from '../services/subscriptionLimitService';
+import { paymentService } from '../services/paymentService';
+import { SubscriptionLimitStatus } from '../types';
+import TierBadge from '../components/TierBadge';
+import BillingHistoryList from '../components/BillingHistoryList';
+import CancelSubscriptionModal from '../components/CancelSubscriptionModal';
+import SkeletonLoader from '../components/SkeletonLoader';
+import { formatDate } from '../utils/dateHelpers';
+
+type RootStackParamList = {
+  SubscriptionManagement: undefined;
+  PlanSelection: undefined;
+};
+
+type SubscriptionManagementScreenNavigationProp = StackNavigationProp<
+  RootStackParamList,
+  'SubscriptionManagement'
+>;
+
+interface SubscriptionManagementScreenProps {
+  navigation: SubscriptionManagementScreenNavigationProp;
+}
+
+export default function SubscriptionManagementScreen({
+  navigation,
+}: SubscriptionManagementScreenProps) {
+  const { theme } = useTheme();
+  const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState<SubscriptionLimitStatus | null>(null);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showBillingHistory, setShowBillingHistory] = useState(false);
+  const [updatingPayment, setUpdatingPayment] = useState(false);
+
+  useEffect(() => {
+    loadSubscriptionStatus();
+  }, []);
+
+  const loadSubscriptionStatus = async () => {
+    try {
+      setLoading(true);
+      const limitStatus = await subscriptionLimitService.getSubscriptionLimitStatus();
+      setStatus(limitStatus);
+    } catch (error) {
+      console.error('Error loading subscription status:', error);
+      Alert.alert('Error', 'Failed to load subscription information.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdatePaymentMethod = async () => {
+    if (Platform.OS === 'ios') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+
+    setUpdatingPayment(true);
+
+    try {
+      // Get Stripe billing portal URL
+      const portalUrl = await paymentService.getBillingPortalUrl();
+
+      // Open billing portal in browser
+      const canOpen = await Linking.canOpenURL(portalUrl);
+      if (canOpen) {
+        await Linking.openURL(portalUrl);
+      } else {
+        Alert.alert('Error', 'Unable to open billing portal');
+      }
+    } catch (error) {
+      console.error('Error opening billing portal:', error);
+      Alert.alert('Error', 'Failed to open billing portal. Please try again.');
+    } finally {
+      setUpdatingPayment(false);
+    }
+  };
+
+  const handleCancelSubscription = () => {
+    if (Platform.OS === 'ios') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    setShowCancelModal(true);
+  };
+
+  const handleCancelSuccess = () => {
+    setShowCancelModal(false);
+    // Reload subscription status
+    loadSubscriptionStatus();
+    
+    if (Platform.OS === 'ios') {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
+  };
+
+  const handleUpgrade = () => {
+    if (Platform.OS === 'ios') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+    navigation.navigate('PlanSelection');
+  };
+
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    scrollView: {
+      flex: 1,
+    },
+    content: {
+      padding: 24,
+    },
+    headerCard: {
+      backgroundColor: theme.colors.card,
+      borderRadius: 20,
+      padding: 24,
+      marginBottom: 24,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+      overflow: 'hidden',
+    },
+    headerGradient: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      height: 120,
+      opacity: 0.1,
+    },
+    headerContent: {
+      alignItems: 'center',
+    },
+    tierBadgeContainer: {
+      marginBottom: 16,
+    },
+    tierTitle: {
+      fontSize: 28,
+      fontWeight: '700',
+      color: theme.colors.text,
+      textAlign: 'center',
+      marginBottom: 8,
+    },
+    tierSubtitle: {
+      fontSize: 16,
+      fontWeight: '400',
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
+    },
+    section: {
+      marginBottom: 24,
+    },
+    sectionTitle: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: theme.colors.text,
+      marginBottom: 16,
+    },
+    card: {
+      backgroundColor: theme.colors.card,
+      borderRadius: 16,
+      padding: 20,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+      marginBottom: 12,
+    },
+    infoRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 12,
+    },
+    infoRowLast: {
+      marginBottom: 0,
+    },
+    infoLabel: {
+      fontSize: 15,
+      fontWeight: '400',
+      color: theme.colors.textSecondary,
+    },
+    infoValue: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: theme.colors.text,
+    },
+    actionButton: {
+      backgroundColor: theme.colors.card,
+      borderRadius: 12,
+      padding: 16,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+      marginBottom: 12,
+    },
+    actionButtonPrimary: {
+      backgroundColor: theme.colors.primary,
+      borderColor: theme.colors.primary,
+    },
+    actionButtonDanger: {
+      backgroundColor: theme.colors.card,
+      borderColor: theme.colors.error,
+    },
+    actionButtonLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+    },
+    actionButtonIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: `${theme.colors.primary}20`,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 12,
+    },
+    actionButtonIconPrimary: {
+      backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    },
+    actionButtonIconDanger: {
+      backgroundColor: `${theme.colors.error}20`,
+    },
+    actionButtonText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: theme.colors.text,
+    },
+    actionButtonTextPrimary: {
+      color: '#FFFFFF',
+    },
+    actionButtonTextDanger: {
+      color: theme.colors.error,
+    },
+    upgradeCard: {
+      borderRadius: 20,
+      padding: 24,
+      marginBottom: 24,
+      overflow: 'hidden',
+    },
+    upgradeGradient: {
+      padding: 24,
+    },
+    upgradeTitle: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: '#FFFFFF',
+      marginBottom: 8,
+    },
+    upgradeSubtitle: {
+      fontSize: 16,
+      fontWeight: '400',
+      color: 'rgba(255, 255, 255, 0.9)',
+      marginBottom: 20,
+    },
+    upgradeFeatures: {
+      gap: 12,
+      marginBottom: 20,
+    },
+    upgradeFeature: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    upgradeFeatureIcon: {
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      backgroundColor: 'rgba(255, 255, 255, 0.2)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 12,
+    },
+    upgradeFeatureText: {
+      fontSize: 15,
+      fontWeight: '400',
+      color: '#FFFFFF',
+      flex: 1,
+    },
+    upgradeButton: {
+      backgroundColor: '#FFFFFF',
+      borderRadius: 12,
+      paddingVertical: 14,
+      alignItems: 'center',
+    },
+    upgradeButtonText: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: theme.colors.primary,
+    },
+    usageCard: {
+      backgroundColor: theme.colors.card,
+      borderRadius: 16,
+      padding: 20,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+      marginBottom: 24,
+    },
+    usageTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: theme.colors.text,
+      marginBottom: 12,
+    },
+    usageBar: {
+      height: 8,
+      backgroundColor: theme.isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+      borderRadius: 4,
+      overflow: 'hidden',
+      marginBottom: 8,
+    },
+    usageBarFill: {
+      height: '100%',
+      borderRadius: 4,
+    },
+    usageText: {
+      fontSize: 14,
+      fontWeight: '400',
+      color: theme.colors.textSecondary,
+    },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingTop: 100,
+    },
+  });
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        <View style={styles.content}>
+          <SkeletonLoader width="100%" height={200} borderRadius={20} style={{ marginBottom: 24 }} />
+          <SkeletonLoader width="100%" height={120} borderRadius={16} style={{ marginBottom: 12 }} />
+          <SkeletonLoader width="100%" height={60} borderRadius={12} style={{ marginBottom: 12 }} />
+          <SkeletonLoader width="100%" height={60} borderRadius={12} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!status) {
+    return (
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        <View style={styles.loadingContainer}>
+          <Text style={{ color: theme.colors.textSecondary }}>
+            Unable to load subscription information
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.container} edges={['bottom']}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}>
+        {/* Header Card */}
+        <View style={styles.headerCard}>
+          <LinearGradient
+            colors={
+              status.isPremium
+                ? theme.gradients.primary
+                : theme.gradients.surface
+            }
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.headerGradient}
+          />
+          <View style={styles.headerContent}>
+            <View style={styles.tierBadgeContainer}>
+              <TierBadge
+                tier={status.isPremium ? 'premium' : 'free'}
+                size="large"
+              />
+            </View>
+            <Text style={styles.tierTitle}>
+              {status.isPremium ? 'Premium Plan' : 'Free Plan'}
+            </Text>
+            <Text style={styles.tierSubtitle}>
+              {status.isPremium
+                ? 'Unlimited subscriptions and all features'
+                : `${status.currentCount} of ${status.maxAllowed} subscriptions used`}
+            </Text>
+          </View>
+        </View>
+
+        {status.isPremium ? (
+          <>
+            {/* Billing Information */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Billing Information</Text>
+              <View style={styles.card}>
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Plan</Text>
+                  <Text style={styles.infoValue}>Premium</Text>
+                </View>
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Billing Cycle</Text>
+                  <Text style={styles.infoValue}>Monthly</Text>
+                </View>
+                <View style={[styles.infoRow, styles.infoRowLast]}>
+                  <Text style={styles.infoLabel}>Next Billing Date</Text>
+                  <Text style={styles.infoValue}>
+                    {formatDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000))}
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Actions */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Manage Subscription</Text>
+
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={handleUpdatePaymentMethod}
+                disabled={updatingPayment}
+                activeOpacity={0.7}>
+                <View style={styles.actionButtonLeft}>
+                  <View style={styles.actionButtonIcon}>
+                    <Ionicons
+                      name="card-outline"
+                      size={20}
+                      color={theme.colors.primary}
+                    />
+                  </View>
+                  <Text style={styles.actionButtonText}>
+                    Update Payment Method
+                  </Text>
+                </View>
+                {updatingPayment ? (
+                  <ActivityIndicator size="small" color={theme.colors.primary} />
+                ) : (
+                  <Ionicons
+                    name="chevron-forward"
+                    size={20}
+                    color={theme.colors.textSecondary}
+                  />
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={() => setShowBillingHistory(!showBillingHistory)}
+                activeOpacity={0.7}>
+                <View style={styles.actionButtonLeft}>
+                  <View style={styles.actionButtonIcon}>
+                    <Ionicons
+                      name="receipt-outline"
+                      size={20}
+                      color={theme.colors.primary}
+                    />
+                  </View>
+                  <Text style={styles.actionButtonText}>
+                    View Billing History
+                  </Text>
+                </View>
+                <Ionicons
+                  name={showBillingHistory ? 'chevron-up' : 'chevron-forward'}
+                  size={20}
+                  color={theme.colors.textSecondary}
+                />
+              </TouchableOpacity>
+
+              {showBillingHistory && <BillingHistoryList />}
+
+              <TouchableOpacity
+                style={[styles.actionButton, styles.actionButtonDanger]}
+                onPress={handleCancelSubscription}
+                activeOpacity={0.7}>
+                <View style={styles.actionButtonLeft}>
+                  <View style={[styles.actionButtonIcon, styles.actionButtonIconDanger]}>
+                    <Ionicons
+                      name="close-circle-outline"
+                      size={20}
+                      color={theme.colors.error}
+                    />
+                  </View>
+                  <Text style={[styles.actionButtonText, styles.actionButtonTextDanger]}>
+                    Cancel Subscription
+                  </Text>
+                </View>
+                <Ionicons
+                  name="chevron-forward"
+                  size={20}
+                  color={theme.colors.error}
+                />
+              </TouchableOpacity>
+            </View>
+          </>
+        ) : (
+          <>
+            {/* Usage Card for Free Tier */}
+            <View style={styles.usageCard}>
+              <Text style={styles.usageTitle}>Subscription Usage</Text>
+              <View style={styles.usageBar}>
+                <LinearGradient
+                  colors={
+                    status.currentCount >= (status.maxAllowed || 0)
+                      ? theme.gradients.error
+                      : theme.gradients.primary
+                  }
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={[
+                    styles.usageBarFill,
+                    {
+                      width: `${
+                        ((status.currentCount / (status.maxAllowed || 1)) * 100)
+                      }%`,
+                    },
+                  ]}
+                />
+              </View>
+              <Text style={styles.usageText}>
+                {status.currentCount} of {status.maxAllowed} subscriptions used
+              </Text>
+            </View>
+
+            {/* Upgrade Card */}
+            <View style={styles.upgradeCard}>
+              <LinearGradient
+                colors={theme.gradients.primary}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.upgradeGradient}>
+                <Text style={styles.upgradeTitle}>Upgrade to Premium</Text>
+                <Text style={styles.upgradeSubtitle}>
+                  Get unlimited subscriptions and all premium features
+                </Text>
+
+                <View style={styles.upgradeFeatures}>
+                  <View style={styles.upgradeFeature}>
+                    <View style={styles.upgradeFeatureIcon}>
+                      <Ionicons name="infinite" size={16} color="#FFFFFF" />
+                    </View>
+                    <Text style={styles.upgradeFeatureText}>
+                      Unlimited subscription tracking
+                    </Text>
+                  </View>
+                  <View style={styles.upgradeFeature}>
+                    <View style={styles.upgradeFeatureIcon}>
+                      <Ionicons name="stats-chart" size={16} color="#FFFFFF" />
+                    </View>
+                    <Text style={styles.upgradeFeatureText}>
+                      Advanced analytics
+                    </Text>
+                  </View>
+                  <View style={styles.upgradeFeature}>
+                    <View style={styles.upgradeFeatureIcon}>
+                      <Ionicons name="download" size={16} color="#FFFFFF" />
+                    </View>
+                    <Text style={styles.upgradeFeatureText}>
+                      Export capabilities
+                    </Text>
+                  </View>
+                  <View style={styles.upgradeFeature}>
+                    <View style={styles.upgradeFeatureIcon}>
+                      <Ionicons name="chatbubbles" size={16} color="#FFFFFF" />
+                    </View>
+                    <Text style={styles.upgradeFeatureText}>
+                      Priority support
+                    </Text>
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.upgradeButton}
+                  onPress={handleUpgrade}
+                  activeOpacity={0.8}>
+                  <Text style={styles.upgradeButtonText}>
+                    Upgrade Now
+                  </Text>
+                </TouchableOpacity>
+              </LinearGradient>
+            </View>
+          </>
+        )}
+      </ScrollView>
+
+      {/* Cancel Subscription Modal */}
+      <CancelSubscriptionModal
+        visible={showCancelModal}
+        onClose={() => setShowCancelModal(false)}
+        onSuccess={handleCancelSuccess}
+      />
+    </SafeAreaView>
+  );
+}

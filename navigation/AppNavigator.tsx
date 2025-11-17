@@ -17,6 +17,9 @@ import HomeScreen from '../screens/HomeScreen';
 import AddSubscriptionScreen from '../screens/AddSubscriptionScreen';
 import EditSubscriptionScreen from '../screens/EditSubscriptionScreen';
 import StatsScreen from '../screens/StatsScreen';
+import PlanSelectionScreen from '../screens/PlanSelectionScreen';
+import PaymentScreen from '../screens/PaymentScreen';
+import SubscriptionManagementScreen from '../screens/SubscriptionManagementScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 
 // Type definitions for navigation
@@ -30,6 +33,9 @@ type SubscriptionsStackParamList = {
   Home: undefined;
   AddSubscription: { subscription?: Subscription };
   EditSubscription: { subscription: Subscription };
+  PlanSelection: undefined;
+  PaymentScreen: { plan: 'monthly' | 'yearly' };
+  SubscriptionManagement: undefined;
 };
 
 type StatsStackParamList = {
@@ -120,6 +126,30 @@ function SubscriptionsNavigator() {
           title: 'Edit Subscription',
           headerShown: true,
         }}
+      <SubscriptionsStack.Screen
+        name="PlanSelection"
+        component={PlanSelectionScreen}
+        options={{
+          title: 'Choose Your Plan',
+          headerShown: true,
+        }}
+      />
+      <SubscriptionsStack.Screen
+        name="PaymentScreen"
+        component={PaymentScreen}
+        options={{
+          title: 'Complete Payment',
+          headerShown: true,
+        }}
+      />
+      <SubscriptionsStack.Screen
+        name="SubscriptionManagement"
+        component={SubscriptionManagementScreen}
+        options={{
+          title: 'Manage Subscription',
+          headerShown: true,
+        }}
+      />
       />
     </SubscriptionsStack.Navigator>
   );
