@@ -7,6 +7,7 @@ import { storage } from '../utils/storage';
 import SubscriptionForm from '../components/SubscriptionForm';
 import { Subscription } from '../types';
 import * as Haptics from 'expo-haptics';
+import { subscriptionLimitService } from '../services/subscriptionLimitService';
 
 type SubscriptionsStackParamList = {
   Home: undefined;
@@ -59,6 +60,13 @@ export default function AddSubscriptionScreen() {
       const success = await storage.save(subscription);
       
       if (success) {
+        // Invalidate limit status cache to ensure count is refreshed immediately
+        // This ensures Settings and other screens show the correct count right away
+        await subscriptionLimitService.refreshLimitStatus().catch(err => {
+          console.error('Failed to refresh limit status after save:', err);
+          // Don't block navigation if cache refresh fails
+        });
+        
         // Success - navigate back with haptic feedback
         if (Platform.OS === 'ios') {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

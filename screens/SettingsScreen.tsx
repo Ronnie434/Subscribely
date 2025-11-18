@@ -12,6 +12,7 @@ import TierBadge from '../components/TierBadge';
 import { subscriptionLimitService } from '../services/subscriptionLimitService';
 import { SubscriptionLimitStatus } from '../types';
 import { useAuth } from '../contexts/AuthContext';
+import { useRealtimeSubscriptions } from '../hooks/useRealtimeSubscriptions';
 
 // Available user icon options
 const USER_ICONS = [
@@ -60,6 +61,61 @@ export default function SettingsScreen() {
       console.error('Error loading subscription status:', error);
     }
   };
+
+  // Helper function to refresh limit status from backend
+  const refreshLimitStatusFromBackend = async () => {
+    try {
+      // Invalidate cache and refresh from backend
+      await subscriptionLimitService.refreshLimitStatus();
+      
+      // Get fresh status from backend
+      const status = await subscriptionLimitService.getSubscriptionLimitStatus();
+      setSubscriptionStatus(status);
+      
+      if (__DEV__) {
+        console.log('✅ Settings: Limit status refreshed from backend:', {
+          currentCount: status.currentCount,
+          maxCount: status.maxAllowed,
+          atLimit: !status.canAddMore,
+        });
+      }
+    } catch (error) {
+      console.error('Error refreshing limit status:', error);
+    }
+  };
+
+  // Set up real-time subscriptions to keep count in sync
+  const { isConnected, error: realtimeError } = useRealtimeSubscriptions(user?.id, {
+    onInsert: (newSubscription) => {
+      if (__DEV__) {
+        console.log('Settings: Real-time INSERT:', newSubscription.name);
+      }
+      // Refresh limit status from backend to keep count in sync
+      refreshLimitStatusFromBackend();
+    },
+    onUpdate: (updatedSubscription) => {
+      if (__DEV__) {
+        console.log('Settings: Real-time UPDATE:', updatedSubscription.name);
+      }
+      // Note: Updates don't change count, but refresh to ensure consistency
+      refreshLimitStatusFromBackend();
+    },
+    onDelete: (deletedId) => {
+      if (__DEV__) {
+        console.log('Settings: Real-time DELETE:', deletedId);
+      }
+      // Refresh limit status from backend to keep count in sync
+      refreshLimitStatusFromBackend();
+    },
+  });
+
+  // Show real-time connection error if any
+  useEffect(() => {
+    if (realtimeError) {
+      console.error('Settings: Real-time connection error:', realtimeError);
+    }
+  }, [realtimeError]);
+
   useFocusEffect(
     useCallback(() => {
       resetInactivityTimer();

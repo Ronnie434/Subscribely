@@ -245,6 +245,8 @@ class SubscriptionLimitService {
       subscriptionCache.invalidate(CacheKeys.currentTier(userId));
       subscriptionCache.invalidate(CacheKeys.isPremium(userId));
       subscriptionCache.invalidate(CacheKeys.subscriptionStatus(userId));
+      // CRITICAL: Also invalidate the checkCanAddSubscription cache
+      subscriptionCache.invalidate(`can-add-sub-${userId}`);
 
       // Optionally pre-fetch fresh data
       await this.checkCanAddSubscription();

@@ -51,6 +51,34 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   const [paywallVisible, setPaywallVisible] = useState(false);
   const [limitStatus, setLimitStatus] = useState({ currentCount: 0, maxCount: 5, atLimit: false });
 
+  // Helper function to refresh limit status from backend
+  const refreshLimitStatusFromBackend = async () => {
+    try {
+      // Invalidate cache and refresh from backend
+      await subscriptionLimitService.refreshLimitStatus();
+      
+      // Get fresh status from backend
+      const status = await subscriptionLimitService.getSubscriptionLimitStatus();
+      
+      setLimitStatus({
+        currentCount: status.currentCount,
+        maxCount: status.maxAllowed || 5,
+        atLimit: !status.canAddMore,
+      });
+      
+      if (__DEV__) {
+        console.log('✅ Limit status refreshed from backend:', {
+          currentCount: status.currentCount,
+          maxCount: status.maxAllowed || 5,
+          atLimit: !status.canAddMore,
+        });
+      }
+    } catch (error) {
+      console.error('Error refreshing limit status:', error);
+      // On error, the useEffect watching subscriptions.length will update currentCount as fallback
+    }
+  };
+
   // Set up real-time subscriptions
   const { isConnected, error: realtimeError } = useRealtimeSubscriptions(user?.id, {
     onInsert: (newSubscription) => {
@@ -67,6 +95,8 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         }
         return [newSubscription, ...prev];
       });
+      // Refresh limit status from backend to keep count in sync
+      refreshLimitStatusFromBackend();
     },
     onUpdate: (updatedSubscription) => {
       if (__DEV__) {
@@ -84,6 +114,8 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         updated[index] = updatedSubscription;
         return updated;
       });
+      // Note: Updates don't change count, but refresh to ensure consistency
+      refreshLimitStatusFromBackend();
     },
     onDelete: (deletedId) => {
       if (__DEV__) {
@@ -98,6 +130,8 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         }
         return filtered;
       });
+      // Refresh limit status from backend to keep count in sync
+      refreshLimitStatusFromBackend();
     },
   });
 
@@ -311,6 +345,10 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
                   'Could not delete subscription. Please try again.',
                   [{ text: 'OK' }]
                 );
+              } else {
+                // Refresh limit status after successful delete
+                // (Real-time hook will also trigger, but this ensures sync even if real-time is delayed)
+                refreshLimitStatusFromBackend();
               }
             } catch (error) {
               console.error('Error deleting subscription:', error);

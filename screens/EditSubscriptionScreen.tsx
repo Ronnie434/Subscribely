@@ -20,6 +20,7 @@ import { calculations } from '../utils/calculations';
 import { Subscription } from '../types';
 import * as Haptics from 'expo-haptics';
 import { LogoSource, getNextLogoSource, getLogoUrlForSource } from '../utils/logoHelpers';
+import { subscriptionLimitService } from '../services/subscriptionLimitService';
 
 // Type definitions for navigation
 type SubscriptionsStackParamList = {
@@ -125,6 +126,12 @@ export default function EditSubscriptionScreen() {
               const success = await storage.delete(subscription.id);
               
               if (success) {
+                // Invalidate limit status cache to ensure count is refreshed immediately
+                await subscriptionLimitService.refreshLimitStatus().catch(err => {
+                  console.error('Failed to refresh limit status after delete:', err);
+                  // Don't block navigation if cache refresh fails
+                });
+                
                 if (Platform.OS === 'ios') {
                   Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                 }
