@@ -1,0 +1,7 @@
+[functions.stripe-webhook]
+verify_jwt = false
+
+[http]
+# Allow requests without JWT authentication
+# Webhooks authenticate via Stripe signature verification
+import_map = "../import_map.json"

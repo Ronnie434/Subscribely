@@ -39,12 +39,12 @@ export const corsHeaders = {
  * @returns Verified Stripe event object
  * @throws Error if signature verification fails
  */
-export function verifyWebhookSignature(
+export async function verifyWebhookSignature(
   body: string,
   signature: string
-): Stripe.Event {
+): Promise<Stripe.Event> {
   try {
-    return stripe.webhooks.constructEvent(body, signature, WEBHOOK_SECRET);
+    return await stripe.webhooks.constructEventAsync(body, signature, WEBHOOK_SECRET);
   } catch (err) {
     console.error('Webhook signature verification failed:', err.message);
     throw new Error(`Webhook signature verification failed: ${err.message}`);

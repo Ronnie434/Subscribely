@@ -20,33 +20,68 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import Stripe from 'https://esm.sh/stripe@14.0.0';
-import { verifyWebhookSignature, errorResponse } from '../_shared/stripe.ts';
+import { verifyWebhookSignature, errorResponse, corsHeaders } from '../_shared/stripe.ts';
 
 serve(async (req) => {
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
+  // For webhook requests, bypass JWT validation by not checking Authorization header
+  // Stripe webhooks authenticate via signature verification, not JWT
+
   try {
-    // Initialize Supabase client with service role
+    // Get raw body and signature for webhook verification
+    const signature = req.headers.get('stripe-signature');
+    const body = await req.text();
+
+    // DETAILED LOGGING FOR DEBUGGING
+    console.log('========================================');
+    console.log('🔍 Received webhook request');
+    console.log('========================================');
+    console.log('Signature header:', signature);
+    console.log('Signature header length:', signature?.length);
+    console.log('Body length:', body.length);
+    console.log('Body preview (first 100 chars):', body.substring(0, 100));
+    console.log('========================================');
+
+    if (!signature) {
+      console.error('Missing Stripe signature');
+      return new Response(
+        JSON.stringify({ error: 'Missing Stripe signature' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400
+        }
+      );
+    }
+
+    console.log('Verifying webhook signature...');
+
+    // Verify the webhook signature (this authenticates it's from Stripe)
+    let event: Stripe.Event;
+    try {
+      event = await verifyWebhookSignature(body, signature);
+      console.log('✅ Webhook signature verified');
+      console.log('Event type:', event.type);
+      console.log('Event ID:', event.id);
+    } catch (err) {
+      console.error('❌ Webhook signature verification failed:', err.message);
+      return new Response(
+        JSON.stringify({ error: 'Invalid signature' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 401
+        }
+      );
+    }
+
+    // Initialize Supabase client with service role (not user auth!)
     const supabase = createClient(
       Deno.env.get('PROJECT_URL') ?? '',
       Deno.env.get('SERVICE_ROLE_KEY') ?? ''
     );
-
-    // Get raw body for signature verification
-    const body = await req.text();
-    const signature = req.headers.get('stripe-signature');
-
-    if (!signature) {
-      console.error('Missing stripe-signature header');
-      return errorResponse('Missing signature', 400);
-    }
-
-    // Verify webhook signature
-    let event: Stripe.Event;
-    try {
-      event = verifyWebhookSignature(body, signature);
-    } catch (err) {
-      console.error('Webhook signature verification failed:', err.message);
-      return errorResponse('Invalid signature', 400);
-    }
 
     // Check idempotency - have we processed this event before?
     const { data: existingEvent } = await supabase
@@ -58,7 +93,7 @@ serve(async (req) => {
     if (existingEvent) {
       console.log(`Event ${event.id} already processed, skipping`);
       return new Response(JSON.stringify({ received: true, duplicate: true }), {
-        headers: { 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       });
     }
@@ -109,7 +144,7 @@ serve(async (req) => {
 
     // Always return 200 to acknowledge receipt
     return new Response(JSON.stringify({ received: true }), {
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
 
@@ -117,7 +152,7 @@ serve(async (req) => {
     console.error('Webhook processing error:', error);
     // Still return 200 to prevent Stripe from retrying
     return new Response(JSON.stringify({ received: true, error: error.message }), {
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
   }
@@ -145,9 +180,13 @@ async function handleSubscriptionCreated(supabase: any, event: Stripe.Event) {
       stripe_subscription_id: subscription.id,
       stripe_customer_id: subscription.customer as string,
       status: mapStripeStatus(subscription.status),
-      current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-      current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-      cancel_at: subscription.cancel_at ? new Date(subscription.cancel_at * 1000).toISOString() : null,
+      current_period_start: subscription.current_period_start
+        ? new Date(subscription.current_period_start * 1000).toISOString()
+        : null,
+      current_period_end: subscription.current_period_end
+        ? new Date(subscription.current_period_end * 1000).toISOString()
+        : null,
+      cancel_at_period_end: subscription.cancel_at_period_end || false,
     }, {
       onConflict: 'stripe_subscription_id',
     });
@@ -199,9 +238,13 @@ async function handleSubscriptionUpdated(supabase: any, event: Stripe.Event) {
     .update({
       status: mapStripeStatus(subscription.status),
       tier_id: tierId,
-      current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-      current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-      cancel_at: subscription.cancel_at ? new Date(subscription.cancel_at * 1000).toISOString() : null,
+      current_period_start: subscription.current_period_start
+        ? new Date(subscription.current_period_start * 1000).toISOString()
+        : null,
+      current_period_end: subscription.current_period_end
+        ? new Date(subscription.current_period_end * 1000).toISOString()
+        : null,
+      cancel_at_period_end: subscription.cancel_at_period_end || false,
       updated_at: new Date().toISOString(),
     })
     .eq('stripe_subscription_id', subscription.id);
@@ -238,7 +281,7 @@ async function handleSubscriptionDeleted(supabase: any, event: Stripe.Event) {
     .update({
       status: 'canceled',
       tier_id: freeTier.id,
-      cancel_at: new Date().toISOString(),
+      canceled_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
     .eq('stripe_subscription_id', subscription.id);
