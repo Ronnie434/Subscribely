@@ -66,6 +66,25 @@ export default function SettingsScreen() {
     }, [resetInactivityTimer])
   );
 
+  // Refresh subscription status when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      const refreshStatus = async () => {
+        try {
+          // Clear cache and fetch fresh data
+          await subscriptionLimitService.refreshLimitStatus();
+          const status = await subscriptionLimitService.getSubscriptionLimitStatus();
+          setSubscriptionStatus(status);
+        } catch (error) {
+          console.error('Error refreshing subscription status on focus:', error);
+        }
+      };
+      
+      refreshStatus();
+      return () => {};
+    }, [])
+  );
+
   const loadIconPreference = async () => {
     try {
       const savedIcon = await AsyncStorage.getItem(ICON_STORAGE_KEY);

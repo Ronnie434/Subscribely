@@ -226,8 +226,8 @@ class PaymentService {
       }
 
       // Determine if user has active subscription
-      const hasActiveSubscription = subscription && 
-        ['active', 'trialing'].includes(subscription.status);
+      const hasActiveSubscription = subscription &&
+        ['active', 'trialing', 'incomplete', 'past_due', 'paused'].includes(subscription.status);
 
       return {
         hasActiveSubscription,

@@ -68,7 +68,7 @@ class SubscriptionLimitService {
   }> {
     try {
       const userId = await this.getUserId();
-      const cacheKey = CacheKeys.limitStatus(userId);
+      const cacheKey = `can-add-sub-${userId}`;
 
       // Check cache first
       const cached = subscriptionCache.get<CheckSubscriptionLimitResponse>(cacheKey);
@@ -104,7 +104,7 @@ class SubscriptionLimitService {
         can_add: data.allowed,
         current_count: data.current_count,
         limit: data.limit_count,
-        is_premium: data.tier === 'premium',
+        is_premium: data.tier === 'premium_tier' || data.tier === 'premium',
         tier_name: data.tier,
         reason: data.allowed 
           ? undefined 

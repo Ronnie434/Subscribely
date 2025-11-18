@@ -6,7 +6,8 @@
  */
 
 // Stripe publishable key (safe to expose in frontend)
-export const STRIPE_PUBLISHABLE_KEY = process.env.STRIPE_PUBLISHABLE_KEY || '';
+// Note: In Expo, environment variables must be prefixed with EXPO_PUBLIC_ to be accessible in React Native
+export const STRIPE_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || '';
 
 // Stripe configuration
 export const stripeConfig = {

@@ -143,15 +143,38 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     }
   };
 
-  // Update limit status when subscriptions change
+  // Update subscription count in real-time when subscriptions change
+  // while preserving backend's maxCount and atLimit values
+  useEffect(() => {
+    setLimitStatus(prev => ({
+      ...prev,
+      currentCount: subscriptions.length,
+    }));
+  }, [subscriptions.length]);
+
+  // REMOVED: This useEffect was overwriting correct backend premium status with hardcoded logic
+  // The useFocusEffect (lines 208-250) already correctly sets limitStatus based on backend data
+  /*
   useEffect(() => {
     const count = subscriptions.length;
+    console.log('🐛 DEBUG: useEffect triggered - subscriptions changed');
+    console.log('🐛 Current subscriptions count:', count);
+    console.log('🐛 BEFORE setLimitStatus - current limitStatus:', limitStatus);
+    
     setLimitStatus({
+      currentCount: count,
+      maxCount: 5,
+      atLimit: count >= 5,  // ← HARDCODED: Always true when >= 5 subs (WRONG for premium users)
+    });
+    
+    console.log('🐛 AFTER setLimitStatus - new limitStatus will be:', {
       currentCount: count,
       maxCount: 5,
       atLimit: count >= 5,
     });
+    console.log('🐛 ⚠️ WARNING: This useEffect OVERWRITES backend data with hardcoded logic!');
   }, [subscriptions]);
+  */
 
   const handleAddSubscription = async () => {
     try {
@@ -204,20 +227,28 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       const refreshAll = async () => {
         try {
           // Refresh subscription limit status (clears cache and re-fetches)
+          console.log('🐛 DEBUG: useFocusEffect - Starting refreshAll...');
           console.log('Refreshing subscription limit status...');
           await subscriptionLimitService.refreshLimitStatus();
           
           // Get fresh status
           const status = await subscriptionLimitService.getSubscriptionLimitStatus();
           console.log('Updated limit status:', status);
+          console.log('🐛 DEBUG: Backend says canAddMore:', status.canAddMore);
+          console.log('🐛 DEBUG: Setting limitStatus.atLimit to:', !status.canAddMore);
+          
           setLimitStatus({
             currentCount: status.currentCount,
             maxCount: status.maxAllowed || 5,
             atLimit: !status.canAddMore,
           });
           
+          console.log('🐛 DEBUG: ✅ Correct backend data set - limitStatus.atLimit should be:', !status.canAddMore);
+          
           // Refresh subscriptions list
+          console.log('🐛 DEBUG: About to load subscriptions - this will trigger useEffect...');
           await loadSubscriptions(true);
+          console.log('🐛 DEBUG: ⚠️ Subscriptions loaded - useEffect will now OVERWRITE the correct data!');
         } catch (error) {
           console.error('Error refreshing on focus:', error);
           // Still try to load subscriptions even if limit refresh fails

@@ -543,7 +543,7 @@ BEGIN
   FROM public.user_subscriptions us
   JOIN public.subscription_tiers st ON us.tier_id = st.tier_id
   WHERE us.user_id = p_user_id
-    AND us.status = 'active';
+    AND us.status IN ('active', 'trialing', 'incomplete', 'past_due', 'paused');
   
   -- Default to free tier if no subscription found
   IF v_tier IS NULL THEN

@@ -282,12 +282,14 @@ serve(async (req) => {
         items: [{ price: priceId }],
         payment_behavior: 'default_incomplete', // Don't charge immediately - wait for payment method
         payment_settings: {
+          payment_method_types: ['card'], // ✅ FIX: Specify accepted payment methods
           save_default_payment_method: 'on_subscription' // Save payment method when user pays
         },
         expand: ['latest_invoice.payment_intent'], // Get payment intent in response
         metadata: {
           supabase_user_id: user.id,
           billing_cycle: billingCycle,
+          tier: premiumTier.name, // ✅ FIX: Add tier to metadata for webhook identification
         },
       }, {
         idempotencyKey: generateIdempotencyKey(`subscription_${user.id}`),
@@ -300,6 +302,10 @@ serve(async (req) => {
       console.log('Subscription items:', JSON.stringify(subscription.items));
       console.log('Latest invoice type:', typeof subscription.latest_invoice);
       console.log('Subscription metadata:', JSON.stringify(subscription.metadata));
+      console.log('🔍 DIAGNOSTIC: Payment settings sent:', {
+        payment_method_types: ['card'],
+        save_default_payment_method: 'on_subscription'
+      });
       console.log('Subscription object:', JSON.stringify(subscription));
       
     } catch (stripeError: any) {
@@ -348,6 +354,21 @@ serve(async (req) => {
 
     console.log('✅ Payment intent found:', paymentIntent.id);
     console.log('Payment intent status:', paymentIntent.status);
+
+    // 🔍 DIAGNOSTIC: Track payment intent configuration
+    console.log('🔍 DIAGNOSTIC: Payment Intent Details', {
+      id: paymentIntent.id,
+      status: paymentIntent.status,
+      amount: paymentIntent.amount,
+      currency: paymentIntent.currency,
+      customer: paymentIntent.customer,
+      payment_method: paymentIntent.payment_method,
+      automatic_payment_methods: paymentIntent.automatic_payment_methods,
+      confirmation_method: paymentIntent.confirmation_method,
+      capture_method: paymentIntent.capture_method,
+      metadata: paymentIntent.metadata,
+      client_secret_exists: !!paymentIntent.client_secret,
+    });
 
     const clientSecret = paymentIntent.client_secret;
     if (!clientSecret) {
