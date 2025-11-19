@@ -116,6 +116,7 @@ serve(async (req) => {
         break;
 
       case 'invoice.payment_succeeded':
+      case 'invoice_payment.paid':  // Handle deprecated event name (used in older API versions)
         await handlePaymentSucceeded(supabase, event);
         break;
 
@@ -309,80 +310,65 @@ async function handleSubscriptionDeleted(supabase: any, event: Stripe.Event) {
 async function handlePaymentSucceeded(supabase: any, event: Stripe.Event) {
   const invoice = event.data.object as Stripe.Invoice;
   
-  if (!invoice.subscription) {
-    console.log('Invoice not associated with subscription');
-    return;
-  }
-
   console.log('Processing invoice.payment_succeeded event');
   console.log('Invoice paid:', invoice.id);
   console.log('Subscription:', invoice.subscription);
+  console.log('Customer:', invoice.customer);
   console.log('Amount:', invoice.amount_paid / 100);
 
-  // Get subscription record WITH tier_id
-  const { data: subRecord } = await supabase
-    .from('user_subscriptions')
-    .select('id, user_id, tier_id, status')
-    .eq('stripe_subscription_id', invoice.subscription)
-    .single();
+  // STEP 1: Find user_subscription_id
+  // Try to find subscription record either by:
+  // 1. stripe_subscription_id (if invoice has subscription)
+  // 2. stripe_customer_id (fallback for non-subscription invoices)
+  
+  let subRecord: any = null;
+  
+  if (invoice.subscription) {
+    // Regular subscription payment
+    console.log('🔍 Looking up subscription by stripe_subscription_id:', invoice.subscription);
+    const { data } = await supabase
+      .from('user_subscriptions')
+      .select('id, user_id, tier_id, status')
+      .eq('stripe_subscription_id', invoice.subscription)
+      .single();
+    subRecord = data;
+  } else {
+    // Non-subscription invoice - look up by customer ID
+    console.log('⚠️ Invoice not associated with subscription - looking up by customer_id');
+    const { data } = await supabase
+      .from('user_subscriptions')
+      .select('id, user_id, tier_id, status')
+      .eq('stripe_customer_id', invoice.customer)
+      .single();
+    subRecord = data;
+  }
 
   if (!subRecord) {
-    console.error(`No subscription record found for ${invoice.subscription}`);
+    console.error(`❌ No subscription record found for invoice ${invoice.id}`);
+    console.error(`   - Subscription ID: ${invoice.subscription || 'null'}`);
+    console.error(`   - Customer ID: ${invoice.customer}`);
     return;
   }
 
-  // DIAGNOSTIC LOG: Show current state before update
-  console.log('🔍 [DIAGNOSTIC] Current subscription state BEFORE update:');
+  console.log('✅ Found user_subscription record:', subRecord.id);
+  console.log('🔍 [DIAGNOSTIC] Current subscription state:');
   console.log('🔍 [DIAGNOSTIC]   - Subscription ID:', subRecord.id);
   console.log('🔍 [DIAGNOSTIC]   - User ID:', subRecord.user_id);
   console.log('🔍 [DIAGNOSTIC]   - Current tier_id:', subRecord.tier_id);
   console.log('🔍 [DIAGNOSTIC]   - Current status:', subRecord.status);
 
-  // 1. Get premium tier for explicit upgrade
-  const { data: premiumTier, error: tierError } = await supabase
-    .from('subscription_tiers')
-    .select('tier_id')
-    .eq('name', 'Premium')
-    .single();
-
-  if (tierError || !premiumTier) {
-    console.error('Failed to get premium tier:', tierError);
-    throw new Error('Premium tier not found');
+  // STEP 2: Record payment transaction FIRST (always, regardless of subscription)
+  const paymentIntentId = (invoice.payment_intent as string) || `invoice_${invoice.id}`;
+  
+  if (!invoice.payment_intent) {
+    console.log('⚠️ payment_intent is NULL - using invoice.id as fallback:', paymentIntentId);
   }
 
-  console.log('🔍 [DIAGNOSTIC] Premium tier found:', premiumTier.tier_id);
-
-  // 2. Update subscription status to active with explicit tier upgrade
-  const { error: updateError } = await supabase
-    .from('user_subscriptions')
-    .update({
-      status: 'active',
-      tier_id: premiumTier.tier_id, // Explicitly set to premium
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', subRecord.id);
-
-  if (updateError) {
-    console.error('Failed to update subscription status:', updateError);
-  } else {
-    console.log('✅ Subscription status updated to active with premium tier');
-    // DIAGNOSTIC LOG: Verify tier_id after status update
-    const { data: updatedRecord } = await supabase
-      .from('user_subscriptions')
-      .select('tier_id, status')
-      .eq('id', subRecord.id)
-      .single();
-    console.log('🔍 [DIAGNOSTIC] Subscription state AFTER status update:');
-    console.log('🔍 [DIAGNOSTIC]   - New status:', updatedRecord?.status);
-    console.log('🔍 [DIAGNOSTIC]   - tier_id (upgraded to premium):', updatedRecord?.tier_id);
-  }
-
-  // 3. Record payment transaction with all required fields
   const { error: txError } = await supabase
     .from('payment_transactions')
     .insert({
       user_subscription_id: subRecord.id,
-      stripe_payment_intent_id: invoice.payment_intent as string,
+      stripe_payment_intent_id: paymentIntentId,
       stripe_invoice_id: invoice.id,
       amount: invoice.amount_paid / 100, // Convert from cents
       currency: invoice.currency,
@@ -390,18 +376,72 @@ async function handlePaymentSucceeded(supabase: any, event: Stripe.Event) {
       payment_method_type: 'card',
       metadata: {
         billing_reason: invoice.billing_reason,
-        subscription_id: invoice.subscription,
+        subscription_id: invoice.subscription || null,
+        customer_id: invoice.customer,
+        used_fallback_id: !invoice.payment_intent,
+        has_subscription: !!invoice.subscription,
       },
     });
 
   if (txError) {
-    console.error('Failed to insert payment transaction:', txError);
+    console.error('❌ Failed to insert payment transaction:', txError);
+    console.error('Transaction data:', {
+      user_subscription_id: subRecord.id,
+      stripe_payment_intent_id: paymentIntentId,
+      stripe_invoice_id: invoice.id,
+      amount: invoice.amount_paid / 100,
+    });
   } else {
-    console.log('✅ Payment transaction recorded');
+    console.log('✅ Payment transaction recorded:', paymentIntentId);
   }
 
-  // 4. Track payment_completed event
-  const billingCycle = invoice.lines?.data?.[0]?.plan?.interval || 'unknown';
+  // STEP 3: Update subscription status/tier (only if invoice has subscription)
+  if (invoice.subscription) {
+    console.log('🔄 Updating subscription status for recurring subscription');
+    
+    // Get premium tier for explicit upgrade
+    const { data: premiumTier, error: tierError } = await supabase
+      .from('subscription_tiers')
+      .select('tier_id')
+      .eq('name', 'Premium')
+      .single();
+
+    if (tierError || !premiumTier) {
+      console.error('Failed to get premium tier:', tierError);
+    } else {
+      console.log('🔍 [DIAGNOSTIC] Premium tier found:', premiumTier.tier_id);
+
+      // Update subscription status to active with explicit tier upgrade
+      const { error: updateError } = await supabase
+        .from('user_subscriptions')
+        .update({
+          status: 'active',
+          tier_id: premiumTier.tier_id, // Explicitly set to premium
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', subRecord.id);
+
+      if (updateError) {
+        console.error('Failed to update subscription status:', updateError);
+      } else {
+        console.log('✅ Subscription status updated to active with premium tier');
+        // DIAGNOSTIC LOG: Verify tier_id after status update
+        const { data: updatedRecord } = await supabase
+          .from('user_subscriptions')
+          .select('tier_id, status')
+          .eq('id', subRecord.id)
+          .single();
+        console.log('🔍 [DIAGNOSTIC] Subscription state AFTER status update:');
+        console.log('🔍 [DIAGNOSTIC]   - New status:', updatedRecord?.status);
+        console.log('🔍 [DIAGNOSTIC]   - tier_id (upgraded to premium):', updatedRecord?.tier_id);
+      }
+    }
+  } else {
+    console.log('ℹ️ Skipping subscription status update (non-subscription invoice)');
+  }
+
+  // STEP 4: Track payment_completed event
+  const billingCycle = invoice.lines?.data?.[0]?.plan?.interval || 'one-time';
   const { error: trackError } = await supabase
     .from('usage_tracking_events')
     .insert({
@@ -410,10 +450,11 @@ async function handlePaymentSucceeded(supabase: any, event: Stripe.Event) {
       event_context: 'webhook_payment_success',
       event_data: {
         amount: invoice.amount_paid / 100,
-        subscription_id: invoice.subscription,
+        subscription_id: invoice.subscription || null,
         billing_cycle: billingCycle,
         invoice_id: invoice.id,
         payment_intent_id: invoice.payment_intent,
+        is_subscription_payment: !!invoice.subscription,
       },
     });
 
