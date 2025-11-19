@@ -162,16 +162,16 @@ serve(async (req) => {
       return errorResponse('User already has an active subscription', 409);
     }
 
-    // Get user profile for email
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('email')
-      .eq('id', user.id)
-      .single();
-
-    if (!profile) {
-      return errorResponse('User profile not found', 404);
+    // Use email directly from authenticated user
+    // This is more reliable than querying profiles table
+    const userEmail = user.email;
+    
+    if (!userEmail) {
+      console.error('❌ User has no email in auth record');
+      return errorResponse('User email not found', 400);
     }
+
+    console.log('✅ Using email from auth:', userEmail);
 
     // Create or retrieve Stripe customer
     let stripeCustomerId: string;
@@ -194,11 +194,11 @@ serve(async (req) => {
       // Create new Stripe customer with detailed error handling
       try {
         console.log('🔄 Calling Stripe API to create customer...');
-        console.log('Customer email:', profile.email);
+        console.log('Customer email:', userEmail);
         console.log('User ID:', user.id);
         
         const customer = await stripe.customers.create({
-          email: profile.email,
+          email: userEmail,
           metadata: {
             supabase_user_id: user.id,
           },
