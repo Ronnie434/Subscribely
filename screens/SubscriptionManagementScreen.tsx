@@ -23,8 +23,11 @@ import { SubscriptionLimitStatus } from '../types';
 import TierBadge from '../components/TierBadge';
 import BillingHistoryList from '../components/BillingHistoryList';
 import CancelSubscriptionModal from '../components/CancelSubscriptionModal';
+import PauseSubscriptionModal from '../components/PauseSubscriptionModal';
+import SwitchBillingCycleModal from '../components/SwitchBillingCycleModal';
+import SubscriptionStatusIndicator from '../components/SubscriptionStatusIndicator';
 import SkeletonLoader from '../components/SkeletonLoader';
-import { formatDate } from '../utils/dateHelpers';
+import { dateHelpers } from '../utils/dateHelpers';
 
 type RootStackParamList = {
   SubscriptionManagement: undefined;
@@ -47,8 +50,13 @@ export default function SubscriptionManagementScreen({
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<SubscriptionLimitStatus | null>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showPauseModal, setShowPauseModal] = useState(false);
+  const [showBillingCycleModal, setShowBillingCycleModal] = useState(false);
   const [showBillingHistory, setShowBillingHistory] = useState(false);
   const [updatingPayment, setUpdatingPayment] = useState(false);
+  const [subscriptionStatus, setSubscriptionStatus] = useState<'active' | 'paused' | 'cancelled'>('active');
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
+  const [paymentMethod, setPaymentMethod] = useState<{ last4: string; brand: string } | null>(null);
 
   useEffect(() => {
     loadSubscriptionStatus();
@@ -59,6 +67,15 @@ export default function SubscriptionManagementScreen({
       setLoading(true);
       const limitStatus = await subscriptionLimitService.getSubscriptionLimitStatus();
       setStatus(limitStatus);
+      
+      // Load additional subscription details for premium users
+      if (limitStatus.isPremium) {
+        // TODO: Load actual subscription status, billing cycle, and payment method
+        // For now, using placeholder data
+        setSubscriptionStatus('active');
+        setBillingCycle('monthly');
+        setPaymentMethod({ last4: '4242', brand: 'Visa' });
+      }
     } catch (error) {
       console.error('Error loading subscription status:', error);
       Alert.alert('Error', 'Failed to load subscription information.');
@@ -76,12 +93,12 @@ export default function SubscriptionManagementScreen({
 
     try {
       // Get Stripe billing portal URL
-      const portalUrl = await paymentService.getBillingPortalUrl();
+      const { url } = await paymentService.getBillingPortalUrl();
 
       // Open billing portal in browser
-      const canOpen = await Linking.canOpenURL(portalUrl);
+      const canOpen = await Linking.canOpenURL(url);
       if (canOpen) {
-        await Linking.openURL(portalUrl);
+        await Linking.openURL(url);
       } else {
         Alert.alert('Error', 'Unable to open billing portal');
       }
@@ -100,8 +117,49 @@ export default function SubscriptionManagementScreen({
     setShowCancelModal(true);
   };
 
+  const handlePauseResume = async (resumeDate?: Date) => {
+    try {
+      if (subscriptionStatus === 'paused') {
+        // Resume subscription
+        await paymentService.resumeSubscription();
+        setSubscriptionStatus('active');
+      } else {
+        // Pause subscription
+        await paymentService.pauseSubscription(resumeDate);
+        setSubscriptionStatus('paused');
+      }
+      
+      setShowPauseModal(false);
+      
+      // Reload subscription status
+      await loadSubscriptionStatus();
+    } catch (error) {
+      console.error('Error handling pause/resume:', error);
+      throw error;
+    }
+  };
+
+  const handleBillingCycleSwitch = async (newCycle: 'monthly' | 'yearly') => {
+    try {
+      // Switch billing cycle via payment service
+      await paymentService.switchBillingCycle(newCycle);
+      
+      // Update local state
+      setBillingCycle(newCycle);
+      setShowBillingCycleModal(false);
+      
+      // Reload subscription status
+      await loadSubscriptionStatus();
+    } catch (error) {
+      console.error('Error switching billing cycle:', error);
+      throw error;
+    }
+  };
+
   const handleCancelSuccess = () => {
     setShowCancelModal(false);
+    setSubscriptionStatus('cancelled');
+    
     // Reload subscription status
     loadSubscriptionStatus();
     
@@ -163,6 +221,45 @@ export default function SubscriptionManagementScreen({
       fontWeight: '400',
       color: theme.colors.textSecondary,
       textAlign: 'center',
+    },
+    statusIndicatorContainer: {
+      marginTop: 16,
+      alignItems: 'center',
+    },
+    paymentMethodCard: {
+      backgroundColor: theme.colors.card,
+      borderRadius: 16,
+      padding: 20,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+      marginBottom: 12,
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    paymentMethodIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: `${theme.colors.primary}15`,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 16,
+    },
+    paymentMethodInfo: {
+      flex: 1,
+    },
+    paymentMethodLabel: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: theme.colors.textSecondary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginBottom: 4,
+    },
+    paymentMethodDetails: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: theme.colors.text,
     },
     section: {
       marginBottom: 24,
@@ -378,9 +475,9 @@ export default function SubscriptionManagementScreen({
         <View style={styles.headerCard}>
           <LinearGradient
             colors={
-              status.isPremium
+              (status.isPremium
                 ? theme.gradients.primary
-                : theme.gradients.surface
+                : theme.gradients.surface) as any
             }
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
@@ -401,11 +498,41 @@ export default function SubscriptionManagementScreen({
                 ? 'Unlimited subscriptions and all features'
                 : `${status.currentCount} of ${status.maxAllowed} subscriptions used`}
             </Text>
+            {status.isPremium && (
+              <View style={styles.statusIndicatorContainer}>
+                <SubscriptionStatusIndicator
+                  status={subscriptionStatus}
+                  size="medium"
+                />
+              </View>
+            )}
           </View>
         </View>
 
         {status.isPremium ? (
           <>
+            {/* Payment Method */}
+            {paymentMethod && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Payment Method</Text>
+                <View style={styles.paymentMethodCard}>
+                  <View style={styles.paymentMethodIcon}>
+                    <Ionicons
+                      name="card"
+                      size={24}
+                      color={theme.colors.primary}
+                    />
+                  </View>
+                  <View style={styles.paymentMethodInfo}>
+                    <Text style={styles.paymentMethodLabel}>Card</Text>
+                    <Text style={styles.paymentMethodDetails}>
+                      {paymentMethod.brand} •••• {paymentMethod.last4}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            )}
+
             {/* Billing Information */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Billing Information</Text>
@@ -416,12 +543,20 @@ export default function SubscriptionManagementScreen({
                 </View>
                 <View style={styles.infoRow}>
                   <Text style={styles.infoLabel}>Billing Cycle</Text>
-                  <Text style={styles.infoValue}>Monthly</Text>
+                  <Text style={styles.infoValue}>
+                    {billingCycle === 'monthly' ? 'Monthly' : 'Yearly'}
+                  </Text>
+                </View>
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Amount</Text>
+                  <Text style={styles.infoValue}>
+                    ${billingCycle === 'monthly' ? '9.99' : '99.99'}
+                  </Text>
                 </View>
                 <View style={[styles.infoRow, styles.infoRowLast]}>
                   <Text style={styles.infoLabel}>Next Billing Date</Text>
                   <Text style={styles.infoValue}>
-                    {formatDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000))}
+                    {dateHelpers.formatDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000))}
                   </Text>
                 </View>
               </View>
@@ -431,6 +566,65 @@ export default function SubscriptionManagementScreen({
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Manage Subscription</Text>
 
+              {/* Pause/Resume Button */}
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={() => {
+                  if (Platform.OS === 'ios') {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }
+                  setShowPauseModal(true);
+                }}
+                activeOpacity={0.7}>
+                <View style={styles.actionButtonLeft}>
+                  <View style={styles.actionButtonIcon}>
+                    <Ionicons
+                      name={subscriptionStatus === 'paused' ? 'play-circle-outline' : 'pause-circle-outline'}
+                      size={20}
+                      color={theme.colors.primary}
+                    />
+                  </View>
+                  <Text style={styles.actionButtonText}>
+                    {subscriptionStatus === 'paused' ? 'Resume Subscription' : 'Pause Subscription'}
+                  </Text>
+                </View>
+                <Ionicons
+                  name="chevron-forward"
+                  size={20}
+                  color={theme.colors.textSecondary}
+                />
+              </TouchableOpacity>
+
+              {/* Switch Billing Cycle */}
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={() => {
+                  if (Platform.OS === 'ios') {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }
+                  setShowBillingCycleModal(true);
+                }}
+                activeOpacity={0.7}>
+                <View style={styles.actionButtonLeft}>
+                  <View style={styles.actionButtonIcon}>
+                    <Ionicons
+                      name="swap-horizontal-outline"
+                      size={20}
+                      color={theme.colors.primary}
+                    />
+                  </View>
+                  <Text style={styles.actionButtonText}>
+                    Switch Billing Cycle
+                  </Text>
+                </View>
+                <Ionicons
+                  name="chevron-forward"
+                  size={20}
+                  color={theme.colors.textSecondary}
+                />
+              </TouchableOpacity>
+
+              {/* Update Payment Method */}
               <TouchableOpacity
                 style={styles.actionButton}
                 onPress={handleUpdatePaymentMethod}
@@ -459,6 +653,7 @@ export default function SubscriptionManagementScreen({
                 )}
               </TouchableOpacity>
 
+              {/* Billing History */}
               <TouchableOpacity
                 style={styles.actionButton}
                 onPress={() => setShowBillingHistory(!showBillingHistory)}
@@ -484,6 +679,7 @@ export default function SubscriptionManagementScreen({
 
               {showBillingHistory && <BillingHistoryList />}
 
+              {/* Cancel Subscription */}
               <TouchableOpacity
                 style={[styles.actionButton, styles.actionButtonDanger]}
                 onPress={handleCancelSubscription}
@@ -516,9 +712,9 @@ export default function SubscriptionManagementScreen({
               <View style={styles.usageBar}>
                 <LinearGradient
                   colors={
-                    status.currentCount >= (status.maxAllowed || 0)
+                    (status.currentCount >= (status.maxAllowed || 0)
                       ? theme.gradients.error
-                      : theme.gradients.primary
+                      : theme.gradients.primary) as any
                   }
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
@@ -540,7 +736,7 @@ export default function SubscriptionManagementScreen({
             {/* Upgrade Card */}
             <View style={styles.upgradeCard}>
               <LinearGradient
-                colors={theme.gradients.primary}
+                colors={theme.gradients.primary as any}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.upgradeGradient}>
@@ -603,6 +799,22 @@ export default function SubscriptionManagementScreen({
         visible={showCancelModal}
         onClose={() => setShowCancelModal(false)}
         onSuccess={handleCancelSuccess}
+      />
+
+      {/* Pause Subscription Modal */}
+      <PauseSubscriptionModal
+        visible={showPauseModal}
+        isCurrentlyPaused={subscriptionStatus === 'paused'}
+        onClose={() => setShowPauseModal(false)}
+        onConfirm={handlePauseResume}
+      />
+
+      {/* Switch Billing Cycle Modal */}
+      <SwitchBillingCycleModal
+        visible={showBillingCycleModal}
+        currentCycle={billingCycle}
+        onClose={() => setShowBillingCycleModal(false)}
+        onConfirm={handleBillingCycleSwitch}
       />
     </SafeAreaView>
   );

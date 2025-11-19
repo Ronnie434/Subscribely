@@ -130,12 +130,175 @@ class PaymentService {
   }
 
   /**
+   * Pause an active subscription
+   *
+   * @param resumeDate - Optional date when subscription should automatically resume
+   * @returns Pause confirmation details
+   *
+   * @example
+   * ```typescript
+   * // Pause for 30 days
+   * const resumeDate = new Date();
+   * resumeDate.setDate(resumeDate.getDate() + 30);
+   * await paymentService.pauseSubscription(resumeDate);
+   * ```
+   */
+  async pauseSubscription(resumeDate?: Date): Promise<{ success: boolean; message: string }> {
+    try {
+      const session = await this.getSession();
+      const userId = session.user.id;
+
+      // Get current subscription
+      const { data: subscription, error: fetchError } = await supabase
+        .from('user_subscriptions')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+
+      if (fetchError || !subscription) {
+        throw new Error('No active subscription found');
+      }
+
+      // Update subscription status to paused
+      const { error: updateError } = await supabase
+        .from('user_subscriptions')
+        .update({
+          status: 'paused',
+          paused_at: new Date().toISOString(),
+          resume_at: resumeDate ? resumeDate.toISOString() : null,
+        })
+        .eq('user_id', userId);
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      return {
+        success: true,
+        message: resumeDate
+          ? `Subscription paused until ${resumeDate.toLocaleDateString()}`
+          : 'Subscription paused successfully',
+      };
+    } catch (error) {
+      console.error('Error pausing subscription:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Resume a paused subscription
+   *
+   * @returns Resume confirmation details
+   *
+   * @example
+   * ```typescript
+   * await paymentService.resumeSubscription();
+   * ```
+   */
+  async resumeSubscription(): Promise<{ success: boolean; message: string }> {
+    try {
+      const session = await this.getSession();
+      const userId = session.user.id;
+
+      // Get current subscription
+      const { data: subscription, error: fetchError } = await supabase
+        .from('user_subscriptions')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+
+      if (fetchError || !subscription) {
+        throw new Error('No subscription found');
+      }
+
+      // Update subscription status to active
+      const { error: updateError } = await supabase
+        .from('user_subscriptions')
+        .update({
+          status: 'active',
+          paused_at: null,
+          resume_at: null,
+        })
+        .eq('user_id', userId);
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      return {
+        success: true,
+        message: 'Subscription resumed successfully',
+      };
+    } catch (error) {
+      console.error('Error resuming subscription:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Switch subscription billing cycle
+   *
+   * @param newCycle - The new billing cycle (monthly or yearly)
+   * @returns Billing cycle switch confirmation
+   *
+   * @example
+   * ```typescript
+   * // Switch from monthly to yearly
+   * await paymentService.switchBillingCycle('yearly');
+   * ```
+   */
+  async switchBillingCycle(newCycle: BillingCycleType): Promise<{ success: boolean; message: string }> {
+    try {
+      const session = await this.getSession();
+      const userId = session.user.id;
+
+      const plan = SUBSCRIPTION_PLANS[newCycle];
+      
+      if (!plan) {
+        throw new Error(`Invalid billing cycle: ${newCycle}`);
+      }
+
+      // Get current subscription
+      const { data: subscription, error: fetchError } = await supabase
+        .from('user_subscriptions')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+
+      if (fetchError || !subscription) {
+        throw new Error('No active subscription found');
+      }
+
+      // Update subscription billing cycle
+      const { error: updateError } = await supabase
+        .from('user_subscriptions')
+        .update({
+          billing_cycle: newCycle,
+          stripe_price_id: plan.priceId,
+        })
+        .eq('user_id', userId);
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      return {
+        success: true,
+        message: `Billing cycle switched to ${newCycle} successfully`,
+      };
+    } catch (error) {
+      console.error('Error switching billing cycle:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Request a refund for a subscription
-   * 
+   *
    * @param subscriptionId - The subscription ID to refund
    * @param reason - Optional reason for the refund
    * @returns Refund details
-   * 
+   *
    * @example
    * ```typescript
    * const result = await paymentService.requestRefund(

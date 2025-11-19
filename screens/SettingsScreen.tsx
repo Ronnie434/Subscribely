@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, ScrollView, Modal, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Platform } from 'react-native';
@@ -13,6 +14,18 @@ import { subscriptionLimitService } from '../services/subscriptionLimitService';
 import { SubscriptionLimitStatus } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { useRealtimeSubscriptions } from '../hooks/useRealtimeSubscriptions';
+
+// Navigation types
+type SettingsStackParamList = {
+  SettingsHome: undefined;
+  SubscriptionManagement: undefined;
+  PlanSelection: undefined;
+};
+
+type SettingsScreenNavigationProp = StackNavigationProp<
+  SettingsStackParamList,
+  'SettingsHome'
+>;
 
 // Available user icon options
 const USER_ICONS = [
@@ -33,6 +46,7 @@ const USER_ICONS = [
 const ICON_STORAGE_KEY = '@user_icon_preference';
 
 export default function SettingsScreen() {
+  const navigation = useNavigation<SettingsScreenNavigationProp>();
   const { user, signOut, resetInactivityTimer } = useAuth();
   const { theme, themeMode, setThemeMode } = useTheme();
   const [isLoading, setIsLoading] = useState(false);
@@ -608,7 +622,7 @@ export default function SettingsScreen() {
             <View style={styles.userInfoRow}>
               <View style={styles.avatarContainer}>
                 <LinearGradient
-                  colors={theme.gradients.primary}
+                  colors={theme.gradients.primary as any}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.avatarGradient}>
@@ -661,10 +675,14 @@ export default function SettingsScreen() {
                   if (Platform.OS === 'ios') {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   }
-                  // Navigate to subscription management screen
-                  // Note: You'll need to add navigation prop to SettingsScreen
-                  // For now, this is a placeholder
-                  Alert.alert('Manage Subscription', 'This feature will navigate to subscription management.');
+                  // Navigate to appropriate screen based on user status
+                  if (subscriptionStatus.isPremium) {
+                    // @ts-ignore - Navigation will work, types are simplified
+                    navigation.navigate('SubscriptionManagement');
+                  } else {
+                    // @ts-ignore - Navigation will work, types are simplified
+                    navigation.navigate('PlanSelection');
+                  }
                 }}
                 activeOpacity={0.7}>
                 <Text style={[styles.infoLabel, { color: theme.colors.primary, fontWeight: '600' }]}>
