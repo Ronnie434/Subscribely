@@ -325,4 +325,13 @@ export interface UserSubscriptionStatusResponse {
   current_period_end?: string;
 }
 
+/**
+ * Billing information for displaying actual payment amounts
+ */
+export interface BillingInfo {
+  actualAmount: number;
+  billingCycle: 'monthly' | 'yearly';
+  nextBillingDate: Date;
+}
+
 

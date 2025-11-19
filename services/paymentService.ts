@@ -457,7 +457,7 @@ class PaymentService {
 
   /**
    * Get payment transaction history for current user
-   * 
+   *
    * @returns List of payment transactions
    */
   async getPaymentHistory() {
@@ -482,6 +482,32 @@ class PaymentService {
     } catch (error) {
       console.error('Error getting payment history:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Fetches the most recent successful payment amount for the current user
+   * @returns The payment amount or null if no payments exist
+   */
+  async getUserBillingInfo(): Promise<number | null> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+
+      const { data, error } = await supabase
+        .from('payment_transactions')
+        .select('amount')
+        .eq('user_id', user.id)
+        .eq('status', 'succeeded')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (error || !data) return null;
+      return data.amount;
+    } catch (error) {
+      console.error('Error fetching billing info:', error);
+      return null;
     }
   }
 }

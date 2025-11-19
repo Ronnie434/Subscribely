@@ -20,6 +20,8 @@ import { subscriptionTierService } from '../services/subscriptionTierService';
 import { subscriptionLimitService } from '../services/subscriptionLimitService';
 import { paymentService } from '../services/paymentService';
 import { SubscriptionLimitStatus } from '../types';
+import { supabase } from '../config/supabase';
+import { SUBSCRIPTION_PLANS } from '../config/stripe';
 import TierBadge from '../components/TierBadge';
 import BillingHistoryList from '../components/BillingHistoryList';
 import CancelSubscriptionModal from '../components/CancelSubscriptionModal';
@@ -57,6 +59,9 @@ export default function SubscriptionManagementScreen({
   const [subscriptionStatus, setSubscriptionStatus] = useState<'active' | 'paused' | 'cancelled'>('active');
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
   const [paymentMethod, setPaymentMethod] = useState<{ last4: string; brand: string } | null>(null);
+  const [actualBillingAmount, setActualBillingAmount] = useState<number | null>(null);
+  const [nextBillingDate, setNextBillingDate] = useState<Date | null>(null);
+  const [billingDataLoading, setBillingDataLoading] = useState<boolean>(false);
 
   useEffect(() => {
     loadSubscriptionStatus();
@@ -70,11 +75,82 @@ export default function SubscriptionManagementScreen({
       
       // Load additional subscription details for premium users
       if (limitStatus.isPremium) {
-        // TODO: Load actual subscription status, billing cycle, and payment method
-        // For now, using placeholder data
-        setSubscriptionStatus('active');
-        setBillingCycle('monthly');
-        setPaymentMethod({ last4: '4242', brand: 'Visa' });
+        setBillingDataLoading(true);
+        
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          
+          if (user) {
+            // Fetch user subscription details from database
+            const { data: subscription, error: subError } = await supabase
+              .from('user_subscriptions')
+              .select(`
+                *,
+                tier:subscription_tiers(*)
+              `)
+              .eq('user_id', user.id)
+              .single();
+
+            if (!subError && subscription) {
+              // Set subscription status
+              setSubscriptionStatus(subscription.status as 'active' | 'paused' | 'cancelled');
+              
+              // Set billing cycle from database with validation
+              // Note: Database may store 'annual' which needs to map to 'yearly'
+              let cycle: 'monthly' | 'yearly' = 'monthly'; // default fallback
+              
+              if (subscription.billing_cycle === 'monthly' || subscription.billing_cycle === 'yearly') {
+                cycle = subscription.billing_cycle as 'monthly' | 'yearly';
+              } else if (subscription.billing_cycle === 'annual') {
+                // Map 'annual' to 'yearly' to match SUBSCRIPTION_PLANS keys
+                cycle = 'yearly';
+              }
+              
+              setBillingCycle(cycle);
+              
+              // Set next billing date from current_period_end
+              if (subscription.current_period_end) {
+                setNextBillingDate(new Date(subscription.current_period_end));
+              }
+              
+              // Implement 3-level fallback for billing amount:
+              // 1. Try payment_transactions (actual amount paid)
+              let billingAmount: number | null = await paymentService.getUserBillingInfo();
+              
+              // 2. Fallback to subscription_tiers pricing (using correct database field names)
+              if (billingAmount == null && subscription.tier) {
+                billingAmount = cycle === 'monthly'
+                  ? (subscription.tier as any).monthly_price
+                  : (subscription.tier as any).annual_price;
+              }
+              
+              // 3. Final fallback to SUBSCRIPTION_PLANS config
+              if (billingAmount == null) {
+                const plan = SUBSCRIPTION_PLANS[cycle];
+                if (plan) {
+                  billingAmount = plan.amount;
+                } else {
+                  // Emergency fallback if plan lookup fails
+                  console.error('Invalid billing cycle for plan lookup:', cycle);
+                  billingAmount = cycle === 'yearly' ? 39.00 : 4.99;
+                }
+              }
+              
+              setActualBillingAmount(billingAmount);
+              
+              // Set payment method placeholder (TODO: fetch from Stripe if needed)
+              setPaymentMethod({ last4: '4242', brand: 'Visa' });
+            }
+          }
+        } catch (billingError) {
+          console.error('Error loading billing details:', billingError);
+          // Set fallback values if billing data fetch fails
+          const cycle = billingCycle;
+          const plan = SUBSCRIPTION_PLANS[cycle];
+          setActualBillingAmount(plan?.amount ?? 4.99);
+        } finally {
+          setBillingDataLoading(false);
+        }
       }
     } catch (error) {
       console.error('Error loading subscription status:', error);
@@ -549,15 +625,26 @@ export default function SubscriptionManagementScreen({
                 </View>
                 <View style={styles.infoRow}>
                   <Text style={styles.infoLabel}>Amount</Text>
-                  <Text style={styles.infoValue}>
-                    ${billingCycle === 'monthly' ? '9.99' : '99.99'}
-                  </Text>
+                  {billingDataLoading ? (
+                    <ActivityIndicator size="small" color={theme.colors.primary} />
+                  ) : (
+                    <Text style={styles.infoValue}>
+                      ${actualBillingAmount?.toFixed(2) ?? '...'}
+                    </Text>
+                  )}
                 </View>
                 <View style={[styles.infoRow, styles.infoRowLast]}>
                   <Text style={styles.infoLabel}>Next Billing Date</Text>
-                  <Text style={styles.infoValue}>
-                    {dateHelpers.formatDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000))}
-                  </Text>
+                  {billingDataLoading ? (
+                    <ActivityIndicator size="small" color={theme.colors.primary} />
+                  ) : (
+                    <Text style={styles.infoValue}>
+                      {nextBillingDate
+                        ? dateHelpers.formatDate(nextBillingDate)
+                        : dateHelpers.formatDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000))
+                      }
+                    </Text>
+                  )}
                 </View>
               </View>
             </View>

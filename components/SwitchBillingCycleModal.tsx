@@ -91,6 +91,16 @@ export default function SwitchBillingCycleModal({
     const currentPlan = SUBSCRIPTION_PLANS[currentCycle];
     const newPlan = SUBSCRIPTION_PLANS[selectedCycle];
     
+    // Validate plans exist
+    if (!currentPlan || !newPlan) {
+      console.error('Invalid billing cycle for proration calculation:', { currentCycle, selectedCycle });
+      return {
+        type: 'upgrade',
+        message: 'Switch billing cycle',
+        details: 'Your billing cycle will be updated at the next renewal.',
+      };
+    }
+    
     if (currentCycle === 'monthly' && selectedCycle === 'yearly') {
       const monthlyCost = currentPlan.amount * 12;
       const yearlyCost = newPlan.amount;
@@ -419,7 +429,7 @@ export default function SwitchBillingCycleModal({
                   {currentCycle === 'monthly' ? 'Monthly' : 'Yearly'} Billing
                 </Text>
                 <Text style={styles.planPrice}>
-                  ${SUBSCRIPTION_PLANS[currentCycle].amount.toFixed(2)}
+                  ${SUBSCRIPTION_PLANS[currentCycle]?.amount?.toFixed(2) || '?.??'}
                   {currentCycle === 'monthly' ? '/mo' : '/yr'}
                 </Text>
               </View>
