@@ -385,7 +385,7 @@ export default function SwitchBillingCycleModal({
     >
       <View style={styles.modalOverlay}>
         <Pressable style={styles.backdrop} onPress={handleClose}>
-          <BlurView intensity={20} style={StyleSheet.absoluteFill} />
+          <BlurView intensity={20} style={StyleSheet.absoluteFill} pointerEvents="none" />
         </Pressable>
 
         <Animated.View
@@ -402,7 +402,10 @@ export default function SwitchBillingCycleModal({
           </TouchableOpacity>
 
           {/* Header */}
-          <View style={styles.header}>
+          <View
+            style={styles.header}
+            pointerEvents="box-none"
+          >
             <View style={styles.iconContainer}>
               <LinearGradient
                 colors={theme.gradients.primary as any}

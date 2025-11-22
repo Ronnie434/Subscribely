@@ -25,7 +25,6 @@ import { SUBSCRIPTION_PLANS } from '../config/stripe';
 import TierBadge from '../components/TierBadge';
 import BillingHistoryList from '../components/BillingHistoryList';
 import CancelSubscriptionModal from '../components/CancelSubscriptionModal';
-import PauseSubscriptionModal from '../components/PauseSubscriptionModal';
 import SwitchBillingCycleModal from '../components/SwitchBillingCycleModal';
 import SubscriptionStatusIndicator from '../components/SubscriptionStatusIndicator';
 import SkeletonLoader from '../components/SkeletonLoader';
@@ -52,7 +51,6 @@ export default function SubscriptionManagementScreen({
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<SubscriptionLimitStatus | null>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
-  const [showPauseModal, setShowPauseModal] = useState(false);
   const [showBillingCycleModal, setShowBillingCycleModal] = useState(false);
   const [showBillingHistory, setShowBillingHistory] = useState(false);
   const [updatingPayment, setUpdatingPayment] = useState(false);
@@ -191,28 +189,6 @@ export default function SubscriptionManagementScreen({
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
     setShowCancelModal(true);
-  };
-
-  const handlePauseResume = async (resumeDate?: Date) => {
-    try {
-      if (subscriptionStatus === 'paused') {
-        // Resume subscription
-        await paymentService.resumeSubscription();
-        setSubscriptionStatus('active');
-      } else {
-        // Pause subscription
-        await paymentService.pauseSubscription(resumeDate);
-        setSubscriptionStatus('paused');
-      }
-      
-      setShowPauseModal(false);
-      
-      // Reload subscription status
-      await loadSubscriptionStatus();
-    } catch (error) {
-      console.error('Error handling pause/resume:', error);
-      throw error;
-    }
   };
 
   const handleBillingCycleSwitch = async (newCycle: 'monthly' | 'yearly') => {
@@ -641,7 +617,7 @@ export default function SubscriptionManagementScreen({
                     <Text style={styles.infoValue}>
                       {nextBillingDate
                         ? dateHelpers.formatDate(nextBillingDate)
-                        : dateHelpers.formatDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000))
+                        : dateHelpers.formatDate(new Date(Date.now() + (billingCycle === 'yearly' ? 365 : 30) * 24 * 60 * 60 * 1000))
                       }
                     </Text>
                   )}
@@ -652,35 +628,6 @@ export default function SubscriptionManagementScreen({
             {/* Actions */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Manage Subscription</Text>
-
-              {/* Pause/Resume Button */}
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={() => {
-                  if (Platform.OS === 'ios') {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  }
-                  setShowPauseModal(true);
-                }}
-                activeOpacity={0.7}>
-                <View style={styles.actionButtonLeft}>
-                  <View style={styles.actionButtonIcon}>
-                    <Ionicons
-                      name={subscriptionStatus === 'paused' ? 'play-circle-outline' : 'pause-circle-outline'}
-                      size={20}
-                      color={theme.colors.primary}
-                    />
-                  </View>
-                  <Text style={styles.actionButtonText}>
-                    {subscriptionStatus === 'paused' ? 'Resume Subscription' : 'Pause Subscription'}
-                  </Text>
-                </View>
-                <Ionicons
-                  name="chevron-forward"
-                  size={20}
-                  color={theme.colors.textSecondary}
-                />
-              </TouchableOpacity>
 
               {/* Switch Billing Cycle */}
               <TouchableOpacity
@@ -886,14 +833,6 @@ export default function SubscriptionManagementScreen({
         visible={showCancelModal}
         onClose={() => setShowCancelModal(false)}
         onSuccess={handleCancelSuccess}
-      />
-
-      {/* Pause Subscription Modal */}
-      <PauseSubscriptionModal
-        visible={showPauseModal}
-        isCurrentlyPaused={subscriptionStatus === 'paused'}
-        onClose={() => setShowPauseModal(false)}
-        onConfirm={handlePauseResume}
       />
 
       {/* Switch Billing Cycle Modal */}
