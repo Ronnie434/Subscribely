@@ -54,7 +54,7 @@ export default function SubscriptionManagementScreen({
   const [showBillingCycleModal, setShowBillingCycleModal] = useState(false);
   const [showBillingHistory, setShowBillingHistory] = useState(false);
   const [updatingPayment, setUpdatingPayment] = useState(false);
-  const [subscriptionStatus, setSubscriptionStatus] = useState<'active' | 'paused' | 'cancelled'>('active');
+  const [subscriptionStatus, setSubscriptionStatus] = useState<'active' | 'paused' | 'cancelled' | 'canceled' | 'past_due' | 'trialing'>('active');
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
   const [paymentMethod, setPaymentMethod] = useState<{ last4: string; brand: string } | null>(null);
   const [actualBillingAmount, setActualBillingAmount] = useState<number | null>(null);
@@ -210,9 +210,8 @@ export default function SubscriptionManagementScreen({
 
   const handleCancelSuccess = () => {
     setShowCancelModal(false);
-    setSubscriptionStatus('cancelled');
     
-    // Reload subscription status
+    // Reload subscription status to get the real status from database
     loadSubscriptionStatus();
     
     if (Platform.OS === 'ios') {

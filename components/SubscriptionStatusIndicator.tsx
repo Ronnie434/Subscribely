@@ -3,7 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
 
-export type SubscriptionStatus = 'active' | 'paused' | 'cancelled' | 'past_due' | 'trialing' | 'incomplete';
+export type SubscriptionStatus = 'active' | 'paused' | 'cancelled' | 'canceled' | 'past_due' | 'trialing' | 'incomplete';
 
 interface SubscriptionStatusIndicatorProps {
   status: SubscriptionStatus;
@@ -18,8 +18,11 @@ export default function SubscriptionStatusIndicator({
 }: SubscriptionStatusIndicatorProps) {
   const { theme } = useTheme();
 
+  // Normalize status to handle both 'canceled' (Stripe) and 'cancelled' (British)
+  const normalizedStatus = status === 'canceled' ? 'cancelled' : status;
+
   const getStatusConfig = () => {
-    switch (status) {
+    switch (normalizedStatus) {
       case 'active':
         return {
           label: 'Active',
