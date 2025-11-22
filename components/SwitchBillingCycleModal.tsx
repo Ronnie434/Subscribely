@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Platform,
   Alert,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -410,9 +411,10 @@ export default function SwitchBillingCycleModal({
           </View>
 
           {/* Content */}
-          <View style={styles.content}>
-            {/* Current Plan */}
-            <View style={styles.currentPlanCard}>
+          <ScrollView showsVerticalScrollIndicator={false}>
+            <View style={styles.content}>
+              {/* Current Plan */}
+              <View style={styles.currentPlanCard}>
               <Text style={styles.planLabel}>Current Plan</Text>
               <View style={styles.planInfo}>
                 <Text style={styles.planName}>
@@ -511,7 +513,8 @@ export default function SwitchBillingCycleModal({
                 <Text style={styles.cancelButtonText}>Keep Current Plan</Text>
               </TouchableOpacity>
             </View>
-          </View>
+            </View>
+          </ScrollView>
         </Animated.View>
       </View>
     </Modal>

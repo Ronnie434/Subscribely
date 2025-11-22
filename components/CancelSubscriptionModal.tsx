@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Platform,
   Alert,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
@@ -312,7 +313,7 @@ export default function CancelSubscriptionModal({
       onRequestClose={handleClose}>
       <View style={styles.modalOverlay}>
         <Pressable style={styles.backdrop} onPress={handleClose}>
-          <BlurView intensity={20} style={StyleSheet.absoluteFill} />
+          <BlurView intensity={20} style={StyleSheet.absoluteFill} pointerEvents="none" />
         </Pressable>
 
         <Animated.View
@@ -327,7 +328,10 @@ export default function CancelSubscriptionModal({
           </TouchableOpacity>
 
           {/* Header */}
-          <View style={styles.header}>
+          <View
+            style={styles.header}
+            pointerEvents="box-none"
+          >
             <View style={styles.iconContainer}>
               <Ionicons
                 name="warning"
@@ -342,7 +346,11 @@ export default function CancelSubscriptionModal({
           </View>
 
           {/* Content */}
-          <View style={styles.content}>
+          <ScrollView
+            contentContainerStyle={styles.content}
+            showsVerticalScrollIndicator={true}
+            pointerEvents="auto"
+          >
             {/* Warning */}
             <View style={styles.warningCard}>
               <Text style={styles.warningTitle}>What You'll Lose</Text>
@@ -447,7 +455,7 @@ export default function CancelSubscriptionModal({
                 )}
               </TouchableOpacity>
             </View>
-          </View>
+          </ScrollView>
         </Animated.View>
       </View>
     </Modal>
