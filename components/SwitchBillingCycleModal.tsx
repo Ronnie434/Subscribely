@@ -33,12 +33,10 @@ export default function SwitchBillingCycleModal({
 }: SwitchBillingCycleModalProps) {
   const { theme } = useTheme();
   const [loading, setLoading] = useState(false);
-  const [selectedCycle, setSelectedCycle] = useState<'monthly' | 'yearly'>(
-    currentCycle === 'monthly' ? 'yearly' : 'monthly'
-  );
+  // Since this modal is only shown to monthly subscribers, always set to yearly
+  const selectedCycle: 'yearly' = 'yearly';
   
   const savingsPercentage = calculateYearlySavingsPercentage();
-  const targetCycle = currentCycle === 'monthly' ? 'yearly' : 'monthly';
 
   const handleConfirm = async () => {
     if (Platform.OS === 'ios') {
@@ -54,13 +52,9 @@ export default function SwitchBillingCycleModal({
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
       
-      const message = selectedCycle === 'yearly'
-        ? `You have switched to yearly billing and will save ${savingsPercentage}% per year!`
-        : 'You have switched to monthly billing. Your next charge will be adjusted accordingly.';
-      
       Alert.alert(
         'Billing Cycle Updated',
-        message,
+        `You have switched to yearly billing and will save ${savingsPercentage}% per year!`,
         [{ text: 'OK', onPress: onClose }]
       );
     } catch (error) {
@@ -89,11 +83,11 @@ export default function SwitchBillingCycleModal({
 
   const getProrationInfo = () => {
     const currentPlan = SUBSCRIPTION_PLANS[currentCycle];
-    const newPlan = SUBSCRIPTION_PLANS[selectedCycle];
+    const newPlan = SUBSCRIPTION_PLANS['yearly'];
     
     // Validate plans exist
     if (!currentPlan || !newPlan) {
-      console.error('Invalid billing cycle for proration calculation:', { currentCycle, selectedCycle });
+      console.error('Invalid billing cycle for proration calculation:', { currentCycle });
       return {
         type: 'upgrade',
         message: 'Switch billing cycle',
@@ -101,23 +95,16 @@ export default function SwitchBillingCycleModal({
       };
     }
     
-    if (currentCycle === 'monthly' && selectedCycle === 'yearly') {
-      const monthlyCost = currentPlan.amount * 12;
-      const yearlyCost = newPlan.amount;
-      const savings = monthlyCost - yearlyCost;
-      
-      return {
-        type: 'upgrade',
-        message: `Save $${savings.toFixed(2)} per year`,
-        details: 'You will be charged the prorated difference for the remainder of your current billing period.',
-      };
-    } else {
-      return {
-        type: 'downgrade',
-        message: 'Switch to monthly billing',
-        details: 'Your account will be credited for the unused portion of your yearly subscription.',
-      };
-    }
+    // Since this modal is only for monthly subscribers upgrading to yearly
+    const monthlyCost = currentPlan.amount * 12;
+    const yearlyCost = newPlan.amount;
+    const savings = monthlyCost - yearlyCost;
+    
+    return {
+      type: 'upgrade',
+      message: `Save $${savings.toFixed(2)} per year`,
+      details: 'You will be charged the prorated difference for the remainder of your current billing period.',
+    };
   };
 
   const prorationInfo = getProrationInfo();
@@ -442,28 +429,21 @@ export default function SwitchBillingCycleModal({
             <View style={styles.newPlanSection}>
               <Text style={styles.sectionTitle}>Switch to:</Text>
 
-              {/* Yearly Option */}
-              <TouchableOpacity
+              {/* Yearly Option - Only option available for monthly subscribers */}
+              <View
                 style={[
                   styles.planOption,
-                  selectedCycle === 'yearly' && styles.planOptionSelected,
+                  styles.planOptionSelected,
                 ]}
-                onPress={() => setSelectedCycle('yearly')}
-                activeOpacity={0.7}
-                disabled={currentCycle === 'yearly'}
               >
-                {currentCycle === 'monthly' && (
-                  <View style={styles.savingsBadge}>
-                    <Text style={styles.savingsText}>Save {savingsPercentage}%</Text>
-                  </View>
-                )}
+                <View style={styles.savingsBadge}>
+                  <Text style={styles.savingsText}>Save {savingsPercentage}%</Text>
+                </View>
                 <View style={styles.planOptionHeader}>
                   <Text style={styles.planOptionName}>Yearly</Text>
-                  {selectedCycle === 'yearly' && (
-                    <View style={styles.checkmark}>
-                      <Ionicons name="checkmark" size={20} color="#FFFFFF" />
-                    </View>
-                  )}
+                  <View style={styles.checkmark}>
+                    <Ionicons name="checkmark" size={20} color="#FFFFFF" />
+                  </View>
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
                   <Text style={styles.planOptionPrice}>
@@ -474,86 +454,51 @@ export default function SwitchBillingCycleModal({
                 <Text style={styles.planOptionDetails}>
                   ${(SUBSCRIPTION_PLANS.yearly.amount / 12).toFixed(2)} per month • Billed annually
                 </Text>
-              </TouchableOpacity>
-
-              {/* Monthly Option */}
-              <TouchableOpacity
-                style={[
-                  styles.planOption,
-                  selectedCycle === 'monthly' && styles.planOptionSelected,
-                ]}
-                onPress={() => setSelectedCycle('monthly')}
-                activeOpacity={0.7}
-                disabled={currentCycle === 'monthly'}
-              >
-                <View style={styles.planOptionHeader}>
-                  <Text style={styles.planOptionName}>Monthly</Text>
-                  {selectedCycle === 'monthly' && (
-                    <View style={styles.checkmark}>
-                      <Ionicons name="checkmark" size={20} color="#FFFFFF" />
-                    </View>
-                  )}
-                </View>
-                <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
-                  <Text style={styles.planOptionPrice}>
-                    ${SUBSCRIPTION_PLANS.monthly.amount.toFixed(2)}
-                  </Text>
-                  <Text style={styles.planOptionPeriod}>/month</Text>
-                </View>
-                <Text style={styles.planOptionDetails}>
-                  Billed monthly • Cancel anytime
-                </Text>
-              </TouchableOpacity>
+              </View>
             </View>
 
             {/* Proration Info */}
-            {currentCycle !== selectedCycle && (
-              <View style={styles.prorationCard}>
-                <Text style={styles.prorationTitle}>
-                  {prorationInfo.message}
-                </Text>
-                <Text style={styles.prorationText}>
-                  {prorationInfo.details}
-                </Text>
-              </View>
-            )}
+            <View style={styles.prorationCard}>
+              <Text style={styles.prorationTitle}>
+                {prorationInfo.message}
+              </Text>
+              <Text style={styles.prorationText}>
+                {prorationInfo.details}
+              </Text>
+            </View>
 
             {/* Comparison */}
-            {currentCycle !== selectedCycle && (
-              <View style={styles.comparisonTable}>
-                <View style={styles.comparisonRow}>
-                  <Text style={styles.comparisonLabel}>Current</Text>
-                  <Text style={styles.comparisonValue}>
-                    ${SUBSCRIPTION_PLANS[currentCycle].amount.toFixed(2)}
-                    {currentCycle === 'monthly' ? '/mo' : '/yr'}
-                  </Text>
-                </View>
-                <View style={[styles.comparisonRow, { borderBottomWidth: 0 }]}>
-                  <Text style={styles.comparisonLabel}>New</Text>
-                  <Text style={[styles.comparisonValue, styles.comparisonValueNew]}>
-                    ${SUBSCRIPTION_PLANS[selectedCycle].amount.toFixed(2)}
-                    {selectedCycle === 'monthly' ? '/mo' : '/yr'}
-                  </Text>
-                </View>
+            <View style={styles.comparisonTable}>
+              <View style={styles.comparisonRow}>
+                <Text style={styles.comparisonLabel}>Current</Text>
+                <Text style={styles.comparisonValue}>
+                  ${SUBSCRIPTION_PLANS.monthly.amount.toFixed(2)}/mo
+                </Text>
               </View>
-            )}
+              <View style={[styles.comparisonRow, { borderBottomWidth: 0 }]}>
+                <Text style={styles.comparisonLabel}>New</Text>
+                <Text style={[styles.comparisonValue, styles.comparisonValueNew]}>
+                  ${SUBSCRIPTION_PLANS.yearly.amount.toFixed(2)}/yr
+                </Text>
+              </View>
+            </View>
 
             {/* Buttons */}
             <View style={styles.buttonContainer}>
               <TouchableOpacity
                 style={[
                   styles.confirmButton,
-                  (loading || currentCycle === selectedCycle) && styles.confirmButtonDisabled,
+                  loading && styles.confirmButtonDisabled,
                 ]}
                 onPress={handleConfirm}
-                disabled={loading || currentCycle === selectedCycle}
+                disabled={loading}
                 activeOpacity={0.8}
               >
                 {loading ? (
                   <ActivityIndicator color="#FFFFFF" />
                 ) : (
                   <Text style={styles.confirmButtonText}>
-                    Switch to {selectedCycle === 'monthly' ? 'Monthly' : 'Yearly'} Billing
+                    Switch to Yearly Billing
                   </Text>
                 )}
               </TouchableOpacity>

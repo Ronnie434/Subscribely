@@ -629,34 +629,36 @@ export default function SubscriptionManagementScreen({
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Manage Subscription</Text>
 
-              {/* Switch Billing Cycle */}
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={() => {
-                  if (Platform.OS === 'ios') {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  }
-                  setShowBillingCycleModal(true);
-                }}
-                activeOpacity={0.7}>
-                <View style={styles.actionButtonLeft}>
-                  <View style={styles.actionButtonIcon}>
-                    <Ionicons
-                      name="swap-horizontal-outline"
-                      size={20}
-                      color={theme.colors.primary}
-                    />
+              {/* Switch Billing Cycle - Only show for monthly subscribers */}
+              {billingCycle === 'monthly' && (
+                <TouchableOpacity
+                  style={styles.actionButton}
+                  onPress={() => {
+                    if (Platform.OS === 'ios') {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }
+                    setShowBillingCycleModal(true);
+                  }}
+                  activeOpacity={0.7}>
+                  <View style={styles.actionButtonLeft}>
+                    <View style={styles.actionButtonIcon}>
+                      <Ionicons
+                        name="swap-horizontal-outline"
+                        size={20}
+                        color={theme.colors.primary}
+                      />
+                    </View>
+                    <Text style={styles.actionButtonText}>
+                      Switch Billing Cycle
+                    </Text>
                   </View>
-                  <Text style={styles.actionButtonText}>
-                    Switch Billing Cycle
-                  </Text>
-                </View>
-                <Ionicons
-                  name="chevron-forward"
-                  size={20}
-                  color={theme.colors.textSecondary}
-                />
-              </TouchableOpacity>
+                  <Ionicons
+                    name="chevron-forward"
+                    size={20}
+                    color={theme.colors.textSecondary}
+                  />
+                </TouchableOpacity>
+              )}
 
               {/* Update Payment Method */}
               <TouchableOpacity
