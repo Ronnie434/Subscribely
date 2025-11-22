@@ -468,20 +468,56 @@ class PaymentService {
       const { data: transactions, error } = await supabase
         .from('payment_transactions')
         .select(`
-          *,
-          user_subscription:user_subscriptions(*)
+          id,
+          amount,
+          currency,
+          status,
+          created_at,
+          stripe_invoice_id,
+          stripe_payment_intent_id,
+          user_subscription:user_subscriptions!inner(user_id)
         `)
         .eq('user_subscription.user_id', userId)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(20);
 
       if (error) {
         throw error;
       }
 
-      return transactions || [];
+      // Transform to match UI interface
+      return (transactions || []).map(item => ({
+        id: item.id,
+        amount: item.amount,
+        currency: item.currency,
+        status: item.status as 'succeeded' | 'failed' | 'refunded',
+        created_at: item.created_at,
+        stripe_invoice_id: item.stripe_invoice_id,
+        stripe_payment_intent_id: item.stripe_payment_intent_id,
+      }));
     } catch (error) {
       console.error('Error getting payment history:', error);
-      throw error;
+      throw new Error('Failed to load billing history');
+    }
+  }
+
+  /**
+   * Get downloadable invoice URL from Stripe
+   * Fetches on-demand to avoid storing URLs (they can expire)
+   *
+   * @param stripeInvoiceId - The Stripe invoice ID
+   * @returns Invoice URL that can be opened in browser
+   */
+  async getInvoiceUrl(stripeInvoiceId: string): Promise<string> {
+    try {
+      const result = await this.callEdgeFunction<{ url: string }>(
+        'get-invoice-url',
+        { invoiceId: stripeInvoiceId }
+      );
+      return result.url;
+    } catch (error) {
+      console.error('Error fetching invoice URL:', error);
+      throw new Error('Unable to retrieve invoice. Please try again.');
     }
   }
 

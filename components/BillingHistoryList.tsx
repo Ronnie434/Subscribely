@@ -13,8 +13,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../config/supabase';
-import { formatDate } from '../utils/dateHelpers';
+import { dateHelpers } from '../utils/dateHelpers';
+import { paymentService } from '../services/paymentService';
 import EmptyState from './EmptyState';
 
 interface Transaction {
@@ -33,30 +33,32 @@ export default function BillingHistoryList() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [invoiceLoading, setInvoiceLoading] = useState<{ [key: string]: boolean }>({});
 
   useEffect(() => {
     loadTransactions();
   }, []);
 
   const loadTransactions = async (isRefresh = false) => {
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
 
     try {
       if (!isRefresh) setLoading(true);
 
-      // Query payment_transactions table
-      const { data, error } = await supabase
-        .from('payment_transactions')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(20);
-
-      if (error) throw error;
-
-      setTransactions(data || []);
+      // Use payment service to fetch transactions with proper security
+      const data = await paymentService.getPaymentHistory();
+      setTransactions(data);
     } catch (error) {
       console.error('Error loading transactions:', error);
-      Alert.alert('Error', 'Failed to load billing history');
+      Alert.alert(
+        'Error',
+        'Failed to load billing history. Please try again.',
+        [{ text: 'OK' }]
+      );
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -70,21 +72,40 @@ export default function BillingHistoryList() {
 
   const handleDownloadInvoice = async (transaction: Transaction) => {
     if (!transaction.stripe_invoice_id) {
-      Alert.alert('Unavailable', 'Invoice not available for this transaction');
+      Alert.alert(
+        'Invoice Unavailable',
+        'No invoice is available for this transaction.'
+      );
       return;
     }
 
+    setInvoiceLoading(prev => ({ ...prev, [transaction.id]: true }));
+
     try {
-      // In a real implementation, you would fetch the invoice URL from your backend
-      // For now, we'll show a placeholder message
-      Alert.alert(
-        'Invoice Download',
-        'Invoice download will be available soon. Please contact support if you need your invoice immediately.',
-        [{ text: 'OK' }]
-      );
+      const url = await paymentService.getInvoiceUrl(transaction.stripe_invoice_id);
+      
+      const canOpen = await Linking.canOpenURL(url);
+      if (canOpen) {
+        await Linking.openURL(url);
+      } else {
+        throw new Error('Cannot open invoice URL');
+      }
     } catch (error) {
-      console.error('Error downloading invoice:', error);
-      Alert.alert('Error', 'Failed to download invoice');
+      console.error('Invoice download error:', error);
+      
+      Alert.alert(
+        'Download Failed',
+        'Unable to retrieve your invoice. Please try again or contact support.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Retry',
+            onPress: () => handleDownloadInvoice(transaction)
+          },
+        ]
+      );
+    } finally {
+      setInvoiceLoading(prev => ({ ...prev, [transaction.id]: false }));
     }
   };
 
@@ -145,10 +166,10 @@ export default function BillingHistoryList() {
             </View>
             <View style={styles.transactionInfo}>
               <Text style={styles.transactionAmount}>
-                ${(item.amount / 100).toFixed(2)} {item.currency.toUpperCase()}
+                ${item.amount.toFixed(2)} {item.currency.toUpperCase()}
               </Text>
               <Text style={styles.transactionDate}>
-                {formatDate(new Date(item.created_at))}
+                {dateHelpers.formatDate(new Date(item.created_at))}
               </Text>
             </View>
           </View>
@@ -167,13 +188,20 @@ export default function BillingHistoryList() {
           <TouchableOpacity
             style={styles.downloadButton}
             onPress={() => handleDownloadInvoice(item)}
+            disabled={invoiceLoading[item.id]}
             activeOpacity={0.7}>
-            <Ionicons
-              name="download-outline"
-              size={16}
-              color={theme.colors.primary}
-            />
-            <Text style={styles.downloadButtonText}>Download Invoice</Text>
+            {invoiceLoading[item.id] ? (
+              <ActivityIndicator size="small" color={theme.colors.primary} />
+            ) : (
+              <>
+                <Ionicons
+                  name="download-outline"
+                  size={16}
+                  color={theme.colors.primary}
+                />
+                <Text style={styles.downloadButtonText}>Download Invoice</Text>
+              </>
+            )}
           </TouchableOpacity>
         )}
       </View>
