@@ -386,24 +386,30 @@ serve(async (req) => {
     console.log('💾 Saving subscription to database...');
     console.log('Billing cycle mapping:', billingCycle, '->', dbBillingCycle);
 
-    // Store subscription in database
+    // Store subscription in database using UPSERT
+    // This allows users to re-subscribe after canceling
     const { error: insertError } = await supabase
       .from('user_subscriptions')
-      .insert({
+      .upsert({
         user_id: user.id,
-        tier_id: premiumTier.tier_id,  // Use tier_id from schema
+        tier_id: premiumTier.tier_id,
         stripe_customer_id: stripeCustomerId,
         stripe_subscription_id: subscription.id,
         status: 'trialing', // Will be updated by webhook
-        billing_cycle: dbBillingCycle, // Use 'annual' instead of 'yearly'
+        billing_cycle: dbBillingCycle,
         current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
         current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+        canceled_at: null, // Clear any previous cancellation
+        cancel_at: null,   // Clear any scheduled cancellation
+      }, {
+        onConflict: 'user_id', // Update existing record for same user
+        ignoreDuplicates: false, // Always update
       });
 
     if (insertError) {
-      console.error('❌ Database insert error:', insertError);
-      console.error('Insert error details:', JSON.stringify(insertError, null, 2));
-      // Cancel the Stripe subscription if database insert fails
+      console.error('❌ Database upsert error:', insertError);
+      console.error('Upsert error details:', JSON.stringify(insertError, null, 2));
+      // Cancel the Stripe subscription if database operation fails
       await stripe.subscriptions.cancel(subscription.id);
       return errorResponse('Failed to create subscription record', 500);
     }
