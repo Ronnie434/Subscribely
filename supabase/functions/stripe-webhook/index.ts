@@ -336,27 +336,20 @@ async function handleSubscriptionDeleted(supabase: any, event: Stripe.Event) {
 async function handlePaymentSucceeded(supabase: any, event: Stripe.Event) {
   const invoice = event.data.object as Stripe.Invoice;
   
+  console.log('🔍 [DIAGNOSTIC] ========== handlePaymentSucceeded CALLED ==========');
+  console.log('🔍 [DIAGNOSTIC] Event ID:', event.id);
+  console.log('🔍 [DIAGNOSTIC] Event Type:', event.type);
   console.log('Processing invoice.payment_succeeded event');
   console.log('Invoice paid:', invoice.id);
   console.log('Subscription:', invoice.subscription);
   console.log('Customer:', invoice.customer);
   console.log('Amount:', invoice.amount_paid / 100);
+  console.log('🔍 [DIAGNOSTIC] Payment Intent:', invoice.payment_intent);
 
   // 🔐 SECURITY FIX: This handler CREATES the subscription record (not payment_intent.succeeded)
   // We create the record here because invoice has all the data we need
   
-  // Check if invoice has subscription (modern events have it, deprecated might not)
-  if (!invoice.subscription) {
-    console.warn('⚠️ Invoice missing subscription field (deprecated event)', {
-      invoice_id: invoice.id,
-      event_type: event.type,
-      api_version: event.api_version
-    });
-    // For deprecated events without subscription, we can't create the record
-    // This is OK - the subscription will be in incomplete state and cleaned up
-    return;
-  }
-
+  // Check if invoice has customer (required)
   if (!invoice.customer) {
     console.warn('⚠️ Invoice missing customer field', {
       invoice_id: invoice.id,
@@ -366,131 +359,166 @@ async function handlePaymentSucceeded(supabase: any, event: Stripe.Event) {
     return;
   }
 
-  // Fetch subscription details to get metadata
-  const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
-  if (!stripeKey) {
-    console.error('❌ Stripe secret key not configured');
-    return;
-  }
-  
-  const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' });
-  const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
-  
-  console.log('📦 Subscription metadata:', subscription.metadata);
-  
-  const userId = subscription.metadata.supabase_user_id;
-  const billingCycle = subscription.metadata.billing_cycle;
-  const tierId = subscription.metadata.tier_id; // Read tier_id directly
+  // Check if invoice has subscription (modern events have it, deprecated might not)
+  if (invoice.subscription) {
+    console.log('✅ Invoice has subscription field:', invoice.subscription);
+    
+    // Fetch subscription details to get metadata
+    const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
+    if (!stripeKey) {
+      console.error('❌ Stripe secret key not configured');
+      return;
+    }
+    
+    const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' });
+    const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
+    
+    console.log('📦 Subscription metadata:', subscription.metadata);
+    
+    const userId = subscription.metadata.supabase_user_id;
+    const billingCycle = subscription.metadata.billing_cycle;
+    const tierId = subscription.metadata.tier_id; // Read tier_id directly
 
-  if (!userId) {
-    console.error('❌ No supabase_user_id in subscription metadata');
-    return;
-  }
-
-  if (!tierId) {
-    console.error('❌ No tier_id in subscription metadata');
-    return;
-  }
-
-  console.log('✅ User ID from metadata:', userId);
-  console.log('✅ Billing cycle from metadata:', billingCycle);
-  console.log('✅ Tier ID from metadata:', tierId);
-
-  // Map billing cycle to database format
-  const dbBillingCycle = billingCycle === 'yearly' ? 'annual' : 'monthly';
-
-  // STEP 1: CREATE OR UPDATE subscription record (🔐 ONLY AFTER PAYMENT SUCCEEDS)
-  const { data: existingRecord } = await supabase
-    .from('user_subscriptions')
-    .select('id')
-    .eq('user_id', userId)
-    .single();
-
-  if (existingRecord) {
-    console.log('⚠️ Subscription record already exists, updating');
-    const { error: updateError } = await supabase
-      .from('user_subscriptions')
-      .update({
-        tier_id: tierId, // Use tier_id directly from metadata
-        stripe_customer_id: subscription.customer as string,
-        stripe_subscription_id: subscription.id,
-        status: 'active',
-        billing_cycle: dbBillingCycle,
-        current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-        current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-        canceled_at: null,
-        cancel_at: null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', existingRecord.id);
-
-    if (updateError) {
-      console.error('❌ Failed to update subscription:', updateError);
-      throw updateError;
+    if (!userId) {
+      console.error('❌ No supabase_user_id in subscription metadata');
+      return;
     }
 
-    console.log(`✅ Subscription record updated for user ${userId}`);
+    if (!tierId) {
+      console.error('❌ No tier_id in subscription metadata');
+      return;
+    }
+
+    console.log('✅ User ID from metadata:', userId);
+    console.log('✅ Billing cycle from metadata:', billingCycle);
+    console.log('✅ Tier ID from metadata:', tierId);
+
+    // Map billing cycle to database format
+    const dbBillingCycle = billingCycle === 'yearly' ? 'annual' : 'monthly';
+
+    // STEP 1: CREATE OR UPDATE subscription record (🔐 ONLY AFTER PAYMENT SUCCEEDS)
+    const { data: existingRecord } = await supabase
+      .from('user_subscriptions')
+      .select('id')
+      .eq('user_id', userId)
+      .single();
+
+    if (existingRecord) {
+      console.log('⚠️ Subscription record already exists, updating');
+      const { error: updateError } = await supabase
+        .from('user_subscriptions')
+        .update({
+          tier_id: tierId, // Use tier_id directly from metadata
+          stripe_customer_id: subscription.customer as string,
+          stripe_subscription_id: subscription.id,
+          status: 'active',
+          billing_cycle: dbBillingCycle,
+          current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+          current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+          canceled_at: null,
+          cancel_at: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', existingRecord.id);
+
+      if (updateError) {
+        console.error('❌ Failed to update subscription:', updateError);
+        throw updateError;
+      }
+
+      console.log(`✅ Subscription record updated for user ${userId}`);
+    } else {
+      console.log('🔐 Creating NEW subscription record (payment succeeded)');
+      const { error: insertError } = await supabase
+        .from('user_subscriptions')
+        .insert({
+          user_id: userId,
+          tier_id: tierId, // Use tier_id directly from metadata
+          stripe_customer_id: subscription.customer as string,
+          stripe_subscription_id: subscription.id,
+          status: 'active',
+          billing_cycle: dbBillingCycle,
+          current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+          current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+        });
+
+      if (insertError) {
+        console.error('❌ Failed to create subscription record:', insertError);
+        throw insertError;
+      }
+
+      console.log(`✅ Subscription record CREATED for user ${userId} with tier_id: ${tierId}`);
+    }
+
+    // Verify the record
+    const { data: finalRecord } = await supabase
+      .from('user_subscriptions')
+      .select('id, tier_id, status, billing_cycle')
+      .eq('user_id', userId)
+      .single();
+
+    console.log('🔍 [DIAGNOSTIC] Final subscription state:');
+    console.log('🔍 [DIAGNOSTIC]   - Record ID:', finalRecord?.id);
+    console.log('🔍 [DIAGNOSTIC]   - Status:', finalRecord?.status);
+    console.log('🔍 [DIAGNOSTIC]   - Tier ID:', finalRecord?.tier_id);
+    console.log('🔍 [DIAGNOSTIC]   - Billing cycle:', finalRecord?.billing_cycle);
+    console.log('🔐 SECURITY: Subscription created ONLY after successful payment');
   } else {
-    console.log('🔐 Creating NEW subscription record (payment succeeded)');
-    const { error: insertError } = await supabase
-      .from('user_subscriptions')
-      .insert({
-        user_id: userId,
-        tier_id: tierId, // Use tier_id directly from metadata
-        stripe_customer_id: subscription.customer as string,
-        stripe_subscription_id: subscription.id,
-        status: 'active',
-        billing_cycle: dbBillingCycle,
-        current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-        current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-      });
-
-    if (insertError) {
-      console.error('❌ Failed to create subscription record:', insertError);
-      throw insertError;
-    }
-
-    console.log(`✅ Subscription record CREATED for user ${userId} with tier_id: ${tierId}`);
+    console.warn('⚠️ Invoice missing subscription field (deprecated event or non-subscription payment)', {
+      invoice_id: invoice.id,
+      event_type: event.type,
+      api_version: event.api_version,
+      customer_id: invoice.customer
+    });
+    console.log('🔄 Will use fallback logic to look up subscription by customer_id');
   }
-
-  // Verify the record
-  const { data: finalRecord } = await supabase
-    .from('user_subscriptions')
-    .select('id, tier_id, status, billing_cycle')
-    .eq('user_id', userId)
-    .single();
-
-  console.log('🔍 [DIAGNOSTIC] Final subscription state:');
-  console.log('🔍 [DIAGNOSTIC]   - Record ID:', finalRecord?.id);
-  console.log('🔍 [DIAGNOSTIC]   - Status:', finalRecord?.status);
-  console.log('🔍 [DIAGNOSTIC]   - Tier ID:', finalRecord?.tier_id);
-  console.log('🔍 [DIAGNOSTIC]   - Billing cycle:', finalRecord?.billing_cycle);
-  console.log('🔐 SECURITY: Subscription created ONLY after successful payment');
 
   // STEP 2: Find user_subscription_id for payment transaction
   // Try to find subscription record either by:
   // 1. stripe_subscription_id (if invoice has subscription)
-  // 2. stripe_customer_id (fallback for non-subscription invoices)
+  // 2. stripe_customer_id (fallback for non-subscription invoices or deprecated events)
   
   let subRecord: any = null;
   
   if (invoice.subscription) {
     // Regular subscription payment
     console.log('🔍 Looking up subscription by stripe_subscription_id:', invoice.subscription);
-    const { data } = await supabase
+    const { data, error: lookupError } = await supabase
       .from('user_subscriptions')
-      .select('id, user_id, tier_id, status')
+      .select('id, user_id, tier_id, status, stripe_customer_id')
       .eq('stripe_subscription_id', invoice.subscription)
       .single();
+    
+    if (lookupError) {
+      console.error('❌ Error looking up subscription by stripe_subscription_id:', lookupError);
+    }
     subRecord = data;
   } else {
-    // Non-subscription invoice - look up by customer ID
-    console.log('⚠️ Invoice not associated with subscription - looking up by customer_id');
-    const { data } = await supabase
+    // Non-subscription invoice or deprecated event - look up by customer ID
+    console.log('⚠️ Invoice not associated with subscription - using FALLBACK lookup by customer_id:', invoice.customer);
+    console.log('🔄 This is expected for deprecated webhook events or one-time payments');
+    
+    const { data, error: lookupError } = await supabase
       .from('user_subscriptions')
-      .select('id, user_id, tier_id, status')
+      .select('id, user_id, tier_id, status, stripe_customer_id, stripe_subscription_id')
       .eq('stripe_customer_id', invoice.customer)
       .single();
+    
+    if (lookupError) {
+      console.error('❌ Error looking up subscription by stripe_customer_id:', lookupError);
+      console.error('   - Error code:', lookupError.code);
+      console.error('   - Error message:', lookupError.message);
+    }
+    
+    if (data) {
+      console.log('✅ FALLBACK SUCCESS: Found subscription by customer_id');
+      console.log('   - user_subscription_id:', data.id);
+      console.log('   - user_id:', data.user_id);
+      console.log('   - stripe_subscription_id:', data.stripe_subscription_id);
+    } else {
+      console.error('❌ FALLBACK FAILED: No subscription found for customer_id:', invoice.customer);
+    }
+    
     subRecord = data;
   }
 
@@ -498,6 +526,10 @@ async function handlePaymentSucceeded(supabase: any, event: Stripe.Event) {
     console.error(`❌ No subscription record found for invoice ${invoice.id}`);
     console.error(`   - Subscription ID: ${invoice.subscription || 'null'}`);
     console.error(`   - Customer ID: ${invoice.customer}`);
+    console.error(`   - This means either:`);
+    console.error(`     1. No subscription exists for this customer in the database`);
+    console.error(`     2. The subscription was created but not yet synced to database`);
+    console.error(`     3. The customer_id doesn't match any existing subscription`);
     return;
   }
 
@@ -509,41 +541,53 @@ async function handlePaymentSucceeded(supabase: any, event: Stripe.Event) {
   console.log('🔍 [DIAGNOSTIC]   - Current status:', subRecord.status);
 
   // STEP 2: Record payment transaction FIRST (always, regardless of subscription)
+  console.log('🔍 [DIAGNOSTIC] ========== ATTEMPTING PAYMENT_TRANSACTION INSERT ==========');
   const paymentIntentId = (invoice.payment_intent as string) || `invoice_${invoice.id}`;
   
   if (!invoice.payment_intent) {
     console.log('⚠️ payment_intent is NULL - using invoice.id as fallback:', paymentIntentId);
   }
 
+  console.log('🔍 [DIAGNOSTIC] Payment Intent ID to use:', paymentIntentId);
+  console.log('🔍 [DIAGNOSTIC] User Subscription ID:', subRecord.id);
+  console.log('🔍 [DIAGNOSTIC] Invoice ID:', invoice.id);
+  console.log('🔍 [DIAGNOSTIC] Amount:', invoice.amount_paid / 100);
+  console.log('🔍 [DIAGNOSTIC] Currency:', invoice.currency);
+  
+  const transactionData = {
+    user_subscription_id: subRecord.id,
+    stripe_payment_intent_id: paymentIntentId,
+    stripe_invoice_id: invoice.id,
+    amount: invoice.amount_paid / 100,
+    currency: invoice.currency,
+    status: 'succeeded',
+    payment_method_type: 'card',
+    metadata: {
+      billing_reason: invoice.billing_reason,
+      subscription_id: invoice.subscription || null,
+      customer_id: invoice.customer,
+      used_fallback_id: !invoice.payment_intent,
+      has_subscription: !!invoice.subscription,
+    },
+  };
+  
+  console.log('🔍 [DIAGNOSTIC] Transaction data to insert:', JSON.stringify(transactionData, null, 2));
+
   const { error: txError } = await supabase
     .from('payment_transactions')
-    .insert({
-      user_subscription_id: subRecord.id,
-      stripe_payment_intent_id: paymentIntentId,
-      stripe_invoice_id: invoice.id,
-      amount: invoice.amount_paid / 100, // Convert from cents
-      currency: invoice.currency,
-      status: 'succeeded',
-      payment_method_type: 'card',
-      metadata: {
-        billing_reason: invoice.billing_reason,
-        subscription_id: invoice.subscription || null,
-        customer_id: invoice.customer,
-        used_fallback_id: !invoice.payment_intent,
-        has_subscription: !!invoice.subscription,
-      },
-    });
+    .insert(transactionData);
 
   if (txError) {
-    console.error('❌ Failed to insert payment transaction:', txError);
-    console.error('Transaction data:', {
-      user_subscription_id: subRecord.id,
-      stripe_payment_intent_id: paymentIntentId,
-      stripe_invoice_id: invoice.id,
-      amount: invoice.amount_paid / 100,
-    });
+    console.error('❌ ========== PAYMENT_TRANSACTION INSERT FAILED ==========');
+    console.error('❌ Error code:', txError.code);
+    console.error('❌ Error message:', txError.message);
+    console.error('❌ Error details:', JSON.stringify(txError, null, 2));
+    console.error('❌ Transaction data that failed:', JSON.stringify(transactionData, null, 2));
+    console.error('❌ Full error object:', txError);
   } else {
+    console.log('✅ ========== PAYMENT_TRANSACTION INSERT SUCCEEDED ==========');
     console.log('✅ Payment transaction recorded:', paymentIntentId);
+    console.log('✅ Transaction inserted for user_subscription_id:', subRecord.id);
   }
 
   // STEP 3: Update subscription status/tier (only if invoice has subscription)
