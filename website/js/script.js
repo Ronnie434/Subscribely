@@ -1,5 +1,5 @@
 // ============================================
-// Subscribely Website JavaScript
+// Renvo Website JavaScript
 // Vanilla JS - No Dependencies
 // ============================================
 
@@ -386,7 +386,7 @@
     initExternalLinks();
     detectSlowConnection();
     
-    console.log('Subscribely website initialized');
+    console.log('Renvo website initialized');
   }
 
   // Start initialization
@@ -395,7 +395,7 @@
   // ============================================
   // Public API (if needed)
   // ============================================
-  window.Subscribely = {
+  window.Renvo = {
     version: '1.0.0',
     init: init
   };

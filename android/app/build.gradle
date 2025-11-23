@@ -87,9 +87,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.yourname.smartsubscriptiontracker'
+    namespace 'com.ronnie39.renvo'
     defaultConfig {
-        applicationId 'com.yourname.smartsubscriptiontracker'
+        applicationId 'com.ronnie39.renvo'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

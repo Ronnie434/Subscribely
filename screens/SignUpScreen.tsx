@@ -141,7 +141,7 @@ export default function SignUpScreen({ onNavigateToSignIn }: SignUpScreenProps) 
             resizeMode="contain"
           />
         </View>
-        <Text style={styles.appName}>Subscribely</Text>
+        <Text style={styles.appName}>Renvo</Text>
         <Text style={styles.tagline}>Track your subscriptions smartly</Text>
       </View>
 

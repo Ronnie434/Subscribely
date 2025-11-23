@@ -27,7 +27,7 @@
         <category android:name="android.intent.category.DEFAULT"/>
         <category android:name="android.intent.category.BROWSABLE"/>
         <data android:scheme="smartsubscriptiontracker"/>
-        <data android:scheme="exp+smart-subscription-tracker"/>
+        <data android:scheme="exp+smart-expenses-tracker"/>
       </intent-filter>
     </activity>
   </application>

@@ -762,7 +762,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setLoading(true);
 
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: 'subscribely://reset-password',
+        redirectTo: 'renvo://reset-password',
       });
 
       if (error) {

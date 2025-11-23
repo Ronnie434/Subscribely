@@ -756,7 +756,7 @@ export default function SettingsScreen() {
             <View style={styles.divider} />
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>App Name</Text>
-              <Text style={styles.infoValue}>Subscribely</Text>
+              <Text style={styles.infoValue}>Renvo</Text>
             </View>
           </View>
         </View>

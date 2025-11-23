@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "Subscribely",
+    "name": "Renvo",
     "sdkVersion": "54.0.0",
-    "slug": "smart-subscription-tracker",
+    "slug": "smart-expenses-tracker",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/Composed_Icon Exports/Composed_Icon-iOS-Default-1024x1024@1x.png",
@@ -16,8 +16,9 @@
       "**/*"
     ],
     "ios": {
+      "buildNumber": "1",
       "supportsTablet": true,
-      "bundleIdentifier": "com.ronnie39.smartsubscriptiontracker",
+      "bundleIdentifier": "com.ronnie39.renvo",
       "infoPlist": {
         "NSUserTrackingUsageDescription": "This app does not track you. This permission is required by Apple but we respect your privacy.",
         "NSCameraUsageDescription": "Camera access is not used by this app.",
@@ -47,7 +48,7 @@
       }
     },
     "android": {
-      "package": "com.yourname.smartsubscriptiontracker",
+      "package": "com.ronnie39.renvo",
       "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/Composed_Icon Exports/Composed_Icon-iOS-Default-1024x1024@1x.png",
@@ -62,7 +63,7 @@
       "bundler": "metro"
     },
     "scheme": "smartsubscriptiontracker",
-    "description": "Track and manage all your subscriptions in one place. Never miss a renewal date and stay on top of your monthly expenses.",
+    "description": "Track and manage all your expenses in one place. Never miss a renewal date and stay on top of your monthly expenses.",
     "githubUrl": "https://github.com/yourusername/smart-subscription-tracker",
     "runtimeVersion": "1.0.0",
     "extra": {

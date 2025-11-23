@@ -33,11 +33,11 @@
       "ios": {
         "simulator": false,
         "buildConfiguration": "Release",
-        "autoIncrement": true
+        "autoIncrement": "buildNumber"
       },
       "android": {
         "buildType": "app-bundle",
-        "autoIncrement": true
+        "autoIncrement": "versionCode"
       },
       "env": {
         "APP_ENV": "production"
@@ -48,9 +48,9 @@
   "submit": {
     "production": {
       "ios": {
-        "appleId": "your-apple-id@email.com",
-        "ascAppId": "YOUR_ASC_APP_ID",
-        "appleTeamId": "YOUR_APPLE_TEAM_ID"
+        "appleId": "p.ronak00000@gmail.com",
+        "ascAppId": "6755662169",
+        "appleTeamId": "JRBD76VZ75"
       }
     }
   }
