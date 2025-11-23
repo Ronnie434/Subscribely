@@ -237,6 +237,7 @@ async function handleSubscriptionCreated(supabase: any, event: Stripe.Event) {
 
 /**
  * Handle subscription.updated event
+ * Handles status changes, billing cycle changes, and tier changes
  */
 async function handleSubscriptionUpdated(supabase: any, event: Stripe.Event) {
   const subscription = event.data.object as Stripe.Subscription;
@@ -246,13 +247,31 @@ async function handleSubscriptionUpdated(supabase: any, event: Stripe.Event) {
   // Get the subscription record
   const { data: subRecord } = await supabase
     .from('user_subscriptions')
-    .select('user_id, tier_id')
+    .select('user_id, tier_id, billing_cycle')
     .eq('stripe_subscription_id', subscription.id)
     .single();
 
   if (!subRecord) {
     console.error(`No subscription record found for ${subscription.id}`);
     return;
+  }
+
+  // Get billing cycle from metadata (for billing cycle changes)
+  const billingCycleFromMetadata = subscription.metadata?.billing_cycle;
+  const dbBillingCycle = billingCycleFromMetadata === 'yearly' ? 'annual' : 'monthly';
+  
+  // Log billing cycle info
+  if (billingCycleFromMetadata) {
+    console.log(`Billing cycle from metadata: ${billingCycleFromMetadata} -> ${dbBillingCycle}`);
+    if (subRecord.billing_cycle !== dbBillingCycle) {
+      console.log(`🔄 Billing cycle changed from ${subRecord.billing_cycle} to ${dbBillingCycle}`);
+    }
+  }
+
+  // Get the price ID from the subscription item
+  const priceId = subscription.items?.data?.[0]?.price?.id;
+  if (priceId) {
+    console.log(`Price ID: ${priceId}`);
   }
 
   // Determine if we need to change tier based on status
@@ -267,29 +286,124 @@ async function handleSubscriptionUpdated(supabase: any, event: Stripe.Event) {
     
     if (freeTier) {
       tierId = freeTier.tier_id;
+      console.log(`Downgrading to free tier due to status: ${subscription.status}`);
     }
   }
 
-  // Update subscription status
-  const { error } = await supabase
-    .from('user_subscriptions')
-    .update({
-      status: mapStripeStatus(subscription.status),
-      tier_id: tierId,
-      current_period_start: subscription.current_period_start
-        ? new Date(subscription.current_period_start * 1000).toISOString()
-        : null,
-      current_period_end: subscription.current_period_end
-        ? new Date(subscription.current_period_end * 1000).toISOString()
-        : null,
-      cancel_at_period_end: subscription.cancel_at_period_end || false,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('stripe_subscription_id', subscription.id);
+  // Build update object with improved validation
+  const updateData: any = {
+    status: mapStripeStatus(subscription.status),
+    tier_id: tierId,
+    cancel_at_period_end: subscription.cancel_at_period_end || false,
+    updated_at: new Date().toISOString(),
+  };
 
-  if (error) {
-    console.error('Error updating subscription:', error);
-    throw error;
+  // Validate and set period start date
+  if (subscription.current_period_start) {
+    updateData.current_period_start = new Date(subscription.current_period_start * 1000).toISOString();
+    console.log(`✅ Setting current_period_start: ${updateData.current_period_start}`);
+  } else {
+    console.warn(`⚠️ Missing current_period_start for subscription ${subscription.id}`);
+    updateData.current_period_start = null;
+  }
+
+  // Validate and set period end date
+  if (subscription.current_period_end) {
+    updateData.current_period_end = new Date(subscription.current_period_end * 1000).toISOString();
+    console.log(`✅ Setting current_period_end: ${updateData.current_period_end}`);
+  } else {
+    console.warn(`⚠️ Missing current_period_end for subscription ${subscription.id}`);
+    updateData.current_period_end = null;
+  }
+
+  // Always update billing_cycle if present in metadata (removed conditional check)
+  if (billingCycleFromMetadata) {
+    updateData.billing_cycle = dbBillingCycle;
+    console.log(`✅ Updating billing_cycle to: ${dbBillingCycle} (was: ${subRecord.billing_cycle})`);
+  } else {
+    console.warn(`⚠️ No billing_cycle in metadata for subscription ${subscription.id}`);
+  }
+
+  // Add price ID if available
+  if (priceId) {
+    updateData.stripe_price_id = priceId;
+    console.log(`✅ Updating stripe_price_id to: ${priceId}`);
+  } else {
+    console.warn(`⚠️ No price ID found for subscription ${subscription.id}`);
+  }
+
+  // Log the complete update data for debugging
+  console.log('📝 Complete update data:', JSON.stringify(updateData, null, 2));
+
+  // Update subscription with error handling
+  let updateError: any = null;
+  try {
+    const result = await supabase
+      .from('user_subscriptions')
+      .update(updateData)
+      .eq('stripe_subscription_id', subscription.id);
+    
+    updateError = result.error;
+
+    if (updateError) {
+      console.error('❌ Error updating subscription:', updateError);
+      console.error('   - Error code:', updateError.code);
+      console.error('   - Error message:', updateError.message);
+      console.error('   - Subscription ID:', subscription.id);
+      console.error('   - Update data:', JSON.stringify(updateData, null, 2));
+      throw updateError;
+    }
+
+    console.log(`✅ Subscription ${subscription.id} updated successfully`);
+  } catch (err) {
+    console.error('❌ Exception during subscription update:', err);
+    throw err;
+  }
+
+  // Verify critical fields were updated correctly
+  try {
+    const { data: verifyRecord, error: verifyError } = await supabase
+      .from('user_subscriptions')
+      .select('billing_cycle, stripe_price_id, current_period_start, current_period_end, status')
+      .eq('stripe_subscription_id', subscription.id)
+      .single();
+
+    if (verifyError) {
+      console.error('⚠️ Failed to verify update:', verifyError);
+    } else if (verifyRecord) {
+      console.log('🔍 Post-update verification:');
+      console.log(`   - billing_cycle: ${verifyRecord.billing_cycle} (expected: ${updateData.billing_cycle || 'unchanged'})`);
+      console.log(`   - stripe_price_id: ${verifyRecord.stripe_price_id} (expected: ${updateData.stripe_price_id || 'unchanged'})`);
+      console.log(`   - current_period_start: ${verifyRecord.current_period_start}`);
+      console.log(`   - current_period_end: ${verifyRecord.current_period_end}`);
+      console.log(`   - status: ${verifyRecord.status}`);
+
+      // Check for mismatches
+      const mismatches: string[] = [];
+      if (updateData.billing_cycle && verifyRecord.billing_cycle !== updateData.billing_cycle) {
+        mismatches.push(`billing_cycle (expected: ${updateData.billing_cycle}, got: ${verifyRecord.billing_cycle})`);
+      }
+      if (updateData.stripe_price_id && verifyRecord.stripe_price_id !== updateData.stripe_price_id) {
+        mismatches.push(`stripe_price_id (expected: ${updateData.stripe_price_id}, got: ${verifyRecord.stripe_price_id})`);
+      }
+      if (updateData.current_period_start && !verifyRecord.current_period_start) {
+        mismatches.push('current_period_start is NULL');
+      }
+      if (updateData.current_period_end && !verifyRecord.current_period_end) {
+        mismatches.push('current_period_end is NULL');
+      }
+
+      if (mismatches.length > 0) {
+        console.error('❌ CRITICAL: Update verification failed! Mismatches detected:');
+        mismatches.forEach(mismatch => console.error(`   - ${mismatch}`));
+        throw new Error(`Update verification failed: ${mismatches.join(', ')}`);
+      } else {
+        console.log('✅ All critical fields verified successfully');
+      }
+    }
+  } catch (verifyErr) {
+    console.error('❌ Error during post-update verification:', verifyErr);
+    // Don't throw here - we want to know about the issue but not fail the webhook
   }
 }
 
