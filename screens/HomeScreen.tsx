@@ -49,7 +49,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [paywallVisible, setPaywallVisible] = useState(false);
-  const [limitStatus, setLimitStatus] = useState({ currentCount: 0, maxCount: 5, atLimit: false });
+  const [limitStatus, setLimitStatus] = useState({ currentCount: 0, maxCount: 5, atLimit: false, isPremium: false });
 
   // Helper function to refresh limit status from backend
   const refreshLimitStatusFromBackend = async () => {
@@ -64,6 +64,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         currentCount: status.currentCount,
         maxCount: status.maxAllowed || 5,
         atLimit: !status.canAddMore,
+        isPremium: status.isPremium,
       });
       
       if (__DEV__) {
@@ -275,6 +276,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
             currentCount: status.currentCount,
             maxCount: status.maxAllowed || 5,
             atLimit: !status.canAddMore,
+            isPremium: status.isPremium,
           });
           
           console.log('🐛 DEBUG: ✅ Correct backend data set - limitStatus.atLimit should be:', !status.canAddMore);
@@ -553,7 +555,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       />
 
       {/* Upgrade Prompt for Free Users (shown when not at limit) */}
-      {!loading && subscriptions.length > 0 && subscriptions.length < 5 && (
+      {!loading && subscriptions.length > 0 && !limitStatus.isPremium && subscriptions.length < 5 && (
         <UpgradePrompt onPress={handleUpgradePromptPress} />
       )}
 
