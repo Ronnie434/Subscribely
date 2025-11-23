@@ -247,7 +247,7 @@ class PaymentService {
    * await paymentService.switchBillingCycle('yearly');
    * ```
    */
-  async switchBillingCycle(newCycle: BillingCycleType): Promise<{ success: boolean; message: string }> {
+  async switchBillingCycle(newCycle: BillingCycleType): Promise<{ success: boolean; message: string; prorationAmount?: number }> {
     try {
       const session = await this.getSession();
       const userId = session.user.id;
@@ -258,10 +258,10 @@ class PaymentService {
         throw new Error(`Invalid billing cycle: ${newCycle}`);
       }
 
-      // Get current subscription
+      // Get current subscription to check status
       const { data: subscription, error: fetchError } = await supabase
         .from('user_subscriptions')
-        .select('*')
+        .select('billing_cycle, status')
         .eq('user_id', userId)
         .single();
 
@@ -269,22 +269,29 @@ class PaymentService {
         throw new Error('No active subscription found');
       }
 
-      // Update subscription billing cycle
-      const { error: updateError } = await supabase
-        .from('user_subscriptions')
-        .update({
-          billing_cycle: newCycle,
-          stripe_price_id: plan.priceId,
-        })
-        .eq('user_id', userId);
-
-      if (updateError) {
-        throw updateError;
+      // Check if already on the requested cycle
+      const currentCycle = subscription.billing_cycle === 'annual' ? 'yearly' : 'monthly';
+      if (currentCycle === newCycle) {
+        throw new Error(`Already on ${newCycle} billing cycle`);
       }
 
+      // Call edge function to update Stripe subscription with proration
+      const result = await this.callEdgeFunction<{
+        subscriptionId: string;
+        newBillingCycle: string;
+        prorationAmount: number;
+        nextBillingDate: string;
+        message: string;
+      }>('switch-billing-cycle', {
+        newBillingCycle: newCycle,
+      });
+
+      // Database will be updated by webhook (subscription.updated event)
+      
       return {
         success: true,
-        message: `Billing cycle switched to ${newCycle} successfully`,
+        message: result.message,
+        prorationAmount: result.prorationAmount,
       };
     } catch (error) {
       console.error('Error switching billing cycle:', error);

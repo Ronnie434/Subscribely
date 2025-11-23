@@ -72,6 +72,7 @@ export const REFUND_POLICY = {
 export const STRIPE_ENDPOINTS = {
   createSubscription: '/functions/v1/create-subscription',
   cancelSubscription: '/functions/v1/cancel-subscription',
+  switchBillingCycle: '/functions/v1/switch-billing-cycle',
   requestRefund: '/functions/v1/request-refund',
   getBillingPortal: '/functions/v1/get-billing-portal',
 };
