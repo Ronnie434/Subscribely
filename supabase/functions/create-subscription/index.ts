@@ -289,7 +289,8 @@ serve(async (req) => {
         metadata: {
           supabase_user_id: user.id,
           billing_cycle: billingCycle,
-          tier: premiumTier.name, // ✅ FIX: Add tier to metadata for webhook identification
+          tier_id: premiumTier.tier_id, // Use tier_id directly (e.g., 'premium_tier')
+          tier_name: premiumTier.name,  // Also include name for reference
         },
       }, {
         idempotencyKey: generateIdempotencyKey(`subscription_${user.id}`),
@@ -379,43 +380,12 @@ serve(async (req) => {
     console.log('✅ Got client secret for mobile payment');
     console.log('Client secret format:', clientSecret.substring(0, 10) + '...');
 
-    // Map frontend billing cycle to database values
-    // Frontend uses 'yearly', but database constraint expects 'annual'
-    const dbBillingCycle = billingCycle === 'yearly' ? 'annual' : 'monthly';
-
-    console.log('💾 Saving subscription to database...');
-    console.log('Billing cycle mapping:', billingCycle, '->', dbBillingCycle);
-
-    // Store subscription in database using UPSERT
-    // This allows users to re-subscribe after canceling
-    const { error: insertError } = await supabase
-      .from('user_subscriptions')
-      .upsert({
-        user_id: user.id,
-        tier_id: premiumTier.tier_id,
-        stripe_customer_id: stripeCustomerId,
-        stripe_subscription_id: subscription.id,
-        status: 'trialing', // Will be updated by webhook
-        billing_cycle: dbBillingCycle,
-        current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-        current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-        canceled_at: null, // Clear any previous cancellation
-        cancel_at: null,   // Clear any scheduled cancellation
-      }, {
-        onConflict: 'user_id', // Update existing record for same user
-        ignoreDuplicates: false, // Always update
-      });
-
-    if (insertError) {
-      console.error('❌ Database upsert error:', insertError);
-      console.error('Upsert error details:', JSON.stringify(insertError, null, 2));
-      // Cancel the Stripe subscription if database operation fails
-      await stripe.subscriptions.cancel(subscription.id);
-      return errorResponse('Failed to create subscription record', 500);
-    }
-
-    console.log('✅ Database updated successfully');
-    console.log(`📝 Transaction completed: Subscription ${subscription.id} created for user ${user.id}`);
+    // ⚠️ SECURITY FIX: Do NOT create database record here
+    // The subscription record will be created by the webhook ONLY after payment succeeds
+    // This prevents users from getting premium access before payment is confirmed
+    console.log('⚠️ Subscription record will be created by webhook after payment succeeds');
+    console.log('📝 Stripe subscription created:', subscription.id);
+    console.log('🔐 Payment required before database record creation');
 
     // Prepare response data
     const responseData = {

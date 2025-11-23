@@ -235,7 +235,7 @@ async function checkDatabase() {
       );
     } else {
       const hasFree = data.some(t => t.tier_id === 'free');
-      const hasPremium = data.some(t => t.tier_id === 'premium');
+      const hasPremium = data.some(t => t.tier_id === 'premium_tier');
       
       if (hasFree && hasPremium) {
         addResult(

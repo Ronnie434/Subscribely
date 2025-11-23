@@ -269,7 +269,7 @@ class PaywallTestHelpers {
         .eq('user_id', targetUserId)
         .single();
 
-      const isPremium = userSub?.tier_id === 'premium' && 
+      const isPremium = userSub?.tier_id === 'premium_tier' &&
                         ['active', 'trialing'].includes(userSub?.status);
 
       // Check if can add more

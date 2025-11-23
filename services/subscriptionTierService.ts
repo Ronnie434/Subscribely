@@ -344,7 +344,7 @@ class SubscriptionTierService {
         throw error;
       }
 
-      const isPremium = data.tier_id === 'premium' &&
+      const isPremium = data.tier_id === 'premium_tier' &&
                         ['active', 'trialing', 'incomplete', 'past_due', 'paused'].includes(data.status);
 
       // Cache the result

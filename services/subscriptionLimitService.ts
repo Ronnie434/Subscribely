@@ -247,8 +247,14 @@ class SubscriptionLimitService {
       subscriptionCache.invalidate(CacheKeys.subscriptionStatus(userId));
       // CRITICAL: Also invalidate the checkCanAddSubscription cache
       subscriptionCache.invalidate(`can-add-sub-${userId}`);
+      
+      // Force clear the entire cache to prevent any stale data
+      if (__DEV__) {
+        console.log('🗑️ Forcing complete cache clear for premium status refresh');
+      }
+      subscriptionCache.clear();
 
-      // Optionally pre-fetch fresh data
+      // Pre-fetch fresh data
       await this.checkCanAddSubscription();
     } catch (error) {
       console.error('Error refreshing limit status:', error);
