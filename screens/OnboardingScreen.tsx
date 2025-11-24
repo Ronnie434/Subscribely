@@ -35,7 +35,7 @@ const slides: OnboardingSlide[] = [
     icon: 'calendar-outline',
     // lottieSource: require('../assets/lottie/calendar.json'), // Uncomment and add your Lottie file
     title: 'Track your recurring items effortlessly',
-    subtitle: 'Never forget a renewal',
+    subtitle: 'Never forget a due date',
   },
   {
     id: '2',

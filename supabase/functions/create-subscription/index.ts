@@ -67,6 +67,7 @@ serve(async (req) => {
     // Get the JWT token from the Authorization header
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
+      console.error('❌ Missing authorization header in request');
       return new Response(
         JSON.stringify({ error: 'Missing authorization header' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
@@ -107,6 +108,9 @@ serve(async (req) => {
 
     // Validate billing cycle
     if (!billingCycle || (billingCycle !== 'monthly' && billingCycle !== 'yearly')) {
+      console.error('❌ Invalid billing cycle provided:', billingCycle);
+      console.error('  - Expected: "monthly" or "yearly"');
+      console.error('  - Received:', billingCycle);
       return new Response(
         JSON.stringify({ error: 'Invalid billing cycle. Must be "monthly" or "yearly"' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
@@ -151,15 +155,45 @@ serve(async (req) => {
     console.log('Source:', envPriceId ? 'Environment Variable' : 'Hardcoded Fallback');
 
     // Check if user already has an active subscription
-    const { data: existingSubscription } = await supabase
+    const { data: existingSubscription, error: subQueryError } = await supabase
       .from('user_subscriptions')
       .select('*')
       .eq('user_id', user.id)
       .in('status', ['active', 'trialing', 'past_due'])
       .single();
 
+    console.log('🔍 Checking for existing subscription:');
+    console.log('  - Query error:', subQueryError);
+    console.log('  - Found subscription:', !!existingSubscription);
+
+    if (subQueryError && subQueryError.code !== 'PGRST116') {
+      console.error('❌ Database error checking existing subscription:', subQueryError);
+      console.error('  - Error code:', subQueryError.code);
+      console.error('  - Error message:', subQueryError.message);
+      console.error('  - User ID:', user.id);
+      return errorResponse('Database error checking subscription status', 500);
+    }
+
+    // Check if user is upgrading from free tier
+    let isUpgradingFromFree = false;
+    let existingSubscriptionId: string | null = null;
+
     if (existingSubscription) {
-      return errorResponse('User already has an active subscription', 409);
+      if (existingSubscription.tier_id === 'free') {
+        console.log('✅ User is upgrading from free tier to paid');
+        console.log('  - Existing subscription ID:', existingSubscription.id);
+        console.log('  - Current tier:', existingSubscription.tier_id);
+        console.log('  - Current status:', existingSubscription.status);
+        isUpgradingFromFree = true;
+        existingSubscriptionId = existingSubscription.id;
+      } else {
+        // User already has a PAID subscription
+        console.error('❌ User already has an active paid subscription:');
+        console.error('  - User ID:', user.id);
+        console.error('  - Tier ID:', existingSubscription.tier_id);
+        console.error('  - Existing subscription:', existingSubscription);
+        return errorResponse('User already has an active subscription', 409);
+      }
     }
 
     // Use email directly from authenticated user
@@ -179,13 +213,25 @@ serve(async (req) => {
     console.log('🔍 Checking for existing Stripe customer...');
 
     // Check if user already has a Stripe customer ID
-    const { data: existingCustomerRecord } = await supabase
+    const { data: existingCustomerRecord, error: customerQueryError } = await supabase
       .from('user_subscriptions')
       .select('stripe_customer_id')
       .eq('user_id', user.id)
       .not('stripe_customer_id', 'is', null)
       .limit(1)
       .single();
+
+    console.log('🔍 Checking for existing Stripe customer record:');
+    console.log('  - Query error:', customerQueryError);
+    console.log('  - Found customer record:', !!existingCustomerRecord);
+
+    if (customerQueryError && customerQueryError.code !== 'PGRST116') {
+      console.error('❌ Database error checking existing customer:', customerQueryError);
+      console.error('  - Error code:', customerQueryError.code);
+      console.error('  - Error message:', customerQueryError.message);
+      console.error('  - User ID:', user.id);
+      return errorResponse('Database error checking customer status', 500);
+    }
 
     if (existingCustomerRecord?.stripe_customer_id) {
       stripeCustomerId = existingCustomerRecord.stripe_customer_id;
@@ -380,12 +426,54 @@ serve(async (req) => {
     console.log('✅ Got client secret for mobile payment');
     console.log('Client secret format:', clientSecret.substring(0, 10) + '...');
 
-    // ⚠️ SECURITY FIX: Do NOT create database record here
-    // The subscription record will be created by the webhook ONLY after payment succeeds
-    // This prevents users from getting premium access before payment is confirmed
-    console.log('⚠️ Subscription record will be created by webhook after payment succeeds');
-    console.log('📝 Stripe subscription created:', subscription.id);
-    console.log('🔐 Payment required before database record creation');
+    // Handle database record creation/update
+    if (isUpgradingFromFree && existingSubscriptionId) {
+      // Upgrading from free tier - update existing record
+      console.log('📝 Updating existing free tier subscription to paid');
+      console.log('  - Existing subscription ID:', existingSubscriptionId);
+      console.log('  - New tier ID:', premiumTier.tier_id);
+      console.log('  - New Stripe subscription ID:', subscription.id);
+      console.log('  - New Stripe customer ID:', stripeCustomerId);
+
+      const { error: updateError } = await supabase
+        .from('user_subscriptions')
+        .update({
+          tier_id: premiumTier.tier_id,
+          billing_cycle: billingCycle,
+          status: subscription.status, // Will be 'incomplete' until payment succeeds
+          stripe_customer_id: stripeCustomerId,
+          stripe_subscription_id: subscription.id,
+          stripe_price_id: priceId,
+          current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+          current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existingSubscriptionId);
+
+      if (updateError) {
+        console.error('❌ Failed to update subscription record:', updateError);
+        console.error('  - Error code:', updateError.code);
+        console.error('  - Error message:', updateError.message);
+        console.error('  - Subscription ID:', existingSubscriptionId);
+        
+        // Even if database update fails, Stripe subscription is created
+        // Webhook will handle the update when payment succeeds
+        console.warn('⚠️ Database update failed, but Stripe subscription created');
+        console.warn('⚠️ Webhook will handle the record update when payment succeeds');
+      } else {
+        console.log('✅ Successfully updated free tier subscription to paid (pending payment)');
+        console.log('  - Updated subscription ID:', existingSubscriptionId);
+        console.log('  - Status:', subscription.status);
+        console.log('  - Webhook will update to "active" when payment succeeds');
+      }
+    } else {
+      // New subscription (not upgrading from free tier)
+      // The subscription record will be created by the webhook ONLY after payment succeeds
+      // This prevents users from getting premium access before payment is confirmed
+      console.log('⚠️ New subscription - record will be created by webhook after payment succeeds');
+      console.log('📝 Stripe subscription created:', subscription.id);
+      console.log('🔐 Payment required before database record creation');
+    }
 
     // Prepare response data
     const responseData = {
