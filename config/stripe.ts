@@ -13,7 +13,7 @@ export const STRIPE_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE
 export const stripeConfig = {
   publishableKey: STRIPE_PUBLISHABLE_KEY,
   merchantIdentifier: 'merchant.com.smartsubscriptiontracker', // For Apple Pay
-  urlScheme: 'smartsubscriptiontracker', // For return URLs
+  urlScheme: 'renvo', // For return URLs
 };
 
 // Subscription plan configuration

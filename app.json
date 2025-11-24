@@ -62,9 +62,9 @@
     "web": {
       "bundler": "metro"
     },
-    "scheme": "smartsubscriptiontracker",
+    "scheme": "renvo",
     "description": "Track and manage all your expenses in one place. Never miss a renewal date and stay on top of your monthly expenses.",
-    "githubUrl": "https://github.com/yourusername/smart-subscription-tracker",
+    "githubUrl": "https://github.com/yourusername/smart-expenses-tracker",
     "runtimeVersion": "1.0.0",
     "extra": {
       "eas": {

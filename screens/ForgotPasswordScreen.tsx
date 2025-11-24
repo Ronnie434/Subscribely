@@ -97,7 +97,20 @@ export default function ForgotPasswordScreen({ onNavigateToSignIn }: ForgotPassw
         if (Platform.OS === 'ios') {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }
-        setEmailSent(true);
+        
+        // Show confirmation alert with user's email
+        Alert.alert(
+          'Reset Link Sent! ✓',
+          `A password reset link has been sent to ${email.trim()}.\n\nPlease check your email and follow the instructions to reset your password.`,
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                setEmailSent(true);
+              },
+            },
+          ]
+        );
       } else {
         if (Platform.OS === 'ios') {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);

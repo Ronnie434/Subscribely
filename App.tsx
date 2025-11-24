@@ -1,7 +1,7 @@
 import React from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { StyleSheet, Image } from 'react-native';
+import { StyleSheet, Image, Linking } from 'react-native';
 import { StripeProvider } from '@stripe/stripe-react-native';
 import AppNavigator from './navigation/AppNavigator';
 import { AuthProvider } from './contexts/AuthContext';
@@ -60,6 +60,55 @@ export default function App() {
       // Navigation to specific subscription could be added here in the future
     });
     
+    return () => subscription.remove();
+  }, []);
+
+  // Handle deep links for password reset
+  React.useEffect(() => {
+    // Handle deep links when app is already open
+    const subscription = Linking.addEventListener('url', ({ url }) => {
+      if (__DEV__) {
+        console.log('[App] Deep link received:', url);
+        // Log URL components for debugging
+        try {
+          const urlObj = new URL(url);
+          console.log('[App] Deep link details:', {
+            protocol: urlObj.protocol,
+            host: urlObj.host,
+            pathname: urlObj.pathname,
+            search: urlObj.search,
+            hash: urlObj.hash,
+            fullURL: url
+          });
+        } catch (e) {
+          console.log('[App] Could not parse URL:', e);
+        }
+      }
+      // Deep link routing is handled by NavigationContainer's linking config
+    });
+
+    // Handle deep link that opened the app
+    Linking.getInitialURL().then((url) => {
+      if (url && __DEV__) {
+        console.log('[App] Initial URL:', url);
+        // Log URL components for debugging
+        try {
+          const urlObj = new URL(url);
+          console.log('[App] Initial URL details:', {
+            protocol: urlObj.protocol,
+            host: urlObj.host,
+            pathname: urlObj.pathname,
+            search: urlObj.search,
+            hash: urlObj.hash,
+            fullURL: url
+          });
+        } catch (e) {
+          console.log('[App] Could not parse initial URL:', e);
+        }
+      }
+      // Deep link routing is handled by NavigationContainer's linking config
+    });
+
     return () => subscription.remove();
   }, []);
 

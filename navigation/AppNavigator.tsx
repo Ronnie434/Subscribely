@@ -4,7 +4,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, Linking } from 'react-native';
 import { useTheme } from '../contexts/ThemeContext';
 import { Subscription } from '../types';
 import { hasSeenOnboarding } from '../utils/storage';
@@ -13,6 +13,7 @@ import OnboardingScreen from '../screens/OnboardingScreen';
 import LoginScreen from '../screens/LoginScreen';
 import SignUpScreen from '../screens/SignUpScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
+import ResetPasswordScreen from '../screens/ResetPasswordScreen';
 import HomeScreen from '../screens/HomeScreen';
 import AddSubscriptionScreen from '../screens/AddSubscriptionScreen';
 import EditSubscriptionScreen from '../screens/EditSubscriptionScreen';
@@ -27,6 +28,7 @@ type AuthStackParamList = {
   Login: undefined;
   SignUp: undefined;
   ForgotPassword: undefined;
+  ResetPassword: { token?: string; access_token?: string };
 };
 
 type SubscriptionsStackParamList = {
@@ -77,6 +79,7 @@ function AuthNavigator({ initialRoute = 'Login' }: { initialRoute?: 'Login' | 'S
       <AuthStack.Screen name="Login" component={LoginScreen} />
       <AuthStack.Screen name="SignUp" component={SignUpScreen} />
       <AuthStack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+      <AuthStack.Screen name="ResetPassword" component={ResetPasswordScreen} />
     </AuthStack.Navigator>
   );
 }
@@ -292,7 +295,77 @@ export default function AppNavigator() {
   // Use a single NavigationContainer to preserve navigation state
   // This prevents remounting when switching between auth and main app
   return (
-    <NavigationContainer ref={navigationRef} onStateChange={handleNavigationStateChange}>
+    <NavigationContainer
+      ref={navigationRef}
+      onStateChange={handleNavigationStateChange}
+      linking={{
+        prefixes: ['renvo://'],
+        config: {
+          screens: {
+            ResetPassword: {
+              path: 'reset-password',
+              parse: {
+                // Parse all URL parameters (both query and hash)
+                access_token: (access_token: string) => {
+                  if (__DEV__) {
+                    console.log('[AppNavigator] Parsing access_token:', access_token ? 'present' : 'missing');
+                  }
+                  return access_token;
+                },
+                refresh_token: (refresh_token: string) => refresh_token,
+                type: (type: string) => type,
+                token: (token: string) => token,
+              },
+            },
+          },
+        },
+        // Custom URL subscriber to handle hash fragments
+        subscribe(listener) {
+          const onReceiveURL = ({ url }: { url: string }) => {
+            if (__DEV__) {
+              console.log('[AppNavigator] Deep link received in subscriber:', url);
+            }
+            
+            // Parse hash fragment if present (Supabase sends tokens in hash)
+            try {
+              const urlObj = new URL(url);
+              let finalUrl = url;
+              
+              // If URL has a hash fragment, convert it to query params
+              if (urlObj.hash && urlObj.hash.length > 1) {
+                if (__DEV__) {
+                  console.log('[AppNavigator] Found hash fragment:', urlObj.hash);
+                }
+                
+                // Remove the # and parse as query string
+                const hashParams = urlObj.hash.substring(1);
+                
+                // If the URL already has query params, append with &, otherwise use ?
+                const separator = urlObj.search ? '&' : '?';
+                finalUrl = url.replace(urlObj.hash, '') + separator + hashParams;
+                
+                if (__DEV__) {
+                  console.log('[AppNavigator] Converted URL:', finalUrl);
+                }
+              }
+              
+              listener(finalUrl);
+            } catch (e) {
+              if (__DEV__) {
+                console.log('[AppNavigator] Error parsing URL:', e);
+              }
+              listener(url);
+            }
+          };
+
+          // Subscribe to linking events
+          const subscription = Linking.addEventListener('url', onReceiveURL);
+
+          return () => {
+            subscription.remove();
+          };
+        },
+      }}>
       {showOnboarding ? (
         <OnboardingScreen onComplete={handleOnboardingComplete} />
       ) : (!user || !session || isHandlingDuplicate) ? (

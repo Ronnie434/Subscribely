@@ -17,6 +17,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ success: boolean; message?: string }>;
+  updatePassword: (newPassword: string) => Promise<{ success: boolean; message?: string }>;
   clearError: () => void;
   resetInactivityTimer: () => void;
   clearDuplicateFlag: () => void;
@@ -786,6 +787,84 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
+  const updatePassword = async (
+    newPassword: string
+  ): Promise<{ success: boolean; message?: string }> => {
+    try {
+      setError(null);
+      setLoading(true);
+
+      if (__DEV__) {
+        console.log('[AuthContext.updatePassword] === PASSWORD UPDATE DEBUG ===');
+        console.log('[AuthContext.updatePassword] Password length:', newPassword?.length || 0);
+      }
+
+      // Check current session before attempting update
+      const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (__DEV__) {
+        console.log('[AuthContext.updatePassword] Current session check:', {
+          hasSession: !!currentSession,
+          hasUser: !!currentSession?.user,
+          sessionError: sessionError?.message,
+          expiresAt: currentSession?.expires_at,
+          accessToken: currentSession?.access_token ? 'present' : 'missing'
+        });
+      }
+
+      if (!currentSession) {
+        if (__DEV__) {
+          console.log('[AuthContext.updatePassword] ERROR: No active session found!');
+        }
+        return {
+          success: false,
+          message: 'No active session. Please use the password reset link from your email.'
+        };
+      }
+
+      if (__DEV__) {
+        console.log('[AuthContext.updatePassword] Attempting password update...');
+      }
+
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (error) {
+        if (__DEV__) {
+          console.log('[AuthContext.updatePassword] Update failed:', {
+            errorMessage: error.message,
+            errorStatus: error.status,
+            errorName: error.name
+          });
+        }
+        setError(error.message);
+        return {
+          success: false,
+          message: getReadableErrorMessage(error)
+        };
+      }
+
+      if (__DEV__) {
+        console.log('[AuthContext.updatePassword] Password updated successfully');
+      }
+
+      return {
+        success: true,
+        message: 'Password updated successfully'
+      };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to update password';
+      if (__DEV__) {
+        console.log('[AuthContext.updatePassword] Exception:', err);
+      }
+      setError(message);
+      return { success: false, message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const clearError = () => {
     setError(null);
   };
@@ -800,6 +879,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     signIn,
     signOut,
     resetPassword,
+    updatePassword,
     clearError,
     // Expose resetTimer for manual activity tracking
     resetInactivityTimer: resetTimer,
