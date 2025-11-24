@@ -72,7 +72,7 @@ class PaywallTestHelpers {
       }));
 
       const { error } = await supabase
-        .from('subscriptions')
+        .from('recurring_items')
         .insert(subscriptions);
 
       if (error) {
@@ -258,7 +258,7 @@ class PaywallTestHelpers {
 
       // Get subscription count
       const { count: subscriptionCount } = await supabase
-        .from('subscriptions')
+        .from('recurring_items')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', targetUserId);
 
@@ -318,7 +318,7 @@ class PaywallTestHelpers {
       const targetUserId = await this.getUserId(userId);
 
       const { error } = await supabase
-        .from('subscriptions')
+        .from('recurring_items')
         .delete()
         .eq('user_id', targetUserId);
 

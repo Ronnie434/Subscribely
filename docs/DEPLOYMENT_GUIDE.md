@@ -248,10 +248,10 @@ Complete questionnaire (likely 4+):
 
 #### App Store Information (Prepare for Submission)
 - App Name: Smart Subscription Tracker
-- Subtitle: Track & Manage Subscriptions (30 chars max)
-- Promotional Text: Never miss a subscription renewal
+- Subtitle: Track & Manage Expenses (30 chars max)
+- Promotional Text: Never miss a recurring payment
 - Description: [See APP_STORE_SUBMISSION.md]
-- Keywords: subscription,tracker,manager,renewal,budget,bills,finance
+- Keywords: recurring,tracker,manager,renewal,budget,bills,finance,expense
 - Support URL: Your website or support email
 - Marketing URL: (optional)
 

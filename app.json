@@ -63,7 +63,7 @@
       "bundler": "metro"
     },
     "scheme": "renvo",
-    "description": "Track and manage all your expenses in one place. Never miss a renewal date and stay on top of your monthly expenses.",
+    "description": "Track and manage all your recurring items and monthly expenses in one place. Never miss a renewal date and stay on top of your spending.",
     "githubUrl": "https://github.com/yourusername/smart-expenses-tracker",
     "runtimeVersion": "1.0.0",
     "extra": {

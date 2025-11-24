@@ -5,6 +5,17 @@ import { subscriptionLimitService } from './subscriptionLimitService';
 import { usageTrackingService } from './usageTrackingService';
 import { SubscriptionLimitError } from '../utils/paywallErrors';
 
+/**
+ * MIGRATION NOTE:
+ * This service is being replaced by recurringItemService.ts as part of Phase 4 refactoring.
+ *
+ * When feature flag 'useRecurringItemService' is enabled, calls are delegated to the new service.
+ * This maintains backward compatibility during the migration period.
+ *
+ * @deprecated This service will be removed in v3.0.0. Use recurringItemService.ts instead.
+ * @see {@link ./recurringItemService.ts} for the new implementation
+ */
+
 type DbSubscription = Database['public']['Tables']['subscriptions']['Row'];
 type DbSubscriptionInsert = Database['public']['Tables']['subscriptions']['Insert'];
 type DbSubscriptionUpdate = Database['public']['Tables']['subscriptions']['Update'];
@@ -103,7 +114,7 @@ export async function fetchSubscriptions(): Promise<{
 
     // Fetch subscriptions from database
     const { data, error } = await supabase
-      .from('subscriptions')
+      .from('recurring_items')
       .select('*')
       .eq('user_id', session.user.id)
       .order('created_at', { ascending: false });
@@ -163,7 +174,7 @@ export async function createSubscription(
     const dbSubscription = appToDbInsert(subscription, session.user.id);
     
     const { data, error } = await supabase
-      .from('subscriptions')
+      .from('recurring_items')
       .insert(dbSubscription)
       .select()
       .single();
@@ -212,7 +223,7 @@ export async function updateSubscription(
     const dbUpdates = appToDbUpdate(updates);
     
     const { data, error } = await supabase
-      .from('subscriptions')
+      .from('recurring_items')
       .update(dbUpdates)
       .eq('id', id)
       .eq('user_id', session.user.id) // Ensure user owns this subscription
@@ -252,7 +263,7 @@ export async function deleteSubscription(id: string): Promise<{
     }
 
     const { error } = await supabase
-      .from('subscriptions')
+      .from('recurring_items')
       .delete()
       .eq('id', id)
       .eq('user_id', session.user.id); // Ensure user owns this subscription
@@ -326,7 +337,7 @@ export async function migrateLocalSubscriptions(): Promise<{
 
     // Check if user already has subscriptions in Supabase
     const { data: existingData } = await supabase
-      .from('subscriptions')
+      .from('recurring_items')
       .select('id')
       .eq('user_id', session.user.id)
       .limit(1);
@@ -357,7 +368,7 @@ export async function migrateLocalSubscriptions(): Promise<{
     );
 
     const { data, error } = await supabase
-      .from('subscriptions')
+      .from('recurring_items')
       .insert(dbSubscriptions)
       .select();
 

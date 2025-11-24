@@ -1,6 +1,6 @@
 # Post-Launch Guide: Smart Subscription Tracker
 
-Comprehensive guide for monitoring, maintaining, and growing your app after App Store approval.
+Comprehensive guide for monitoring, maintaining, and growing your recurring expense tracking app after App Store approval.
 
 ---
 
@@ -363,7 +363,7 @@ const requestReview = async () => {
 - **Monthly Active Users (MAU)**
 - **Session length**: Time in app
 - **Feature usage**: Most used features
-- **Subscription adds**: Core action
+- **Recurring item adds**: Core action
 
 #### Financial
 - **Revenue** (if monetized)
@@ -467,7 +467,7 @@ npm install package@latest
 
 #### v1.2 (Month 3) - User Requests
 - [ ] Multiple currencies
-- [ ] Shared subscriptions
+- [ ] Shared recurring items
 - [ ] Receipt scanning
 - [ ] Advanced filtering
 

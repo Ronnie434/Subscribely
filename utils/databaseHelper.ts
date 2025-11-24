@@ -37,7 +37,7 @@ export async function checkDatabaseHealth(): Promise<DatabaseCheckResult> {
 
     // Check 2: Test database access (query subscriptions table)
     const { data, error } = await supabase
-      .from('subscriptions')
+      .from('recurring_items')
       .select('id', { count: 'exact', head: true });
 
     if (error) {

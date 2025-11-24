@@ -319,7 +319,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 
   const handleDelete = (subscription: Subscription) => {
     Alert.alert(
-      'Delete Subscription',
+      'Delete Recurring Item',
       `Are you sure you want to delete ${subscription.name}?`,
       [
         { text: 'Cancel', style: 'cancel' },
@@ -344,7 +344,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
                 }
                 Alert.alert(
                   'Failed to Delete',
-                  'Could not delete subscription. Please try again.',
+                  'Could not delete recurring item. Please try again.',
                   [{ text: 'OK' }]
                 );
               } else {
@@ -360,7 +360,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
               }
               Alert.alert(
                 'Failed to Delete',
-                'Could not delete subscription. Please try again.',
+                'Could not delete recurring item. Please try again.',
                 [{ text: 'OK' }]
               );
             }
@@ -476,7 +476,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
           </View>
         </View>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Your Subscriptions</Text>
+          <Text style={styles.sectionTitle}>YOUR RECURRING ITEMS</Text>
         </View>
         <View style={styles.skeletonContainer}>
           {[1, 2, 3, 4].map((i) => (
@@ -527,7 +527,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 
             {/* Section Title */}
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Your Subscriptions</Text>
+              <Text style={styles.sectionTitle}>YOUR RECURRING ITEMS</Text>
             </View>
           </>
         }

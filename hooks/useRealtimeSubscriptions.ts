@@ -41,7 +41,7 @@ export function useRealtimeSubscriptions(
     }
 
     // Create unique channel name for this user
-    const channelName = `subscriptions:user_id=${userId}`;
+    const channelName = `recurring_items:user_id=${userId}`;
     
     // Create the real-time channel
     const channel = supabase
@@ -51,7 +51,7 @@ export function useRealtimeSubscriptions(
         {
           event: '*',
           schema: 'public',
-          table: 'subscriptions',
+          table: 'recurring_items',
           filter: `user_id=eq.${userId}`,
         },
         (payload) => {

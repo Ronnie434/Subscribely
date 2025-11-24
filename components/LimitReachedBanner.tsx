@@ -150,9 +150,9 @@ export default function LimitReachedBanner({
             </View>
 
             <View style={styles.headerContent}>
-              <Text style={styles.title}>Subscription Limit Reached</Text>
+              <Text style={styles.title}>Item Limit Reached</Text>
               <Text style={styles.subtitle}>
-                You can't add more subscriptions
+                You can't add more recurring items
               </Text>
             </View>
 
@@ -175,7 +175,7 @@ export default function LimitReachedBanner({
                 style={styles.featureIcon}
               />
               <Text style={styles.featureText}>
-                Track unlimited subscriptions
+                Track unlimited recurring items
               </Text>
             </View>
             <View style={styles.featureRow}>

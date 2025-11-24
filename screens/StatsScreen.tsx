@@ -313,7 +313,7 @@ export default function StatsScreen() {
         >
           <EmptyState
             title="No Statistics Yet"
-            message="Add subscriptions to see your spending insights"
+            message="Add recurring items to see your spending insights"
           />
         </ScrollView>
       </View>

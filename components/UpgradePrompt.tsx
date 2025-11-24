@@ -134,7 +134,7 @@ export default function UpgradePrompt({
           <View style={styles.content}>
             <Text style={styles.title}>Upgrade to Premium</Text>
             <Text style={styles.subtitle}>
-              Unlock unlimited subscriptions
+              Unlock unlimited recurring items
             </Text>
           </View>
 

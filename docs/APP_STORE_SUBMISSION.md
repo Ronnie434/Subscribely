@@ -116,14 +116,14 @@ fastlane snapshot
 - Consistent with icon/branding
 
 ### Subtitle
-**Maximum**: 30 characters  
-**Recommended**: Track & Manage Subscriptions
+**Maximum**: 30 characters
+**Recommended**: Track & Manage Expenses
 
 **Alternatives**:
 - Never Miss a Renewal (22)
 - Manage Your Monthly Bills (25)
-- Control Your Subscriptions (26)
-- Budget Your Subscriptions (26)
+- Control Your Expenses (22)
+- Budget Your Recurring Items (28)
 
 ### Promotional Text
 **Maximum**: 170 characters  
@@ -131,7 +131,7 @@ fastlane snapshot
 
 **Recommended**:
 ```
-Take control of your subscriptions. Track renewal dates, monitor spending, and never miss a payment. Simple, powerful, and designed for iOS.
+Take control of your recurring expenses. Track renewal dates, monitor spending, and never miss a payment. Simple, powerful, and designed for iOS.
 ```
 
 ### Description
@@ -141,14 +141,14 @@ Take control of your subscriptions. Track renewal dates, monitor spending, and n
 **Recommended Structure**:
 
 ```
-TAKE CONTROL OF YOUR SUBSCRIPTIONS
+TAKE CONTROL OF YOUR RECURRING EXPENSES
 
-Smart Subscription Tracker helps you manage all your subscriptions in one place. Never miss a renewal date and stay on top of your monthly expenses.
+Smart Subscription Tracker helps you manage all your recurring items and monthly expenses in one place. Never miss a renewal date and stay on top of your spending.
 
 KEY FEATURES
 
 📊 Complete Overview
-• See all your subscriptions at a glance
+• See all your recurring items at a glance
 • View monthly, yearly, and lifetime costs
 • Track spending trends over time
 • Beautiful, intuitive dashboard
@@ -160,13 +160,13 @@ KEY FEATURES
 • Avoid unwanted charges
 
 💰 Budget Management
-• Monitor your subscription spending
+• Monitor your recurring expenses
 • See which services cost the most
 • Make informed decisions about what to keep
 • Export data for financial planning
 
 🎯 Easy to Use
-• Add subscriptions in seconds
+• Add recurring items in seconds
 • Support for all major services
 • Custom categories and colors
 • Clean, modern design
@@ -187,18 +187,18 @@ KEY FEATURES
 PERFECT FOR
 
 • Managing streaming services (Netflix, Spotify, etc.)
-• Tracking software subscriptions
+• Tracking software expenses
 • Monitoring gym memberships
 • Managing magazine subscriptions
 • Tracking any recurring payment
 
 WHY CHOOSE SMART SUBSCRIPTION TRACKER?
 
-Unlike spreadsheets or notes, our app is purpose-built for subscription management. With automatic renewal reminders and spending insights, you'll always know where your money is going.
+Unlike spreadsheets or notes, our app is purpose-built for managing recurring expenses. With automatic renewal reminders and spending insights, you'll always know where your money is going.
 
 PRIVACY & SECURITY
 
-We take your privacy seriously. All data is encrypted and stored securely. We never sell your data or show ads. Your subscription information is private and only accessible to you.
+We take your privacy seriously. All data is encrypted and stored securely. We never sell your data or show ads. Your recurring item information is private and only accessible to you.
 
 SUPPORT
 

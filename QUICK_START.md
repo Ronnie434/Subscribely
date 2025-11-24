@@ -124,7 +124,7 @@ The app should start successfully. You're now ready for Phase 2: Authentication 
 
 ### Database Schema
 - ✅ `profiles` table - User profile data
-- ✅ `subscriptions` table - Subscription tracking data
+- ✅ `subscriptions` table - Recurring item tracking data
 - ✅ Row Level Security (RLS) - Each user can only see their own data
 - ✅ Automatic triggers - Profile creation, timestamp updates
 - ✅ Indexes - Optimized query performance

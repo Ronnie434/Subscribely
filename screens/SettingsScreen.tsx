@@ -658,7 +658,7 @@ export default function SettingsScreen() {
                 <>
                   <View style={styles.divider} />
                   <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Subscriptions</Text>
+                    <Text style={styles.infoLabel}>Recurring Items</Text>
                     <Text style={styles.infoValue}>
                       {subscriptionStatus.currentCount} of {subscriptionStatus.maxAllowed} used
                     </Text>
@@ -668,7 +668,7 @@ export default function SettingsScreen() {
               
               <View style={styles.divider} />
               
-              {/* Manage Subscription Button */}
+              {/* Manage Plan Button */}
               <TouchableOpacity
                 style={[styles.infoRow, { paddingVertical: 0 }]}
                 onPress={() => {
@@ -686,7 +686,7 @@ export default function SettingsScreen() {
                 }}
                 activeOpacity={0.7}>
                 <Text style={[styles.infoLabel, { color: theme.colors.primary, fontWeight: '600' }]}>
-                  {subscriptionStatus.isPremium ? 'Manage Subscription' : 'Upgrade to Premium'}
+                  {subscriptionStatus.isPremium ? 'Manage Plan' : 'Upgrade to Premium'}
                 </Text>
                 <Ionicons name="chevron-forward" size={20} color={theme.colors.primary} />
               </TouchableOpacity>
@@ -763,7 +763,7 @@ export default function SettingsScreen() {
 
         {/* Footer */}
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Made with ❤️ for subscription management</Text>
+          <Text style={styles.footerText}>Made with ❤️ for recurring item management</Text>
         </View>
       </ScrollView>
 

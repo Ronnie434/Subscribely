@@ -746,7 +746,7 @@ export default function SubscriptionForm({ subscription, onSubmit, onCancel, isS
                 onChangeText={setDescription}
                 onFocus={() => setFocusedField('description')}
                 onBlur={() => setFocusedField(null)}
-                placeholder="Add notes about this subscription..."
+                placeholder="Add notes about this recurring item..."
                 placeholderTextColor={theme.colors.textSecondary}
                 multiline={true}
                 numberOfLines={4}
@@ -858,7 +858,7 @@ export default function SubscriptionForm({ subscription, onSubmit, onCancel, isS
             </View>
             {enableReminders && (
               <Text style={styles.helperText}>
-                Get notified 24 hours before your subscription renews
+                Get notified 24 hours before your recurring item renews
               </Text>
             )}
           </View>
@@ -947,7 +947,7 @@ export default function SubscriptionForm({ subscription, onSubmit, onCancel, isS
             </View>
           ) : (
             <Text style={styles.submitButtonText}>
-              {subscription ? 'Save Changes' : 'Add Subscription'}
+              {subscription ? 'Save Changes' : 'Add Recurring Item'}
             </Text>
           )}
         </Pressable>

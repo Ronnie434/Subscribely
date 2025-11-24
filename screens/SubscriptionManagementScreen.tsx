@@ -546,8 +546,8 @@ export default function SubscriptionManagementScreen({
             </Text>
             <Text style={styles.tierSubtitle}>
               {status.isPremium
-                ? 'Unlimited subscriptions and all features'
-                : `${status.currentCount} of ${status.maxAllowed} subscriptions used`}
+                ? 'Unlimited recurring items and all features'
+                : `${status.currentCount} of ${status.maxAllowed} recurring items used`}
             </Text>
             {status.isPremium && (
               <View style={styles.statusIndicatorContainer}>
@@ -626,7 +626,7 @@ export default function SubscriptionManagementScreen({
 
             {/* Actions */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Manage Subscription</Text>
+              <Text style={styles.sectionTitle}>Manage Plan</Text>
 
               {/* Switch Billing Cycle - Only show for monthly subscribers */}
               {billingCycle === 'monthly' && (
@@ -728,7 +728,7 @@ export default function SubscriptionManagementScreen({
                     />
                   </View>
                   <Text style={[styles.actionButtonText, styles.actionButtonTextDanger]}>
-                    Cancel Subscription
+                    Cancel Plan
                   </Text>
                 </View>
                 <Ionicons
@@ -743,7 +743,7 @@ export default function SubscriptionManagementScreen({
           <>
             {/* Usage Card for Free Tier */}
             <View style={styles.usageCard}>
-              <Text style={styles.usageTitle}>Subscription Usage</Text>
+              <Text style={styles.usageTitle}>Recurring Item Usage</Text>
               <View style={styles.usageBar}>
                 <LinearGradient
                   colors={
@@ -764,7 +764,7 @@ export default function SubscriptionManagementScreen({
                 />
               </View>
               <Text style={styles.usageText}>
-                {status.currentCount} of {status.maxAllowed} subscriptions used
+                {status.currentCount} of {status.maxAllowed} recurring items used
               </Text>
             </View>
 
@@ -777,7 +777,7 @@ export default function SubscriptionManagementScreen({
                 style={styles.upgradeGradient}>
                 <Text style={styles.upgradeTitle}>Upgrade to Premium</Text>
                 <Text style={styles.upgradeSubtitle}>
-                  Get unlimited subscriptions and all premium features
+                  Get unlimited recurring items and all premium features
                 </Text>
 
                 <View style={styles.upgradeFeatures}>
@@ -786,7 +786,7 @@ export default function SubscriptionManagementScreen({
                       <Ionicons name="infinite" size={16} color="#FFFFFF" />
                     </View>
                     <Text style={styles.upgradeFeatureText}>
-                      Unlimited subscription tracking
+                      Unlimited recurring item tracking
                     </Text>
                   </View>
                   <View style={styles.upgradeFeature}>

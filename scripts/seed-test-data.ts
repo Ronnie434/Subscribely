@@ -213,7 +213,7 @@ async function addSubscriptionsForUser(userId: string, count: number) {
     }
     
     const { error } = await supabase
-      .from('subscriptions')
+      .from('recurring_items')
       .insert(subscriptions);
     
     if (error) throw error;

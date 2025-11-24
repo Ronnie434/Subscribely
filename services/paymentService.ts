@@ -1,8 +1,27 @@
 /**
  * Payment Service
- * 
- * Service layer for handling Stripe payment operations through Supabase Edge Functions
- * Provides methods for subscription creation, cancellation, refunds, and billing portal access
+ *
+ * Service layer for handling Stripe payment operations through Supabase Edge Functions.
+ * Manages payment processing for the user's APP SUBSCRIPTION (Premium/Free tier).
+ *
+ * IMPORTANT TERMINOLOGY CLARIFICATION:
+ * - This service uses Stripe terminology where "subscription" refers to the payment subscription
+ * - Stripe "subscription" = User's Premium tier payment subscription TO THE APP
+ * - This is DIFFERENT from "recurring items" (expenses users track like Netflix, gym, etc.)
+ * - We keep Stripe terminology as-is because that's what Stripe API uses
+ *
+ * This service handles:
+ * - Creating Premium tier subscriptions (payment processing)
+ * - Canceling Premium subscriptions
+ * - Pausing/resuming subscriptions
+ * - Switching billing cycles (monthly ↔ yearly)
+ * - Processing refunds
+ * - Accessing billing portal
+ * - Retrieving payment history
+ *
+ * @since v1.0.0
+ * @see {@link ./subscriptionTierService.ts} for tier management (Premium/Free)
+ * @see {@link ./recurringItemService.ts} for managing tracked expenses
  */
 
 import { supabase } from '../config/supabase';
@@ -411,9 +430,13 @@ class PaymentService {
   }
 
   /**
-   * Get subscription count for current user
-   * 
-   * @returns Number of subscriptions the user is tracking
+   * Get recurring item count for current user
+   *
+   * NOTE: Despite the function name, this counts RECURRING ITEMS (tracked expenses),
+   * not the user's app subscription. This is used to enforce tier limits.
+   *
+   * @returns Number of recurring items the user is tracking
+   * @deprecated Consider using recurringItemLimitService.getRecurringItemCount() instead
    */
   async getSubscriptionCount(): Promise<number> {
     try {
@@ -421,7 +444,7 @@ class PaymentService {
       const userId = session.user.id;
 
       const { count, error } = await supabase
-        .from('subscriptions')
+        .from('recurring_items')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId);
 
@@ -437,9 +460,13 @@ class PaymentService {
   }
 
   /**
-   * Check if user can add more subscriptions based on their plan
-   * 
-   * @returns Whether user can add more subscriptions
+   * Check if user can add more recurring items based on their plan
+   *
+   * NOTE: Despite the function name, this checks RECURRING ITEMS (tracked expenses),
+   * not the user's app subscription. This is used to enforce tier limits.
+   *
+   * @returns Whether user can add more recurring items
+   * @deprecated Consider using recurringItemLimitService.checkCanAddRecurringItem() instead
    */
   async canAddSubscription(): Promise<boolean> {
     try {

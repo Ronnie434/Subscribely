@@ -1,9 +1,22 @@
 /**
  * Subscription Tier Service
- * 
- * Manages user subscription tiers, upgrades, and downgrades.
- * Provides methods to check tier status, upgrade to premium,
- * and downgrade to free tier.
+ *
+ * Manages user's APP SUBSCRIPTION TIER (Premium/Free plans).
+ *
+ * IMPORTANT TERMINOLOGY CLARIFICATION:
+ * - This service manages the user's subscription TO THE APP (Premium vs Free tier)
+ * - It does NOT manage the recurring expenses/items that users track
+ * - For tracked expenses (Netflix, gym, etc.), see recurringItemService.ts
+ *
+ * This service handles:
+ * - Checking user's current tier (Free or Premium)
+ * - Upgrading to Premium (payment processing)
+ * - Downgrading to Free
+ * - Querying tier features and limits
+ *
+ * @since v1.0.0
+ * @see {@link ./recurringItemService.ts} for managing tracked expenses
+ * @see {@link ./paymentService.ts} for Stripe payment operations
  */
 
 import { supabase } from '../config/supabase';

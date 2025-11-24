@@ -111,14 +111,14 @@ function SubscriptionsNavigator() {
         name="Home"
         component={HomeScreen}
         options={{
-          title: 'Subscriptions',
+          title: 'Recurring Items',
         }}
       />
       <SubscriptionsStack.Screen
         name="AddSubscription"
         component={AddSubscriptionScreen}
         options={{
-          title: 'Add Subscription',
+          title: 'Add Recurring Item',
           headerShown: true,
         }}
       />
@@ -126,7 +126,7 @@ function SubscriptionsNavigator() {
         name="EditSubscription"
         component={EditSubscriptionScreen}
         options={{
-          title: 'Edit Subscription',
+          title: 'Edit Recurring Item',
           headerShown: true,
         }}
       />
@@ -150,7 +150,7 @@ function SubscriptionsNavigator() {
         name="SubscriptionManagement"
         component={SubscriptionManagementScreen}
         options={{
-          title: 'Manage Subscription',
+          title: 'Manage Plan',
           headerShown: true,
         }}
       />
@@ -417,7 +417,7 @@ export default function AppNavigator() {
           name="Subscriptions"
           component={SubscriptionsNavigator}
           options={{
-            tabBarLabel: 'Subscriptions',
+            tabBarLabel: 'Items',
           }}
           listeners={({ navigation }) => ({
             tabPress: (e) => {

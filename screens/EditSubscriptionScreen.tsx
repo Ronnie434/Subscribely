@@ -74,7 +74,7 @@ export default function EditSubscriptionScreen() {
   // Set up navigation header
   useEffect(() => {
     navigation.setOptions({
-      title: 'Subscription Details',
+      title: 'Recurring Item Details',
     });
   }, [navigation]);
 
@@ -109,7 +109,7 @@ export default function EditSubscriptionScreen() {
     }
     
     Alert.alert(
-      'Delete Subscription',
+      'Delete Recurring Item',
       `Are you sure you want to delete ${subscription.name}?`,
       [
         { text: 'Cancel', style: 'cancel' },
@@ -513,7 +513,7 @@ export default function EditSubscriptionScreen() {
             ]}
             onPress={handleEditPress}>
             <Ionicons name="create-outline" size={20} color="#FFFFFF" />
-            <Text style={styles.editButtonText}>Edit Subscription</Text>
+            <Text style={styles.editButtonText}>Edit Recurring Item</Text>
           </Pressable>
 
           <Pressable
@@ -523,7 +523,7 @@ export default function EditSubscriptionScreen() {
             ]}
             onPress={handleDelete}>
             <Ionicons name="trash-outline" size={20} color={theme.colors.error} />
-            <Text style={styles.deleteButtonText}>Delete Subscription</Text>
+            <Text style={styles.deleteButtonText}>Delete Recurring Item</Text>
           </Pressable>
         </View>
       </ScrollView>

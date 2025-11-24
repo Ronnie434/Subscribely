@@ -19,8 +19,8 @@ interface EmptyStateProps {
 }
 
 export default function EmptyState({
-  title = 'No subscriptions yet',
-  message = 'Tap the + button to add your first subscription',
+  title = 'No recurring items yet',
+  message = 'Tap the + button to add your first recurring item',
   icon = 'file-tray-outline',
 }: EmptyStateProps) {
   const { theme } = useTheme();

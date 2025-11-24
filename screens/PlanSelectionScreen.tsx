@@ -316,7 +316,7 @@ export default function PlanSelectionScreen({
           </View>
           <Text style={styles.title}>Choose Your Plan</Text>
           <Text style={styles.subtitle}>
-            Unlock unlimited subscriptions and premium features
+            Unlock unlimited recurring items and premium features
           </Text>
         </Animated.View>
 
@@ -450,7 +450,7 @@ export default function PlanSelectionScreen({
           <Text style={styles.comparisonTitle}>All Plans Include</Text>
           <View style={styles.comparisonCard}>
             <View style={styles.comparisonRow}>
-              <Text style={styles.comparisonLabel}>Unlimited subscriptions</Text>
+              <Text style={styles.comparisonLabel}>Unlimited recurring items</Text>
               <Ionicons name="checkmark-circle" size={24} color={theme.colors.success} />
             </View>
             <View style={styles.comparisonRow}>

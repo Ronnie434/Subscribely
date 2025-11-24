@@ -14,9 +14,9 @@ When you create an account, we collect:
 - Name (optional)
 - Profile information (if provided)
 
-### Subscription Data
-The app stores information you provide about your subscriptions:
-- Subscription names and descriptions
+### Recurring Item Data
+The app stores information you provide about your recurring items:
+- Recurring item names and descriptions
 - Billing amounts and frequencies
 - Renewal dates
 - Categories
@@ -31,7 +31,7 @@ The app stores information you provide about your subscriptions:
 ## How We Use Your Information
 
 We use your information to:
-- Provide and maintain the subscription tracking service
+- Provide and maintain the recurring item tracking service
 - Send renewal notifications
 - Sync your data across devices
 - Improve app functionality and user experience
@@ -69,7 +69,7 @@ You have the right to:
 - **Access** your data at any time through the app
 - **Update** or correct your information
 - **Delete** your account and all associated data
-- **Export** your subscription data
+- **Export** your recurring item data
 - **Opt-out** of notifications
 
 ### Data Deletion
@@ -172,6 +172,6 @@ Our data processor (Supabase) has signed a Data Processing Agreement (DPA) that 
 You own your data. We provide tools to:
 - View all your data
 - Export your data in JSON format
-- Delete specific subscriptions
+- Delete specific recurring items
 - Delete your entire account
 - Modify privacy settings

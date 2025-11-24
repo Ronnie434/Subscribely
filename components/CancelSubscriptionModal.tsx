@@ -355,7 +355,7 @@ export default function CancelSubscriptionModal({
             <View style={styles.warningCard}>
               <Text style={styles.warningTitle}>What You'll Lose</Text>
               <Text style={styles.warningText}>
-                • Unlimited subscription tracking{'\n'}
+                • Unlimited recurring item tracking{'\n'}
                 • Advanced analytics and insights{'\n'}
                 • Export capabilities{'\n'}
                 • Priority support
@@ -411,7 +411,7 @@ export default function CancelSubscriptionModal({
               <View style={styles.bulletPoint}>
                 <View style={styles.bulletDot} />
                 <Text style={styles.bulletText}>
-                  If you have more than 5 subscriptions, you won't be able to
+                  If you have more than 5 recurring items, you won't be able to
                   add more until you delete some
                 </Text>
               </View>

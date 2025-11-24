@@ -160,7 +160,7 @@ async function addSubscriptions(userId: string, count: number) {
   
   try {
     const { data, error } = await supabase
-      .from('subscriptions')
+      .from('recurring_items')
       .insert(subscriptions)
       .select();
     
@@ -292,7 +292,7 @@ async function displayDatabaseState(userId: string) {
     
     // Subscriptions count
     const { count } = await supabase
-      .from('subscriptions')
+      .from('recurring_items')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', userId);
     
@@ -326,7 +326,7 @@ async function cleanupTestData(userId: string) {
   try {
     // Delete subscriptions
     const { error: subsError } = await supabase
-      .from('subscriptions')
+      .from('recurring_items')
       .delete()
       .eq('user_id', userId);
     

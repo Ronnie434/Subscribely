@@ -34,7 +34,7 @@ const slides: OnboardingSlide[] = [
     id: '1',
     icon: 'calendar-outline',
     // lottieSource: require('../assets/lottie/calendar.json'), // Uncomment and add your Lottie file
-    title: 'Track your subscriptions effortlessly',
+    title: 'Track your recurring items effortlessly',
     subtitle: 'Never forget a renewal',
   },
   {
@@ -42,14 +42,14 @@ const slides: OnboardingSlide[] = [
     icon: 'bar-chart-outline',
     // lottieSource: require('../assets/lottie/chart.json'), // Uncomment and add your Lottie file
     title: 'See where your money goes',
-    subtitle: 'See all your subscriptions in one place',
+    subtitle: 'See all your recurring items in one place',
   },
   {
     id: '3',
     icon: 'wallet-outline',
     // lottieSource: require('../assets/lottie/wallet.json'), // Uncomment and add your Lottie file
     title: 'Stay in control',
-    subtitle: 'Easily manage your subscriptions and get reminders',
+    subtitle: 'Easily manage your recurring items and get reminders',
   },
 ];
 

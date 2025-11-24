@@ -24,9 +24,9 @@ export const SUBSCRIPTION_PLANS = {
     amount: 4.99,
     interval: 'month' as const,
     displayName: 'Monthly Premium',
-    description: 'Unlimited subscriptions, billed monthly',
+    description: 'Unlimited recurring items, billed monthly',
     features: [
-      'Unlimited subscription tracking',
+      'Unlimited recurring item tracking',
       'Advanced analytics',
       'Export capabilities',
       'Priority support',
@@ -37,10 +37,10 @@ export const SUBSCRIPTION_PLANS = {
     amount: 39.00,
     interval: 'year' as const,
     displayName: 'Yearly Premium',
-    description: 'Unlimited subscriptions, billed annually',
+    description: 'Unlimited recurring items, billed annually',
     savingsText: 'Save 34%', // $59.88/year vs $39/year
     features: [
-      'Unlimited subscription tracking',
+      'Unlimited recurring item tracking',
       'Advanced analytics',
       'Export capabilities',
       'Priority support',

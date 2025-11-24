@@ -296,13 +296,13 @@ export default function PaywallModal({
 
             <View style={styles.limitBadge}>
               <Text style={styles.limitText}>
-                {currentCount}/{maxCount} Subscriptions Used
+                {currentCount}/{maxCount} Recurring Items Used
               </Text>
             </View>
 
             <Text style={styles.title}>Upgrade to Premium</Text>
             <Text style={styles.subtitle}>
-              Track unlimited subscriptions and unlock all features
+              Track unlimited recurring items and unlock all features
             </Text>
           </View>
 

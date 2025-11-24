@@ -1,14 +1,14 @@
 # Smart Subscription Tracker
 
-A modern, cloud-enabled subscription tracking app built with React Native, Expo, and Supabase. Track your recurring subscriptions across devices, manage renewals, and keep your data secure in the cloud.
+A modern, cloud-enabled recurring expense tracking app built with React Native, Expo, and Supabase. Track your recurring items and monthly expenses across devices, manage renewals, and keep your data secure in the cloud.
 
 ## 🌟 Features
 
 ### Core Features
-- **Subscription Management**: Add, edit, and delete subscriptions with ease
+- **Recurring Item Management**: Add, edit, and delete recurring items with ease
 - **Monthly Summary**: View total monthly costs and breakdown by category
-- **Renewal Reminders**: Get notified when subscriptions are about to renew
-- **Export Reports**: Export your subscription data as CSV files
+- **Renewal Reminders**: Get notified when recurring items are about to renew
+- **Export Reports**: Export your recurring item data as CSV files
 - **Statistics Dashboard**: Detailed analytics with category breakdown, spending insights, and renewal timeline
 - **Theme Customization**: Light, Dark, and Auto modes with system theme detection
 - **Onboarding**: Interactive tutorial for new users
@@ -19,7 +19,7 @@ A modern, cloud-enabled subscription tracking app built with React Native, Expo,
 ### Backend & Sync (NEW! 🎉)
 - **Cloud Storage**: Your data is securely stored in Supabase
 - **User Authentication**: Secure login with email/password authentication
-- **Multi-Device Sync**: Access your subscriptions from any device
+- **Multi-Device Sync**: Access your recurring items from any device
 - **Data Isolation**: Each user's data is completely private and secure
 - **Local Caching**: Data cached locally with cloud synchronization when online
 - **Real-time Updates**: Changes sync instantly across your devices
@@ -111,9 +111,9 @@ Or scan the QR code with the Expo Go app on your device.
 
 ## Usage
 
-1. **Add a Subscription**: Tap the + button on the home screen
-2. **Edit a Subscription**: Tap on any subscription card
-3. **Delete a Subscription**: Long press on a subscription card
+1. **Add a Recurring Item**: Tap the + button on the home screen
+2. **Edit a Recurring Item**: Tap on any recurring item card
+3. **Delete a Recurring Item**: Long press on a recurring item card
 4. **Export Data**: Tap the "Export CSV" button on the home screen
 5. **View Summary**: Monthly totals and upcoming renewals are displayed at the top
 
@@ -133,9 +133,9 @@ Features planned for future releases:
 - **Google OAuth**: Social login with Google authentication
 - **Full Offline Support**: Offline-first architecture with automatic sync queue
 - **Budget Alerts**: Get notified when spending exceeds set limits
-- **Subscription Sharing**: Family plan tracking and cost splitting
-- **Payment Method Tracking**: Track which card/account is used for each subscription
-- **Price History**: Track subscription price changes over time
+- **Recurring Item Sharing**: Family plan tracking and cost splitting
+- **Payment Method Tracking**: Track which card/account is used for each recurring item
+- **Price History**: Track recurring item price changes over time
 
 ## 📚 Documentation
 

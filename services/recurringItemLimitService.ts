@@ -1,17 +1,19 @@
 /**
- * Subscription Limit Service
- *
+ * Recurring Item Limit Service
+ * 
  * Manages limits on how many recurring items (expenses) a user can track
  * based on their app subscription tier (Free/Premium).
- *
- * MIGRATION NOTE:
- * This service is being replaced by recurringItemLimitService.ts as part of Phase 4 refactoring.
- *
- * When feature flag 'useRecurringItemLimitService' is enabled, calls are delegated to the new service.
- * This maintains backward compatibility during the migration period.
- *
- * @deprecated This service will be removed in v3.0.0. Use recurringItemLimitService.ts instead.
- * @see {@link ./recurringItemLimitService.ts} for the new implementation
+ * 
+ * IMPORTANT: This service manages limits for TRACKED EXPENSES (recurring items),
+ * not the user's app subscription tier itself.
+ * 
+ * Migration Note:
+ * This service is part of the Phase 4 refactoring to clarify terminology.
+ * It replaces subscriptionLimitService.ts for recurring item limits.
+ * Enable via feature flag: useRecurringItemLimitService
+ * 
+ * @since v2.0.0
+ * @see {@link ../docs/SERVICES_MIGRATION_GUIDE.md} for migration details
  */
 
 import { supabase } from '../config/supabase';
@@ -20,19 +22,19 @@ import {
   CacheKeys,
   CacheTTL
 } from '../utils/subscriptionCache';
-import { 
-  SubscriptionLimitError, 
-  TierNotFoundError 
+import {
+  SubscriptionLimitError,
+  TierNotFoundError
 } from '../utils/paywallErrors';
-import type { 
-  SubscriptionLimitStatus, 
-  CheckSubscriptionLimitResponse 
+import type {
+  RecurringItemLimitStatus,
+  CheckRecurringItemLimitResponse
 } from '../types';
 
 /**
- * SubscriptionLimitService class for managing subscription limits
+ * RecurringItemLimitService class for managing recurring item limits
  */
-class SubscriptionLimitService {
+class RecurringItemLimitService {
   /**
    * Get current user's authentication session
    * @private
@@ -54,21 +56,25 @@ class SubscriptionLimitService {
     return session.user.id;
   }
 
+
   /**
-   * Check if user can add a new subscription (recurring item)
-   *
+   * Check if user can add a new recurring item
+   * 
+   * Queries the database to determine if the user has room for more tracked items
+   * based on their current tier (Free: 5 items, Premium: unlimited).
+   * 
    * @returns Object with permission status and details
-   *
+   * 
    * @example
    * ```typescript
-   * const check = await subscriptionLimitService.checkCanAddSubscription();
+   * const check = await recurringItemLimitService.checkCanAddRecurringItem();
    * if (!check.canAdd) {
-   *   // Show paywall or upgrade prompt
+   *   // Show upgrade prompt or paywall
    *   console.log(check.reason);
    * }
    * ```
    */
-  async checkCanAddSubscription(): Promise<{
+  async checkCanAddRecurringItem(): Promise<{
     canAdd: boolean;
     reason?: string;
     currentCount: number;
@@ -77,10 +83,10 @@ class SubscriptionLimitService {
   }> {
     try {
       const userId = await this.getUserId();
-      const cacheKey = `can-add-sub-${userId}`;
+      const cacheKey = `can-add-item-${userId}`;
 
       // Check cache first
-      const cached = subscriptionCache.get<CheckSubscriptionLimitResponse>(cacheKey);
+      const cached = subscriptionCache.get<CheckRecurringItemLimitResponse>(cacheKey);
       if (cached) {
         return {
           canAdd: cached.can_add,
@@ -91,13 +97,13 @@ class SubscriptionLimitService {
         };
       }
 
-      // Query database using the check_subscription_limit function
+      // Query database using the recurring item limit check function
       const { data, error } = await supabase
-        .rpc('can_user_add_subscription', { p_user_id: userId })
+        .rpc('can_user_add_recurring_item', { p_user_id: userId })
         .single();
 
       if (error) {
-        console.error('Error checking subscription limit:', error);
+        console.error('Error checking recurring item limit:', error);
         // On error, default to allowing (graceful degradation)
         return {
           canAdd: true,
@@ -109,7 +115,7 @@ class SubscriptionLimitService {
       }
 
       // Cache the result
-      const result: CheckSubscriptionLimitResponse = {
+      const result: CheckRecurringItemLimitResponse = {
         can_add: data.allowed,
         current_count: data.current_count,
         limit: data.limit_count,
@@ -117,7 +123,7 @@ class SubscriptionLimitService {
         tier_name: data.tier,
         reason: data.allowed 
           ? undefined 
-          : `You've reached your ${data.tier} plan limit of ${data.limit_count} subscriptions.`,
+          : `You've reached your ${data.tier} plan limit of ${data.limit_count} recurring items.`,
       };
 
       subscriptionCache.set(cacheKey, result, CacheTTL.MEDIUM);
@@ -130,7 +136,7 @@ class SubscriptionLimitService {
         isPremium: result.is_premium,
       };
     } catch (error) {
-      console.error('Error in checkCanAddSubscription:', error);
+      console.error('Error in checkCanAddRecurringItem:', error);
       // Graceful degradation: allow on error
       return {
         canAdd: true,
@@ -143,29 +149,33 @@ class SubscriptionLimitService {
   }
 
   /**
-   * Get current subscription limit status with detailed information
-   *
-   * @returns Complete subscription limit status
-   *
+   * Get current recurring item limit status with detailed information
+   * 
+   * Provides comprehensive information about the user's current usage
+   * and available capacity for tracking recurring items.
+   * 
+   * @returns Complete recurring item limit status
+   * 
    * @example
    * ```typescript
-   * const status = await subscriptionLimitService.getSubscriptionLimitStatus();
-   * console.log(`${status.currentCount} of ${status.maxAllowed} subscriptions used`);
+   * const status = await recurringItemLimitService.getRecurringItemLimitStatus();
+   * console.log(`${status.currentCount} of ${status.maxAllowed} items tracked`);
+   * console.log(`${status.remainingCount} slots available`);
    * ```
    */
-  async getSubscriptionLimitStatus(): Promise<SubscriptionLimitStatus> {
+  async getRecurringItemLimitStatus(): Promise<RecurringItemLimitStatus> {
     try {
       const userId = await this.getUserId();
       const cacheKey = CacheKeys.limitStatus(userId);
 
       // Check cache first
-      const cached = subscriptionCache.get<SubscriptionLimitStatus>(cacheKey);
+      const cached = subscriptionCache.get<RecurringItemLimitStatus>(cacheKey);
       if (cached) {
         return cached;
       }
 
       // Get limit check data
-      const check = await this.checkCanAddSubscription();
+      const check = await this.checkCanAddRecurringItem();
 
       // Calculate remaining count
       const maxAllowed = check.limit === -1 ? null : check.limit;
@@ -173,7 +183,7 @@ class SubscriptionLimitService {
         ? null 
         : Math.max(0, check.limit - check.currentCount);
 
-      const status: SubscriptionLimitStatus = {
+      const status: RecurringItemLimitStatus = {
         currentCount: check.currentCount,
         maxAllowed,
         remainingCount,
@@ -187,29 +197,33 @@ class SubscriptionLimitService {
 
       return status;
     } catch (error) {
-      console.error('Error getting subscription limit status:', error);
+      console.error('Error getting recurring item limit status:', error);
       throw new TierNotFoundError(
-        'Unable to retrieve subscription limit status',
+        'Unable to retrieve recurring item limit status',
         undefined
       );
     }
   }
 
   /**
-   * Enforce subscription limit before executing a callback
-   *
+   * Enforce recurring item limit before executing a callback
+   * 
+   * Checks if the user can add more recurring items and throws an error if not.
+   * Use this to guard operations that would create new recurring items.
+   * 
    * @param callback - Function to execute if limit allows
    * @throws SubscriptionLimitError if limit is exceeded
-   *
+   * 
    * @example
    * ```typescript
-   * await subscriptionLimitService.enforceSubscriptionLimit(async () => {
-   *   // Add subscription logic here
+   * await recurringItemLimitService.enforceRecurringItemLimit(async () => {
+   *   // Add recurring item logic here
+   *   await createRecurringItem(itemData);
    * });
    * ```
    */
-  async enforceSubscriptionLimit(callback: () => void | Promise<void>): Promise<void> {
-    const check = await this.checkCanAddSubscription();
+  async enforceRecurringItemLimit(callback: () => void | Promise<void>): Promise<void> {
+    const check = await this.checkCanAddRecurringItem();
 
     if (!check.canAdd) {
       // Import usage tracking to log this event
@@ -219,7 +233,7 @@ class SubscriptionLimitService {
       });
 
       throw new SubscriptionLimitError(
-        check.reason || 'Subscription limit reached',
+        check.reason || 'Recurring item limit reached',
         check.currentCount,
         check.limit,
         check.isPremium
@@ -233,15 +247,15 @@ class SubscriptionLimitService {
   /**
    * Refresh limit status by clearing cache and re-fetching from database
    * 
-   * Call this after:
-   * - Adding or deleting a subscription
-   * - Upgrading or downgrading tier
-   * - Any change that affects subscription count or tier
+   * Call this after operations that affect the recurring item count:
+   * - Adding a new recurring item
+   * - Deleting a recurring item
+   * - Upgrading or downgrading app subscription tier
    * 
    * @example
    * ```typescript
-   * await subscriptionService.createSubscription(newSub);
-   * await subscriptionLimitService.refreshLimitStatus();
+   * await recurringItemService.createRecurringItem(newItem);
+   * await recurringItemLimitService.refreshLimitStatus();
    * ```
    */
   async refreshLimitStatus(): Promise<void> {
@@ -254,29 +268,37 @@ class SubscriptionLimitService {
       subscriptionCache.invalidate(CacheKeys.currentTier(userId));
       subscriptionCache.invalidate(CacheKeys.isPremium(userId));
       subscriptionCache.invalidate(CacheKeys.subscriptionStatus(userId));
-      // CRITICAL: Also invalidate the checkCanAddSubscription cache
-      subscriptionCache.invalidate(`can-add-sub-${userId}`);
+      // Also invalidate the checkCanAddRecurringItem cache
+      subscriptionCache.invalidate(`can-add-item-${userId}`);
       
       // Force clear the entire cache to prevent any stale data
       if (__DEV__) {
-        console.log('🗑️ Forcing complete cache clear for premium status refresh');
+        console.log('🗑️ Forcing complete cache clear for recurring item limit refresh');
       }
       subscriptionCache.clear();
 
       // Pre-fetch fresh data
-      await this.checkCanAddSubscription();
+      await this.checkCanAddRecurringItem();
     } catch (error) {
-      console.error('Error refreshing limit status:', error);
+      console.error('Error refreshing recurring item limit status:', error);
       // Don't throw - refresh is best-effort
     }
   }
 
   /**
-   * Get subscription count for current user
-   *
-   * @returns Number of subscriptions user has
+   * Get recurring item count for current user
+   * 
+   * Counts how many recurring items (expenses) the user is currently tracking.
+   * 
+   * @returns Number of recurring items user has
+   * 
+   * @example
+   * ```typescript
+   * const count = await recurringItemLimitService.getRecurringItemCount();
+   * console.log(`User is tracking ${count} recurring items`);
+   * ```
    */
-  async getSubscriptionCount(): Promise<number> {
+  async getRecurringItemCount(): Promise<number> {
     try {
       const userId = await this.getUserId();
       const cacheKey = CacheKeys.subscriptionCount(userId);
@@ -294,50 +316,85 @@ class SubscriptionLimitService {
         .eq('user_id', userId);
 
       if (error) {
-        console.error('Error getting subscription count:', error);
+        console.error('Error getting recurring item count:', error);
         return 0;
       }
 
-      const subscriptionCount = count || 0;
+      const itemCount = count || 0;
 
       // Cache the result
-      subscriptionCache.set(cacheKey, subscriptionCount, CacheTTL.SHORT);
+      subscriptionCache.set(cacheKey, itemCount, CacheTTL.SHORT);
 
-      return subscriptionCount;
+      return itemCount;
     } catch (error) {
-      console.error('Error in getSubscriptionCount:', error);
+      console.error('Error in getRecurringItemCount:', error);
       return 0;
     }
   }
 
   /**
-   * Check if user is at their subscription limit
+   * Check if user is at their recurring item limit
    * 
-   * @returns True if user cannot add more subscriptions
+   * Quick check to see if user cannot add more recurring items.
+   * 
+   * @returns True if user cannot add more recurring items
+   * 
+   * @example
+   * ```typescript
+   * const atLimit = await recurringItemLimitService.isAtLimit();
+   * if (atLimit) {
+   *   // Show upgrade prompt
+   * }
+   * ```
    */
   async isAtLimit(): Promise<boolean> {
-    const check = await this.checkCanAddSubscription();
+    const check = await this.checkCanAddRecurringItem();
     return !check.canAdd;
   }
 
   /**
-   * Get remaining subscription slots available
+   * Get remaining recurring item slots available
    * 
-   * @returns Number of remaining slots, or null for unlimited
+   * Calculates how many more recurring items the user can add
+   * before hitting their tier limit.
+   * 
+   * @returns Number of remaining slots, or null for unlimited (Premium)
+   * 
+   * @example
+   * ```typescript
+   * const remaining = await recurringItemLimitService.getRemainingSlots();
+   * if (remaining !== null) {
+   *   console.log(`You can add ${remaining} more items`);
+   * } else {
+   *   console.log('Unlimited items available (Premium)');
+   * }
+   * ```
    */
   async getRemainingSlots(): Promise<number | null> {
-    const status = await this.getSubscriptionLimitStatus();
+    const status = await this.getRecurringItemLimitStatus();
     return status.remainingCount;
   }
 
   /**
-   * Check if user can add multiple subscriptions
+   * Check if user can add multiple recurring items
    * 
-   * @param count - Number of subscriptions to add
-   * @returns True if user can add that many subscriptions
+   * Useful when batch-importing or adding multiple items at once.
+   * 
+   * @param count - Number of recurring items to add
+   * @returns True if user can add that many recurring items
+   * 
+   * @example
+   * ```typescript
+   * const canImport = await recurringItemLimitService.canAddMultiple(10);
+   * if (canImport) {
+   *   // Proceed with batch import
+   * } else {
+   *   // Show upgrade prompt
+   * }
+   * ```
    */
   async canAddMultiple(count: number): Promise<boolean> {
-    const status = await this.getSubscriptionLimitStatus();
+    const status = await this.getRecurringItemLimitStatus();
     
     // Premium users have unlimited
     if (status.maxAllowed === null) {
@@ -351,7 +408,7 @@ class SubscriptionLimitService {
 }
 
 // Export singleton instance
-export const subscriptionLimitService = new SubscriptionLimitService();
+export const recurringItemLimitService = new RecurringItemLimitService();
 
 // Export class for testing
-export default SubscriptionLimitService;
+export default RecurringItemLimitService;
