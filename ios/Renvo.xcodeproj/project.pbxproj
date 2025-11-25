@@ -20,7 +20,7 @@
 		13B07F961A680F5B00A75B9A /* Renvo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Renvo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = Renvo/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = Renvo/Info.plist; sourceTree = "<group>"; };
-		5926B5E9CCBE49B4ACDD279F /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = PrivacyInfo.xcprivacy; path = Renvo/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		5926B5E9CCBE49B4ACDD279F /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = PrivacyInfo.xcprivacy; path = Renvo/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		7CDC295C68351196E1697810 /* Pods-Renvo.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Renvo.release.xcconfig"; path = "Target Support Files/Pods-Renvo/Pods-Renvo.release.xcconfig"; sourceTree = "<group>"; };
 		A05308CED0A33B2B1498718E /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-Renvo/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = Renvo/SplashScreen.storyboard; sourceTree = "<group>"; };
@@ -81,7 +81,6 @@
 				CF121D7069B762C95D7E5116 /* Pods-Renvo.debug.xcconfig */,
 				7CDC295C68351196E1697810 /* Pods-Renvo.release.xcconfig */,
 			);
-			name = Pods;
 			path = Pods;
 			sourceTree = "<group>";
 		};
@@ -147,6 +146,7 @@
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
 				800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */,
 				58F76F11A79E5EFB3A2A4E09 /* [CP] Embed Pods Frameworks */,
+				A7C149F32ED541AB0049F1AF /* ShellScript */,
 			);
 			buildRules = (
 			);
@@ -349,6 +349,23 @@
 			shellPath = /bin/sh;
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Renvo/Pods-Renvo-resources.sh\"\n";
 			showEnvVarsInLog = 0;
+		};
+		A7C149F32ED541AB0049F1AF /* ShellScript */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\n#!/bin/sh\nset -e\n\necho \"=== Xcode Cloud: Installing CocoaPods ===\"\n\ncd \"$PROJECT_DIR\"\n\n# Ensure cocoapods exists\nif ! command -v pod >/dev/null 2>&1; then\n  echo \"Installing CocoaPods...\"\n  sudo gem install cocoapods\nfi\n\ncd ios\npod install --repo-update\n\necho \"=== Pods installed ===\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
