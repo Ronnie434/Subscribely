@@ -5,24 +5,6 @@
    <BuildAction
       parallelizeBuildables = "YES"
       buildImplicitDependencies = "YES">
-      <PreActions>
-         <ExecutionAction
-            ActionType = "Xcode.IDEStandardExecutionActionsCore.ExecutionActionType.ShellScriptAction">
-            <ActionContent
-               title = "Run Script"
-               scriptText = "# Type a script or drag a script file from your workspace to insert its path.&#10;#!/bin/sh&#10;set -e&#10;echo &quot;== Scheme pre-action: ensure pods installed ==&quot;&#10;&#10;# Go to ios folder (adjust if your ios folder path differs)&#10;cd &quot;${PROJECT_DIR}&quot; || exit 1&#10;&#10;# Install pods if needed (won&apos;t re-commit pods)&#10;if ! command -v pod &gt;/dev/null 2&gt;&amp;1; then&#10;  echo &quot;Installing CocoaPods...&quot;&#10;  sudo gem install cocoapods&#10;fi&#10;&#10;pod install --repo-update&#10;echo &quot;== pods installed ==&quot;&#10;">
-               <EnvironmentBuildable>
-                  <BuildableReference
-                     BuildableIdentifier = "primary"
-                     BlueprintIdentifier = "13B07F861A680F5B00A75B9A"
-                     BuildableName = "Renvo.app"
-                     BlueprintName = "Renvo"
-                     ReferencedContainer = "container:Renvo.xcodeproj">
-                  </BuildableReference>
-               </EnvironmentBuildable>
-            </ActionContent>
-         </ExecutionAction>
-      </PreActions>
       <BuildActionEntries>
          <BuildActionEntry
             buildForTesting = "YES"
