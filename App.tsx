@@ -10,6 +10,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import ActivityTracker from './components/ActivityTracker';
 import * as Notifications from 'expo-notifications';
 import { requestNotificationPermissions } from './utils/notificationService';
+import { checkAndHandleTimezoneChange } from './utils/timezoneService';
 import { stripeConfig } from './config/stripe';
 // Import dev tools (only loads in development)
 import './utils/devTools';
@@ -51,8 +52,19 @@ export default function App() {
 
   // Initialize notifications
   React.useEffect(() => {
-    // Request notification permissions on app start
-    requestNotificationPermissions();
+    const initializeNotifications = async () => {
+      // Request notification permissions on app start
+      await requestNotificationPermissions();
+      
+      // Check and handle timezone changes after permissions are granted
+      try {
+        await checkAndHandleTimezoneChange();
+      } catch (error) {
+        console.error('Error checking timezone:', error);
+      }
+    };
+    
+    initializeNotifications();
     
     // Set up notification response listener (when user taps notification)
     const subscription = Notifications.addNotificationResponseReceivedListener(response => {

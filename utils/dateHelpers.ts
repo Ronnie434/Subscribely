@@ -68,3 +68,28 @@ export const dateHelpers = {
   },
 };
 
+/**
+ * Converts a UTC timestamp to a local Date representing the same calendar date.
+ *
+ * Example:
+ * - Input: "2025-11-27T00:00:00.000Z" (Nov 27 UTC)
+ * - Output: Date object for Nov 27 at local midnight
+ *
+ * @param utcTimestamp ISO 8601 UTC timestamp
+ * @returns Date object in local timezone with the same calendar date
+ */
+export function utcTimestampToLocalDate(utcTimestamp: string): Date {
+  const utcDate = new Date(utcTimestamp);
+  
+  // Extract date components in UTC
+  const year = utcDate.getUTCFullYear();
+  const month = utcDate.getUTCMonth() + 1; // Convert to 1-indexed
+  const day = utcDate.getUTCDate();
+  
+  // Create ISO date string
+  const isoDateString = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  
+  // Use existing parseLocalDate helper
+  return parseLocalDate(isoDateString);
+}
+

@@ -2,6 +2,7 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { Subscription } from '../types';
 import { dateHelpers } from './dateHelpers';
+import { utcTimestampToLocalDate } from './dateHelpers';
 
 /**
  * Requests notification permissions from the user.
@@ -69,29 +70,23 @@ export async function scheduleRenewalNotification(
     console.log(`  Renewal date: ${renewalDate.toISOString()}`);
     console.log(`  Current time: ${now.toISOString()}`);
     
-    // Reset hours for date comparison
-    const today = new Date(now);
+    // Convert UTC renewal date to local calendar date
+    const renewalDateLocal = utcTimestampToLocalDate(subscription.renewalDate);
+    
+    // Get today in local timezone
+    const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    const renewalDateOnly = new Date(renewalDate);
-    renewalDateOnly.setHours(0, 0, 0, 0);
-    
-    console.log(`  Renewal date (date only): ${renewalDateOnly.toISOString()}`);
-    console.log(`  Today (date only): ${today.toISOString()}`);
-    
-    // Check if renewal date is in the future (must be tomorrow or later to get a notification)
-    console.log(`  Today (date only): ${today.toISOString()}`);
-    
-    if (renewalDateOnly <= today) {
-      console.log(`❌ Renewal date for ${subscription.name} is today or in the past, skipping notification`);
-      console.log(`  ${renewalDateOnly.toISOString()} <= ${today.toISOString()}`);
+    // Only schedule if renewal is in the future
+    if (renewalDateLocal <= today) {
+      console.log(`Renewal date for ${subscription.name} is today or in the past, skipping notification`);
       return null;
     }
     
-    // Calculate trigger time: 24 hours before renewal date at 9:00 AM
-    const triggerDate = new Date(renewalDate);
-    triggerDate.setDate(triggerDate.getDate() - 1); // Subtract 24 hours
-    triggerDate.setHours(9, 0, 0, 0); // Set to 9:00 AM local time
+    // Calculate trigger time: day before renewal at 9 AM local time
+    const triggerDate = new Date(renewalDateLocal);
+    triggerDate.setDate(triggerDate.getDate() - 1);
+    triggerDate.setHours(9, 0, 0, 0);
 
     console.log(`  Calculated trigger time: ${triggerDate.toISOString()}`);
 
