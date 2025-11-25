@@ -6,6 +6,29 @@ cd ../..
 
 echo "🏗️ Starting ci_post_clone.sh setup..."
 
+# Create .env file from Xcode Cloud environment variables
+echo "📝 Creating .env file from environment variables..."
+
+# Validate required variables
+if [ -z "$EXPO_PUBLIC_SUPABASE_URL" ]; then
+    echo "❌ ERROR: EXPO_PUBLIC_SUPABASE_URL not set in Xcode Cloud environment"
+    exit 1
+fi
+
+if [ -z "$EXPO_PUBLIC_SUPABASE_ANON_KEY" ]; then
+    echo "❌ ERROR: EXPO_PUBLIC_SUPABASE_ANON_KEY not set in Xcode Cloud environment"
+    exit 1
+fi
+
+# Create the .env file
+cat > .env << EOF
+EXPO_PUBLIC_SUPABASE_URL=${EXPO_PUBLIC_SUPABASE_URL}
+EXPO_PUBLIC_SUPABASE_ANON_KEY=${EXPO_PUBLIC_SUPABASE_ANON_KEY}
+EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY=${EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY}
+EOF
+
+echo "✅ Environment file created successfully"
+
 # 1. Install Node and Cocoapods (Missing from your current run)
 echo "🍺 Installing Node and CocoaPods via Homebrew..."
 # Node is required for npm/yarn and for the Podfile to function
