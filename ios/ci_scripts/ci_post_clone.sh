@@ -9,6 +9,7 @@ echo "🏗️ Starting ci_post_clone.sh setup..."
 # Create .env file from Xcode Cloud environment variables
 echo "📝 Creating .env file from environment variables..."
 
+
 # Validate required variables
 if [ -z "$EXPO_PUBLIC_SUPABASE_URL" ]; then
     echo "❌ ERROR: EXPO_PUBLIC_SUPABASE_URL not set in Xcode Cloud environment"
