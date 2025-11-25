@@ -140,13 +140,13 @@
 			buildPhases = (
 				08A4A3CD28434E44B6B9DE2E /* [CP] Check Pods Manifest.lock */,
 				6427F04F4D9493B7FB406CE4 /* [Expo] Configure project */,
+				A7C149F42ED542C30049F1AF /* ShellScript */,
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
 				800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */,
 				58F76F11A79E5EFB3A2A4E09 /* [CP] Embed Pods Frameworks */,
-				A7C149F32ED541AB0049F1AF /* ShellScript */,
 			);
 			buildRules = (
 			);
@@ -350,7 +350,7 @@
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Renvo/Pods-Renvo-resources.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
-		A7C149F32ED541AB0049F1AF /* ShellScript */ = {
+		A7C149F42ED542C30049F1AF /* ShellScript */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -365,7 +365,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\n#!/bin/sh\nset -e\n\necho \"=== Xcode Cloud: Installing CocoaPods ===\"\n\ncd \"$PROJECT_DIR\"\n\n# Ensure cocoapods exists\nif ! command -v pod >/dev/null 2>&1; then\n  echo \"Installing CocoaPods...\"\n  sudo gem install cocoapods\nfi\n\ncd ios\npod install --repo-update\n\necho \"=== Pods installed ===\"\n";
+			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\n#!/bin/sh\nset -e\n\necho \"=== Xcode Cloud: Installing CocoaPods ===\"\n\ncd \"$PROJECT_DIR/ios\"\n\n# Check for pod\nif ! command -v pod >/dev/null 2>&1; then\n  echo \"Installing CocoaPods...\"\n  sudo gem install cocoapods\nfi\n\npod install --repo-update\n\necho \"=== Pods installed ===\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
