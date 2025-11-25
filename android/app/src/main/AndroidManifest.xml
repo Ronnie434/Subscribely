@@ -26,8 +26,6 @@
         <action android:name="android.intent.action.VIEW"/>
         <category android:name="android.intent.category.DEFAULT"/>
         <category android:name="android.intent.category.BROWSABLE"/>
-        <data android:scheme="smartsubscriptiontracker"/>
-        <data android:scheme="exp+smart-expenses-tracker"/>
         <data android:scheme="renvo"/>
         <data android:scheme="exp+smart-subscription-tracker"/>
       </intent-filter>
