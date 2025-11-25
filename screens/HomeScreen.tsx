@@ -12,6 +12,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../contexts/ThemeContext';
 import { Subscription } from '../types';
 import { storage } from '../utils/storage';
@@ -44,6 +45,7 @@ interface HomeScreenProps {
 
 export default function HomeScreen({ navigation }: HomeScreenProps) {
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [loading, setLoading] = useState(true);
@@ -374,6 +376,11 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   const monthlyCount = subscriptions.filter(sub => sub.billingCycle === 'monthly').length;
   const yearlyCount = subscriptions.filter(sub => sub.billingCycle === 'yearly').length;
 
+  // Calculate bottom padding to avoid tab bar overlay
+  const TAB_BAR_HEIGHT = 60;
+  const safeAreaBottom = insets.bottom > 0 ? insets.bottom : 8;
+  const bottomPadding = TAB_BAR_HEIGHT + safeAreaBottom + 20;
+
   const styles = StyleSheet.create({
     container: {
       flex: 1,
@@ -446,7 +453,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     },
     listContainer: {
       paddingHorizontal: 16,
-      paddingBottom: 24,
+      paddingBottom: bottomPadding,
       paddingTop: 0,
     },
     emptyContainer: {

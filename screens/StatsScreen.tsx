@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../contexts/ThemeContext';
 import { Subscription } from '../types';
 import { storage } from '../utils/storage';
@@ -35,10 +36,16 @@ type StatsScreenNavigationProp = StackNavigationProp<SubscriptionsStackParamList
 export default function StatsScreen() {
   const { theme } = useTheme();
   const navigation = useNavigation<StatsScreenNavigationProp>();
+  const insets = useSafeAreaInsets();
   const { user, resetInactivityTimer } = useAuth();
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Calculate bottom padding to account for tab bar
+  // Tab bar height: 60px base + safe area insets (matching AppNavigator.tsx line 333)
+  const TAB_BAR_HEIGHT = 60;
+  const bottomPadding = TAB_BAR_HEIGHT + (insets.bottom > 0 ? insets.bottom : 8) + 20;
 
   // Set up real-time subscriptions for live updates
   useRealtimeSubscriptions(user?.id, {
@@ -137,8 +144,12 @@ export default function StatsScreen() {
       flex: 1,
       backgroundColor: theme.colors.background,
     },
+    scrollView: {
+      flex: 1,
+    },
     scrollContent: {
-      paddingBottom: 24,
+      paddingBottom: bottomPadding,
+      flexGrow: 1,
     },
     emptyContainer: {
       flex: 1,
@@ -323,10 +334,11 @@ export default function StatsScreen() {
   return (
     <View style={styles.container}>
       <ScrollView
+        style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl 
-            refreshing={refreshing} 
+          <RefreshControl
+            refreshing={refreshing}
             onRefresh={handleRefresh}
             tintColor={theme.colors.primary}
           />
@@ -391,7 +403,7 @@ export default function StatsScreen() {
         )}
 
         {/* Insights */}
-        {insights.length > 0 && (
+        {/* {insights.length > 0 && (
           <>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Insights</Text>
@@ -405,7 +417,7 @@ export default function StatsScreen() {
               />
             ))}
           </>
-        )}
+        )} */}
 
         {/* Upcoming Renewals */}
         <View style={styles.sectionHeader}>

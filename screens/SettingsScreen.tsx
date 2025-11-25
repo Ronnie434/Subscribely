@@ -637,6 +637,9 @@ export default function SettingsScreen() {
                 <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
               </View>
             </View>
+            <Text style={styles.tapToChangeText}>Tap to change icon</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* Subscription Section */}
         {subscriptionStatus && (
@@ -647,9 +650,9 @@ export default function SettingsScreen() {
               {/* Current Tier with Badge */}
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Current Plan</Text>
-                <TierBadge 
-                  tier={subscriptionStatus.isPremium ? 'premium' : 'free'} 
-                  size="small" 
+                <TierBadge
+                  tier={subscriptionStatus.isPremium ? 'premium' : 'free'}
+                  size="small"
                 />
               </View>
               
@@ -693,9 +696,6 @@ export default function SettingsScreen() {
             </View>
           </View>
         )}
-            <Text style={styles.tapToChangeText}>Tap to change icon</Text>
-          </TouchableOpacity>
-        </View>
 
         {/* Sign Out Button - Close to top */}
         <View style={styles.signOutSection}>

@@ -29,6 +29,7 @@
         <data android:scheme="smartsubscriptiontracker"/>
         <data android:scheme="exp+smart-expenses-tracker"/>
         <data android:scheme="renvo"/>
+        <data android:scheme="exp+smart-subscription-tracker"/>
       </intent-filter>
     </activity>
   </application>

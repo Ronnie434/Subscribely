@@ -13,6 +13,7 @@ import {
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../contexts/ThemeContext';
 import { storage } from '../utils/storage';
 import { dateHelpers } from '../utils/dateHelpers';
@@ -44,6 +45,7 @@ const SERVICE_COLORS: { [key: string]: string } = {
 
 export default function EditSubscriptionScreen() {
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<EditSubscriptionScreenNavigationProp>();
   const route = useRoute<EditSubscriptionScreenRouteProp>();
   const { subscription: initialSubscription } = route.params;
@@ -191,6 +193,11 @@ export default function EditSubscriptionScreen() {
   const renewalDateFormatted = dateHelpers.formatFullDate(subscription.renewalDate);
   const daysUntilRenewal = calculations.getDaysUntilRenewal(subscription.renewalDate);
 
+  // Calculate bottom padding to avoid tab bar overlay
+  const TAB_BAR_HEIGHT = 60;
+  const safeAreaBottom = insets.bottom > 0 ? insets.bottom : 8;
+  const bottomPadding = TAB_BAR_HEIGHT + safeAreaBottom + 80;
+
   const styles = StyleSheet.create({
     container: {
       flex: 1,
@@ -204,7 +211,7 @@ export default function EditSubscriptionScreen() {
       flex: 1,
     },
     scrollContent: {
-      paddingBottom: 24,
+      paddingBottom: bottomPadding,
     },
     // Hero Card
     heroCard: {

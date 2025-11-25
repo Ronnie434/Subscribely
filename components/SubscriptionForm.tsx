@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../contexts/ThemeContext';
 import { Subscription, BillingCycle } from '../types';
 import { extractDomain, getCompanyNames } from '../utils/domainHelpers';
@@ -40,6 +41,7 @@ const CATEGORIES = [
 
 export default function SubscriptionForm({ subscription, onSubmit, onCancel, isSubmitting = false }: SubscriptionFormProps) {
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const [name, setName] = useState(subscription?.name || '');
   const [cost, setCost] = useState(subscription?.cost ? subscription.cost.toFixed(2) : '');
   const [description, setDescription] = useState(subscription?.description || '');
@@ -97,7 +99,7 @@ export default function SubscriptionForm({ subscription, onSubmit, onCancel, isS
 
     const costNum = parseFloat(cost);
     if (!cost || isNaN(costNum) || costNum <= 0) {
-      newErrors.cost = 'Valid price is required';
+      newErrors.cost = 'Price is required and must be greater than 0';
     }
 
     setErrors(newErrors);
@@ -198,6 +200,11 @@ export default function SubscriptionForm({ subscription, onSubmit, onCancel, isS
     return costNum.toFixed(2);
   };
 
+  // Calculate bottom padding to avoid tab bar overlay
+  const TAB_BAR_HEIGHT = 60;
+  const safeAreaBottom = insets.bottom > 0 ? insets.bottom : 8;
+  const bottomPadding = TAB_BAR_HEIGHT + safeAreaBottom + 80;
+
   const styles = StyleSheet.create({
     container: {
       flex: 1,
@@ -207,7 +214,7 @@ export default function SubscriptionForm({ subscription, onSubmit, onCancel, isS
       flex: 1,
     },
     scrollContent: {
-      paddingBottom: 100,
+      paddingBottom: bottomPadding,
     },
     form: {
       paddingHorizontal: 16,
@@ -391,7 +398,7 @@ export default function SubscriptionForm({ subscription, onSubmit, onCancel, isS
     },
     buttonContainer: {
       padding: 16,
-      paddingBottom: Platform.OS === 'ios' ? 32 : 16,
+      paddingBottom: TAB_BAR_HEIGHT + safeAreaBottom + 16,
       backgroundColor: theme.colors.background,
       borderTopWidth: 1,
       borderTopColor: theme.colors.border,

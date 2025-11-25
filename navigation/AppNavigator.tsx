@@ -1,10 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
-import { createStackNavigator } from '@react-navigation/stack';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { NavigationContainer, NavigationContainerRef, useNavigationState, useNavigation } from '@react-navigation/native';
+import {
+  createStackNavigator,
+  CardStyleInterpolators,
+  TransitionSpecs,
+  StackNavigationOptions
+} from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View, ActivityIndicator, Linking } from 'react-native';
+import { View, ActivityIndicator, Linking, Platform, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { useTheme } from '../contexts/ThemeContext';
 import { Subscription } from '../types';
 import { hasSeenOnboarding } from '../utils/storage';
@@ -48,7 +52,7 @@ type SettingsStackParamList = {
   SettingsHome: undefined;
 };
 
-type RootTabParamList = {
+type MainStackParamList = {
   Subscriptions: undefined;
   Stats: undefined;
   Settings: undefined;
@@ -58,7 +62,61 @@ const AuthStack = createStackNavigator<AuthStackParamList>();
 const SubscriptionsStack = createStackNavigator<SubscriptionsStackParamList>();
 const StatsStack = createStackNavigator<StatsStackParamList>();
 const SettingsStack = createStackNavigator<SettingsStackParamList>();
-const Tab = createBottomTabNavigator<RootTabParamList>();
+const MainStack = createStackNavigator<MainStackParamList>();
+
+// Modern transition configuration for stack navigators
+const modernTransitionConfig: StackNavigationOptions = {
+  // Use platform-specific animations
+  cardStyleInterpolator: Platform.OS === 'ios'
+    ? CardStyleInterpolators.forHorizontalIOS
+    : CardStyleInterpolators.forFadeFromCenter,
+  
+  // Smooth transition timing
+  transitionSpec: {
+    open: TransitionSpecs.TransitionIOSSpec,
+    close: TransitionSpecs.TransitionIOSSpec,
+  },
+  
+  // Enable gesture handling for iOS-style swipe back
+  gestureEnabled: true,
+  gestureDirection: 'horizontal',
+};
+
+// Tab transition configuration - slide animations for tab switching
+const tabSlideTransitionConfig: StackNavigationOptions = {
+  // Use horizontal slide for tab switching
+  cardStyleInterpolator: Platform.OS === 'ios'
+    ? CardStyleInterpolators.forHorizontalIOS
+    : CardStyleInterpolators.forHorizontalIOS, // Use iOS style on both platforms for consistent sliding
+  
+  transitionSpec: {
+    open: TransitionSpecs.TransitionIOSSpec,
+    close: TransitionSpecs.TransitionIOSSpec,
+  },
+  
+  // Disable gesture for tabs to prevent accidental swipes
+  gestureEnabled: false,
+};
+
+// Tab transition configuration - faster, smoother transitions for tab switching
+const tabTransitionConfig: StackNavigationOptions = {
+  // Use a faster fade transition for tabs
+  cardStyleInterpolator: CardStyleInterpolators.forFadeFromCenter,
+  transitionSpec: {
+    open: {
+      animation: 'timing',
+      config: {
+        duration: 250,
+      },
+    },
+    close: {
+      animation: 'timing',
+      config: {
+        duration: 200,
+      },
+    },
+  },
+};
 
 function AuthNavigator({ initialRoute = 'Login' }: { initialRoute?: 'Login' | 'SignUp' }) {
   const { theme } = useTheme();
@@ -74,6 +132,7 @@ function AuthNavigator({ initialRoute = 'Login' }: { initialRoute?: 'Login' | 'S
         cardStyle: {
           backgroundColor: theme.colors.background,
         },
+        ...modernTransitionConfig,
       }}
       initialRouteName={initialRoute}>
       <AuthStack.Screen name="Login" component={LoginScreen} />
@@ -106,12 +165,16 @@ function SubscriptionsNavigator() {
         cardStyle: {
           backgroundColor: theme.colors.background,
         },
+        // Use faster tab transition config for the root screen
+        ...tabTransitionConfig,
       }}>
       <SubscriptionsStack.Screen
         name="Home"
         component={HomeScreen}
         options={{
           title: 'Recurring Items',
+          headerShown: true,
+          headerLeft: () => null,  // Remove back button
         }}
       />
       <SubscriptionsStack.Screen
@@ -120,6 +183,8 @@ function SubscriptionsNavigator() {
         options={{
           title: 'Add Recurring Item',
           headerShown: true,
+          // Use modern transitions for modal-like screens
+          ...modernTransitionConfig,
         }}
       />
       <SubscriptionsStack.Screen
@@ -128,6 +193,7 @@ function SubscriptionsNavigator() {
         options={{
           title: 'Edit Recurring Item',
           headerShown: true,
+          ...modernTransitionConfig,
         }}
       />
       <SubscriptionsStack.Screen
@@ -136,6 +202,7 @@ function SubscriptionsNavigator() {
         options={{
           title: 'Choose Your Plan',
           headerShown: true,
+          ...modernTransitionConfig,
         }}
       />
       <SubscriptionsStack.Screen
@@ -144,6 +211,7 @@ function SubscriptionsNavigator() {
         options={{
           title: 'Complete Payment',
           headerShown: true,
+          ...modernTransitionConfig,
         }}
       />
       <SubscriptionsStack.Screen
@@ -152,6 +220,7 @@ function SubscriptionsNavigator() {
         options={{
           title: 'Manage Plan',
           headerShown: true,
+          ...modernTransitionConfig,
         }}
       />
     </SubscriptionsStack.Navigator>
@@ -180,12 +249,16 @@ function StatsNavigator() {
         cardStyle: {
           backgroundColor: theme.colors.background,
         },
+        // Use faster tab transition config
+        ...tabTransitionConfig,
       }}>
       <StatsStack.Screen
         name="StatsHome"
         component={StatsScreen}
         options={{
           title: 'Statistics',
+          headerShown: true,
+          headerLeft: () => null,  // Remove back button
         }}
       />
     </StatsStack.Navigator>
@@ -214,21 +287,130 @@ function SettingsNavigator() {
         cardStyle: {
           backgroundColor: theme.colors.background,
         },
+        // Use faster tab transition config
+        ...tabTransitionConfig,
       }}>
       <SettingsStack.Screen
         name="SettingsHome"
         component={SettingsScreen}
         options={{
           title: 'Settings',
+          headerShown: true,
+          headerLeft: () => null,  // Remove back button
         }}
       />
     </SettingsStack.Navigator>
   );
 }
 
-export default function AppNavigator() {
+// Custom Tab Bar Component
+function CustomTabBar() {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation<any>();
+  
+  // Get current route name
+  const currentRoute = useNavigationState(state => {
+    if (!state) return 'Subscriptions';
+    const route = state.routes[state.index];
+    return route.name;
+  });
+
+  const tabs = [
+    { name: 'Subscriptions', label: 'Items', icon: 'list' as const },
+    { name: 'Stats', label: 'Stats', icon: 'stats-chart' as const },
+    { name: 'Settings', label: 'Settings', icon: 'settings' as const },
+  ];
+
+  return (
+    <View
+      style={[
+        styles.tabBarContainer,
+        {
+          backgroundColor: theme.colors.card,
+          borderTopColor: theme.colors.border,
+          paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
+          height: 60 + (insets.bottom > 0 ? insets.bottom : 8),
+        },
+      ]}>
+      {tabs.map((tab) => {
+        const isActive = currentRoute === tab.name;
+        const color = isActive ? theme.colors.primary : theme.colors.textSecondary;
+
+        return (
+          <TouchableOpacity
+            key={tab.name}
+            style={styles.tabButton}
+            onPress={() => {
+              if (tab.name === 'Subscriptions') {
+                // Reset to Home screen when Items tab is pressed
+                navigation.navigate('Subscriptions', { screen: 'Home' });
+              } else {
+                navigation.navigate(tab.name);
+              }
+            }}
+            activeOpacity={0.7}>
+            <Ionicons name={tab.icon} size={24} color={color} />
+            <Text style={[styles.tabLabel, { color }]}>{tab.label}</Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  tabBarContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    paddingTop: 8,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  tabButton: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginTop: 4,
+  },
+});
+
+// Main Stack Navigator with Custom Tab Bar
+function MainNavigator() {
+  const { theme } = useTheme();
+
+  return (
+    <View style={{ flex: 1 }}>
+      <MainStack.Navigator
+        screenOptions={{
+          headerShown: false,
+          cardStyle: {
+            backgroundColor: theme.colors.background,
+          },
+          ...tabSlideTransitionConfig,
+        }}>
+        <MainStack.Screen name="Subscriptions" component={SubscriptionsNavigator} />
+        <MainStack.Screen name="Stats" component={StatsNavigator} />
+        <MainStack.Screen name="Settings" component={SettingsNavigator} />
+      </MainStack.Navigator>
+      <CustomTabBar />
+    </View>
+  );
+}
+
+export default function AppNavigator() {
+  const { theme } = useTheme();
   const { user, session, loading: authLoading, resetInactivityTimer, error, clearError, isHandlingDuplicate } = useAuth();
   const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -380,67 +562,7 @@ export default function AppNavigator() {
         />
       ) : (
         // Show main app if user is authenticated AND has a valid session
-        <Tab.Navigator
-        screenOptions={({ route }) => ({
-          tabBarIcon: ({ focused, color, size }) => {
-            let iconName: keyof typeof Ionicons.glyphMap;
-
-            if (route.name === 'Subscriptions') {
-              iconName = 'list';
-            } else if (route.name === 'Stats') {
-              iconName = 'stats-chart';
-            } else if (route.name === 'Settings') {
-              iconName = 'settings';
-            } else {
-              iconName = 'help';
-            }
-
-            return <Ionicons name={iconName} size={size} color={color} />;
-          },
-          tabBarActiveTintColor: theme.colors.primary,
-          tabBarInactiveTintColor: theme.colors.textSecondary,
-          tabBarStyle: {
-            backgroundColor: theme.colors.card,
-            borderTopWidth: 1,
-            borderTopColor: theme.colors.border,
-            paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
-            paddingTop: 8,
-            height: 60 + (insets.bottom > 0 ? insets.bottom : 8),
-          },
-          tabBarLabelStyle: {
-            fontSize: 12,
-            fontWeight: '500',
-          },
-          headerShown: false,
-        })}>
-        <Tab.Screen
-          name="Subscriptions"
-          component={SubscriptionsNavigator}
-          options={{
-            tabBarLabel: 'Items',
-          }}
-          listeners={({ navigation }) => ({
-            tabPress: (e) => {
-              // Reset to Home screen when tab is pressed
-              navigation.navigate('Subscriptions', { screen: 'Home' });
-            },
-          })}
-        />
-        <Tab.Screen
-          name="Stats"
-          component={StatsNavigator}
-          options={{
-            tabBarLabel: 'Stats',
-          }}
-        />
-        <Tab.Screen
-          name="Settings"
-          component={SettingsNavigator}
-          options={{
-            tabBarLabel: 'Settings',
-          }}
-        />
-      </Tab.Navigator>
+        <MainNavigator />
       )}
     </NavigationContainer>
   );

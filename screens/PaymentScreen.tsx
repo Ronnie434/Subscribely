@@ -48,13 +48,22 @@ export default function PaymentScreen({
   const { confirmPayment, createPaymentMethod } = useStripe();
   const { plan } = route.params;
   
-  const [loading, setLoading] = useState(false);
+  const [initializing, setInitializing] = useState(true);
   const [cardComplete, setCardComplete] = useState(false);
   const [processingPayment, setProcessingPayment] = useState(false);
   const [pollingMessage, setPollingMessage] = useState<string | null>(null);
 
   const planDetails = SUBSCRIPTION_PLANS[plan];
   const amount = planDetails.amount;
+
+  // Handle initial screen setup
+  useEffect(() => {
+    // Small delay to allow Stripe CardField to initialize
+    const timer = setTimeout(() => {
+      setInitializing(false);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []);
 
   /**
    * Polls the database to confirm tier upgrade to premium
@@ -331,6 +340,24 @@ export default function PaymentScreen({
       console.log('=== Payment Flow Completed ===');
     }
   };
+
+  // Show loading state while initializing
+  if (initializing) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }} edges={['bottom']}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={{
+            marginTop: 16,
+            fontSize: 16,
+            color: theme.colors.textSecondary
+          }}>
+            Loading payment details...
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   const styles = StyleSheet.create({
     container: {
