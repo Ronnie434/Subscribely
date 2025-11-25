@@ -23,7 +23,7 @@ fi
 # 3. Use Expo to Configure Native Files
 echo "🏗️ Running Expo Native Setup..."
 # The --no-install flag prevents it from running pod install twice
-expo prebuild --platform ios --no-install
+npx expo prebuild --platform ios --no-install
 
 # 4. Install Pods
 # Go back into the ios folder where the Podfile lives
