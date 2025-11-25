@@ -1,14 +1,14 @@
 #!/bin/sh
 set -e
 
-echo "🏗️ Starting ci_post_clone.sh..."
+echo "🏗️ Starting ci_post_clone.sh (Expo Workflow)..."
 
-# Install CocoaPods and Node/Yarn using Homebrew
+# 1. Install CocoaPods, Node, and Yarn
 echo "🍺 Installing dependencies (CocoaPods, Node, Yarn)..."
 brew install cocoapods node yarn
 
-# 1. Install Node Modules
-# We start in ios/ci_scripts, go up two levels to the project root
+# 2. Install Node Modules (Requires root folder)
+# Start in ios/ci_scripts, go up two levels to the project root
 cd ../.. 
 
 if [ -f "package.json" ]; then
@@ -20,17 +20,12 @@ if [ -f "package.json" ]; then
     fi
 fi
 
-# 2. **ADD THIS BLOCK** - Generate the JS Bundle
-echo "📦 Generating main.jsbundle..."
-mkdir -p ios
-npx react-native bundle \
-  --platform ios \
-  --dev false \
-  --entry-file index.js \
-  --bundle-output ios/main.jsbundle \
-  --assets-dest ios
+# 3. Use Expo to Configure Native Files
+echo "🏗️ Running Expo Native Setup..."
+# The --no-install flag prevents it from running pod install twice
+expo prebuild --platform ios --no-install
 
-# 3. Install Pods
+# 4. Install Pods
 # Go back into the ios folder where the Podfile lives
 cd ios
 
