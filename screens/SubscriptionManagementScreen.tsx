@@ -236,6 +236,7 @@ export default function SubscriptionManagementScreen({
     },
     content: {
       padding: 24,
+      paddingBottom: 100, // Add space for bottom navigation bar
     },
     headerCard: {
       backgroundColor: theme.colors.card,
