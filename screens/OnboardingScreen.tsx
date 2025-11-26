@@ -163,9 +163,10 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
     },
   });
 
-  const AnimatedSlide = ({ item, isActive }: { item: OnboardingSlide; isActive: boolean }) => {
+  const AnimatedSlide = ({ item, isActive, isLastSlide }: { item: OnboardingSlide; isActive: boolean; isLastSlide: boolean }) => {
     const iconScale = useRef(new Animated.Value(0)).current;
     const iconOpacity = useRef(new Animated.Value(0)).current;
+    const iconRotate = useRef(new Animated.Value(0)).current;
     const textTranslateY = useRef(new Animated.Value(12)).current;
     const textOpacity = useRef(new Animated.Value(0)).current;
     const buttonOpacity = useRef(new Animated.Value(0)).current;
@@ -176,6 +177,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
         // Reset animations
         iconScale.setValue(0);
         iconOpacity.setValue(0);
+        iconRotate.setValue(0);
         textTranslateY.setValue(12);
         textOpacity.setValue(0);
         buttonOpacity.setValue(0);
@@ -185,7 +187,9 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
           lottieRef.current.play();
         }
 
-        // Icon animation: fade-in + scale
+        // Icon animation: fade-in + scale + subtle rotation
+        const rotationValue = item.id === '1' ? -5 : item.id === '3' ? 5 : 0; // Shield rotates left, Bell rotates right
+        
         Animated.parallel([
           Animated.timing(iconOpacity, {
             toValue: 1,
@@ -198,6 +202,19 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
             friction: 7,
             useNativeDriver: true,
           }),
+          Animated.sequence([
+            Animated.timing(iconRotate, {
+              toValue: rotationValue,
+              duration: 400,
+              useNativeDriver: true,
+            }),
+            Animated.spring(iconRotate, {
+              toValue: 0,
+              tension: 50,
+              friction: 8,
+              useNativeDriver: true,
+            }),
+          ]),
         ]).start();
 
         // Text animation: slide up + fade-in
@@ -231,29 +248,79 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
       }
     }, [isActive, item.lottieSource]);
 
+    // Theme-aware spot illustration colors
+    const getSpotColor = () => {
+      const isDark = theme.colors.background === '#000000';
+      switch (item.id) {
+        case '1': // Shield - Primary blue tint
+          return isDark ? 'rgba(10, 132, 255, 0.15)' : 'rgba(0, 122, 255, 0.1)';
+        case '2': // Bar Chart - Green tint
+          return isDark ? 'rgba(52, 199, 89, 0.15)' : 'rgba(52, 199, 89, 0.1)';
+        case '3': // Notifications - Purple tint
+          return isDark ? 'rgba(94, 92, 230, 0.15)' : 'rgba(88, 86, 214, 0.1)';
+        default:
+          return isDark ? 'rgba(10, 132, 255, 0.15)' : 'rgba(0, 122, 255, 0.1)';
+      }
+    };
+
+    // Vary icon sizes slightly for visual interest
+    const getIconSize = () => {
+      switch (item.id) {
+        case '1':
+          return 115;
+        case '2':
+          return 110;
+        case '3':
+          return 115;
+        default:
+          return 115;
+      }
+    };
+
+    const spotColor = getSpotColor();
+    const iconSize = getIconSize();
+    const spotSize = 170;
+
     return (
       <View style={styles.slide}>
         <View style={styles.content}>
           <Animated.View
             style={{
               opacity: iconOpacity,
-              transform: [{ scale: iconScale }],
-              width: 120,
-              height: 120,
+              transform: [
+                { scale: iconScale },
+                { rotate: iconRotate.interpolate({
+                  inputRange: [-10, 10],
+                  outputRange: ['-10deg', '10deg'],
+                }) },
+              ],
+              width: spotSize,
+              height: spotSize,
               justifyContent: 'center',
               alignItems: 'center',
             }}
           >
+            {/* Colored circular background spot */}
+            <View
+              style={{
+                position: 'absolute',
+                width: spotSize,
+                height: spotSize,
+                borderRadius: spotSize / 2,
+                backgroundColor: spotColor,
+              }}
+            />
+            {/* Icon */}
             {item.lottieSource ? (
               <LottieView
                 ref={lottieRef}
                 source={item.lottieSource}
                 autoPlay={false}
                 loop={true}
-                style={{ width: 120, height: 120 }}
+                style={{ width: iconSize, height: iconSize }}
               />
             ) : (
-              <Ionicons name={item.icon} size={120} color={theme.colors.primary} />
+              <Ionicons name={item.icon} size={iconSize} color={theme.colors.primary} />
             )}
           </Animated.View>
           <Animated.View
@@ -278,22 +345,24 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
               />
             ))}
           </View>
-          <Animated.View style={{ opacity: buttonOpacity }}>
-            <TouchableOpacity
-              style={styles.button}
-              onPress={handleGetStarted}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.buttonText}>Get Started</Text>
-            </TouchableOpacity>
-          </Animated.View>
+          {isLastSlide && (
+            <Animated.View style={{ opacity: buttonOpacity }}>
+              <TouchableOpacity
+                style={styles.button}
+                onPress={handleGetStarted}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.buttonText}>Get Started</Text>
+              </TouchableOpacity>
+            </Animated.View>
+          )}
         </View>
       </View>
     );
   };
 
   const renderSlide = ({ item, index }: { item: OnboardingSlide; index: number }) => (
-    <AnimatedSlide item={item} isActive={index === currentIndex} />
+    <AnimatedSlide item={item} isActive={index === currentIndex} isLastSlide={index === slides.length - 1} />
   );
 
   // Determine gradient colors based on theme

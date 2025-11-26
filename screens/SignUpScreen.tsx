@@ -148,7 +148,7 @@ export default function SignUpScreen({ onNavigateToSignIn }: SignUpScreenProps) 
           />
         </View>
         <Text style={styles.appName}>Renvo</Text>
-        <Text style={styles.tagline}>Track your recurring items smartly</Text>
+        <Text style={styles.tagline}>Never get blindsided by a recurring charge again</Text>
       </View>
 
       <View style={styles.formContainer}>
