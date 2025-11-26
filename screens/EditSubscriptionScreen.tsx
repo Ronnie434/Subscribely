@@ -190,7 +190,7 @@ export default function EditSubscriptionScreen() {
     );
   };
 
-  const monthlyCost = calculations.getMonthlyCost(subscription);
+  const monthlyCost = calculations.getDisplayCost(subscription);
   const renewalDateFormatted = dateHelpers.formatFullDate(subscription.renewalDate);
   const daysUntilRenewal = calculations.getDaysUntilRenewal(subscription.renewalDate);
 

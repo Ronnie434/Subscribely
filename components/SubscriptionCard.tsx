@@ -33,7 +33,7 @@ const SubscriptionCard = memo(function SubscriptionCard({
 }: SubscriptionCardProps) {
   const { theme } = useTheme();
   const [logoSource, setLogoSource] = useState<LogoSource>('primary');
-  const monthlyCost = calculations.getMonthlyCost(subscription);
+  const monthlyCost = calculations.getDisplayCost(subscription);
 
   // Get service icon color based on service name
   const getIconColor = (): string => {

@@ -3,7 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
+  ScrollView,
   RefreshControl,
   Alert,
   Platform,
@@ -21,6 +21,7 @@ import SubscriptionCard from '../components/SubscriptionCard';
 import EmptyState from '../components/EmptyState';
 import AnimatedPressable from '../components/AnimatedPressable';
 import { SkeletonCard } from '../components/SkeletonLoader';
+import CollapsibleSection from '../components/CollapsibleSection';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../contexts/AuthContext';
 import PaywallModal from '../components/PaywallModal';
@@ -372,9 +373,17 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     );
   };
 
+  // Filter subscriptions by charge type
+  const recurringItems = subscriptions.filter(
+    sub => !sub.chargeType || sub.chargeType === 'recurring'
+  );
+  const oneTimeItems = subscriptions.filter(
+    sub => sub.chargeType === 'one_time'
+  );
+
   const totalMonthlyCost = calculations.getTotalMonthlyCost(subscriptions);
-  const monthlyCount = subscriptions.filter(sub => sub.billingCycle === 'monthly').length;
-  const yearlyCount = subscriptions.filter(sub => sub.billingCycle === 'yearly').length;
+  const monthlyCount = recurringItems.filter(sub => sub.billingCycle === 'monthly').length;
+  const yearlyCount = recurringItems.filter(sub => sub.billingCycle === 'yearly').length;
 
   // Calculate bottom padding to avoid tab bar overlay
   const TAB_BAR_HEIGHT = 60;
@@ -439,22 +448,8 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       color: theme.colors.text,
       lineHeight: 18,
     },
-    sectionHeader: {
-      paddingHorizontal: 16,
-      paddingTop: 20,
-      paddingBottom: 8,
-    },
-    sectionTitle: {
-      fontSize: 13,
-      fontWeight: '600',
-      color: theme.colors.textSecondary,
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
-    },
-    listContainer: {
-      paddingHorizontal: 16,
+    scrollContent: {
       paddingBottom: bottomPadding,
-      paddingTop: 0,
     },
     emptyContainer: {
       flex: 1,
@@ -482,9 +477,6 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
             </View>
           </View>
         </View>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>YOUR RECURRING ITEMS</Text>
-        </View>
         <View style={styles.skeletonContainer}>
           {[1, 2, 3, 4].map((i) => (
             <SkeletonCard key={i} />
@@ -496,61 +488,74 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 
   return (
     <View style={styles.container}>
-      <FlatList
-        data={subscriptions}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item, index }) => (
-          <Animated.View
-            entering={FadeInDown.delay(index * 50).springify()}
-            style={{ marginBottom: index < subscriptions.length - 1 ? 12 : 0 }}>
-            <SubscriptionCard
-              subscription={item}
-              onPress={() => handleEdit(item)}
-              onLongPress={() => handleDelete(item)}
-            />
-          </Animated.View>
-        )}
-        ListHeaderComponent={
-          <>
-            {/* Summary Card */}
-            <View style={styles.headerCard}>
-              <Text style={styles.headerLabel}>MONTHLY TOTAL</Text>
-              <Text style={styles.totalAmount}>${totalMonthlyCost.toFixed(2)}</Text>
-              {subscriptions.length > 0 && (
-                <View style={styles.statsRow}>
-                  {monthlyCount > 0 && (
-                    <View style={styles.statBadge}>
-                      <Text style={styles.statText}>{monthlyCount} monthly</Text>
-                    </View>
-                  )}
-                  {yearlyCount > 0 && (
-                    <View style={styles.statBadge}>
-                      <Text style={styles.statText}>{yearlyCount} yearly</Text>
-                    </View>
-                  )}
-                </View>
-              )}
-            </View>
-
-            {/* Section Title */}
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>YOUR RECURRING ITEMS</Text>
-            </View>
-          </>
-        }
-        ListEmptyComponent={<EmptyState />}
-        contentContainerStyle={
-          subscriptions.length === 0 ? styles.emptyContainer : styles.listContainer
-        }
+      <ScrollView
+        contentContainerStyle={subscriptions.length === 0 ? styles.emptyContainer : styles.scrollContent}
         refreshControl={
-          <RefreshControl 
-            refreshing={refreshing} 
+          <RefreshControl
+            refreshing={refreshing}
             onRefresh={handleRefresh}
             tintColor={theme.colors.primary}
           />
         }
-        showsVerticalScrollIndicator={false}
-      />
+        showsVerticalScrollIndicator={false}>
+        
+        {/* Summary Card */}
+        <View style={styles.headerCard}>
+          <Text style={styles.headerLabel}>MONTHLY TOTAL</Text>
+          <Text style={styles.totalAmount}>${totalMonthlyCost.toFixed(2)}</Text>
+          {recurringItems.length > 0 && (
+            <View style={styles.statsRow}>
+              {monthlyCount > 0 && (
+                <View style={styles.statBadge}>
+                  <Text style={styles.statText}>{monthlyCount} monthly</Text>
+                </View>
+              )}
+              {yearlyCount > 0 && (
+                <View style={styles.statBadge}>
+                  <Text style={styles.statText}>{yearlyCount} yearly</Text>
+                </View>
+              )}
+            </View>
+          )}
+        </View>
+
+        {/* Empty State */}
+        {subscriptions.length === 0 && <EmptyState />}
+
+        {/* Recurring Items Section */}
+        {recurringItems.length > 0 && (
+          <CollapsibleSection title="Recurring Items" count={recurringItems.length}>
+            {recurringItems.map((item, index) => (
+              <Animated.View
+                key={item.id}
+                entering={FadeInDown.delay(index * 50).springify()}>
+                <SubscriptionCard
+                  subscription={item}
+                  onPress={() => handleEdit(item)}
+                  onLongPress={() => handleDelete(item)}
+                />
+              </Animated.View>
+            ))}
+          </CollapsibleSection>
+        )}
+
+        {/* One-Time Charges Section */}
+        {oneTimeItems.length > 0 && (
+          <CollapsibleSection title="One-Time Charges" count={oneTimeItems.length}>
+            {oneTimeItems.map((item, index) => (
+              <Animated.View
+                key={item.id}
+                entering={FadeInDown.delay(index * 50).springify()}>
+                <SubscriptionCard
+                  subscription={item}
+                  onPress={() => handleEdit(item)}
+                  onLongPress={() => handleDelete(item)}
+                />
+              </Animated.View>
+            ))}
+          </CollapsibleSection>
+        )}
+      </ScrollView>
 
       {/* Paywall Modal */}
       <PaywallModal

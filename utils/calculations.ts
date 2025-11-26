@@ -14,6 +14,15 @@ export const calculations = {
     return subscription.cost / 12;
   },
 
+  getDisplayCost(subscription: Subscription): number {
+    // For one-time charges, show the actual cost
+    if (subscription.chargeType === 'one_time') {
+      return subscription.cost;
+    }
+    // For recurring charges, show monthly equivalent
+    return this.getMonthlyCost(subscription);
+  },
+
   getTotalMonthlyCost(subscriptions: Subscription[]): number {
     return subscriptions.reduce((total, sub) => {
       return total + this.getMonthlyCost(sub);
