@@ -207,7 +207,12 @@ const SubscriptionCard = memo(function SubscriptionCard({
           </Text>
           <View style={styles.priceContainer}>
             <Text style={styles.price}>${monthlyCost.toFixed(2)}</Text>
-            <Text style={styles.priceLabel}>/month</Text>
+            {/* Only show billing frequency for recurring charges */}
+            {(!subscription.chargeType || subscription.chargeType === 'recurring') && (
+              <Text style={styles.priceLabel}>
+                /{subscription.billingCycle === 'yearly' ? 'year' : 'month'}
+              </Text>
+            )}
           </View>
         </View>
       </View>
