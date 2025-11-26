@@ -32,24 +32,24 @@ interface OnboardingSlide {
 const slides: OnboardingSlide[] = [
   {
     id: '1',
-    icon: 'calendar-outline',
+    icon: 'shield-checkmark-outline',
     // lottieSource: require('../assets/lottie/calendar.json'), // Uncomment and add your Lottie file
-    title: 'Track your recurring items effortlessly',
-    subtitle: 'Never forget a due date',
+    title: 'Never get blindsided by a recurring charge again',
+    subtitle: 'Track every subscription, bill, and renewal in one place',
   },
   {
     id: '2',
     icon: 'bar-chart-outline',
     // lottieSource: require('../assets/lottie/chart.json'), // Uncomment and add your Lottie file
-    title: 'See where your money goes',
-    subtitle: 'See all your recurring items in one place',
+    title: 'See every charge before it happens',
+    subtitle: 'Get full visibility into upcoming renewals and billing dates',
   },
   {
     id: '3',
-    icon: 'wallet-outline',
+    icon: 'notifications-outline',
     // lottieSource: require('../assets/lottie/wallet.json'), // Uncomment and add your Lottie file
-    title: 'Stay in control',
-    subtitle: 'Easily manage your recurring items and get reminders',
+    title: 'Stay ahead of every charge',
+    subtitle: "Get timely reminders so you're never caught off guard",
   },
 ];
 
@@ -112,9 +112,9 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
     subtitle: {
       fontSize: 16,
       fontWeight: '400',
-      color: theme.colors.background === '#000000' 
-        ? 'rgba(255,255,255,0.65)' 
-        : '#B3B3B3',
+      color: theme.colors.background === '#000000'
+        ? 'rgba(255,255,255,0.65)'
+        : '#6B7280',
       textAlign: 'center',
       lineHeight: 22,
     },
