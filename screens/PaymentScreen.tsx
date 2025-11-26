@@ -24,8 +24,9 @@ import { subscriptionLimitService } from '../services/subscriptionLimitService';
 import { subscriptionTierService } from '../services/subscriptionTierService';
 
 type RootStackParamList = {
+  SettingsHome: undefined;
   PlanSelection: undefined;
-  PaymentScreen: { plan: 'monthly' | 'yearly' };
+  PaymentScreen: { plan: 'monthly' | 'yearly'; origin?: 'Settings' | 'Home' };
   SubscriptionManagement: undefined;
 };
 
@@ -60,7 +61,7 @@ export default function PaymentScreen({
   const headerHeight = insets.top + 44; // Safe area top + standard header height
   const TAB_BAR_HEIGHT = 60;
   const safeAreaBottom = insets.bottom > 0 ? insets.bottom : 8;
-  const bottomPadding = TAB_BAR_HEIGHT + safeAreaBottom + 20;
+  const bottomPadding = TAB_BAR_HEIGHT + safeAreaBottom;
 
   // Handle initial screen setup
   useEffect(() => {
@@ -252,9 +253,14 @@ export default function PaymentScreen({
             {
               text: 'Continue',
               onPress: () => {
-                console.log('Navigating to Home screen...');
-                // Navigate to home screen
-                navigation.navigate('Home' as any);
+                const origin = route.params?.origin;
+                if (origin === 'Settings') {
+                  console.log('Navigating to Settings screen...');
+                  navigation.pop(2); // Pop PaymentScreen and PlanSelection to reach SettingsHome
+                } else {
+                  console.log('Navigating back to Home screen...');
+                  navigation.pop(2); // Pop PaymentScreen and PlanSelection to reach Home
+                }
               },
             },
           ]
@@ -318,7 +324,7 @@ export default function PaymentScreen({
         style={styles.scrollView}
         contentContainerStyle={[
           styles.content,
-          { paddingBottom: 228 }, // Button container height (~205px) + spacing
+          { paddingBottom: bottomPadding }, // Space for fixed button container
         ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
@@ -427,7 +433,14 @@ export default function PaymentScreen({
       </ScrollView>
 
       {/* Fixed Button Container */}
-      <View style={[styles.buttonContainer, { paddingBottom: bottomPadding, backgroundColor: theme.colors.background, borderTopColor: theme.colors.border }]}>
+      <View style={[
+        styles.buttonContainer,
+        {
+          paddingBottom: TAB_BAR_HEIGHT + safeAreaBottom ,
+          backgroundColor: theme.colors.background,
+          borderTopColor: theme.colors.border,
+        }
+      ]}>
         {/* Polling Status Indicator */}
         {pollingMessage && (
           <View style={[styles.pollingIndicator, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
@@ -598,7 +611,7 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: -16,
     ...Platform.select({
       ios: {
         shadowColor: '#007AFF',
@@ -667,14 +680,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   buttonContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
     padding: 16,
-    paddingBottom: 88, // Will be overridden with inline style
-    backgroundColor: '#000000', // Will be overridden by theme
     borderTopWidth: 1,
-    borderTopColor: '#38383A', // Will be overridden by theme
   },
 });

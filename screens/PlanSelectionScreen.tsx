@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { useNavigationState } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -19,7 +20,7 @@ import { usageTrackingService } from '../services/usageTrackingService';
 
 type RootStackParamList = {
   PlanSelection: undefined;
-  PaymentScreen: { plan: 'monthly' | 'yearly' };
+  PaymentScreen: { plan: 'monthly' | 'yearly'; origin?: 'Settings' | 'Home' };
 };
 
 type PlanSelectionScreenNavigationProp = StackNavigationProp<
@@ -42,6 +43,29 @@ export default function PlanSelectionScreen({
   const safeAreaBottom = insets.bottom > 0 ? insets.bottom : 8;
   const bottomPadding = TAB_BAR_HEIGHT + safeAreaBottom + 20;
 
+  // Detect which stack we're in to determine origin
+  const origin = useNavigationState(state => {
+    // Navigate up through the state tree to find the root navigator
+    let currentState = state;
+    while (currentState?.routes) {
+      const currentRoute = currentState.routes[currentState.index];
+      // Check if we're in Settings or Subscriptions stack
+      if (currentRoute.name === 'Settings') {
+        return 'Settings' as const;
+      }
+      if (currentRoute.name === 'Subscriptions') {
+        return 'Home' as const;
+      }
+      // Move to nested state if available
+      if (currentRoute.state) {
+        currentState = currentRoute.state as any;
+      } else {
+        break;
+      }
+    }
+    return 'Home' as const; // Default to Home if unable to determine
+  });
+
   const handlePlanSelect = (plan: 'monthly' | 'yearly') => {
     if (Platform.OS === 'ios') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -61,12 +85,12 @@ export default function PlanSelectionScreen({
         SUBSCRIPTION_PLANS[selectedPlan].amount
       );
 
-      // Navigate to payment screen
-      navigation.navigate('PaymentScreen', { plan: selectedPlan });
+      // Navigate to payment screen with origin parameter
+      navigation.navigate('PaymentScreen', { plan: selectedPlan, origin });
     } catch (error) {
       console.error('Error tracking plan selection:', error);
       // Still navigate even if tracking fails
-      navigation.navigate('PaymentScreen', { plan: selectedPlan });
+      navigation.navigate('PaymentScreen', { plan: selectedPlan, origin });
     }
   };
 

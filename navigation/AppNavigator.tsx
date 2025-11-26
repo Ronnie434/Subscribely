@@ -40,7 +40,7 @@ type SubscriptionsStackParamList = {
   AddSubscription: { subscription?: Subscription };
   EditSubscription: { subscription: Subscription };
   PlanSelection: undefined;
-  PaymentScreen: { plan: 'monthly' | 'yearly' };
+  PaymentScreen: { plan: 'monthly' | 'yearly'; origin?: 'Settings' | 'Home' };
   SubscriptionManagement: undefined;
 };
 
@@ -52,6 +52,7 @@ type SettingsStackParamList = {
   SettingsHome: undefined;
   SubscriptionManagement: undefined;
   PlanSelection: undefined;
+  PaymentScreen: { plan: 'monthly' | 'yearly'; origin?: 'Settings' | 'Home' };
 };
 
 type MainStackParamList = {
@@ -317,6 +318,15 @@ function SettingsNavigator() {
           title: 'Choose Your Plan',
           headerShown: true,
           ...modernTransitionConfig
+        }}
+      />
+      <SettingsStack.Screen
+        name="PaymentScreen"
+        component={PaymentScreen}
+        options={{
+          title: 'Complete Payment',
+          headerShown: true,
+          ...modernTransitionConfig,
         }}
       />
     </SettingsStack.Navigator>
