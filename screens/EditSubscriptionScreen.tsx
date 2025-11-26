@@ -76,9 +76,9 @@ export default function EditSubscriptionScreen() {
   // Set up navigation header
   useEffect(() => {
     navigation.setOptions({
-      title: 'Recurring Item Details',
+      title: subscription.chargeType === 'one_time' ? 'Charge Details' : 'Recurring Item Details',
     });
-  }, [navigation]);
+  }, [navigation, subscription.chargeType]);
 
   // Get service icon color based on service name
   const getIconColor = (): string => {
@@ -110,8 +110,9 @@ export default function EditSubscriptionScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
     
+    const isOneTime = subscription.chargeType === 'one_time';
     Alert.alert(
-      'Delete Recurring Item',
+      isOneTime ? 'Delete Charge' : 'Delete Recurring Item',
       `Are you sure you want to delete ${subscription.name}?`,
       [
         { text: 'Cancel', style: 'cancel' },
@@ -453,43 +454,55 @@ export default function EditSubscriptionScreen() {
           {renderIcon()}
           <Text style={styles.serviceName}>{subscription.name}</Text>
           <Text style={styles.price}>${monthlyCost.toFixed(2)}</Text>
-          <Text style={styles.billingCycle}>
-            per {subscription.billingCycle === 'monthly' ? 'month' : 'year'}
-          </Text>
+          {subscription.chargeType !== 'one_time' && (
+            <Text style={styles.billingCycle}>
+              per {subscription.billingCycle === 'monthly' ? 'month' : 'year'}
+            </Text>
+          )}
         </View>
 
         {/* Billing Information Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Billing Information</Text>
           <View style={styles.card}>
+            {subscription.chargeType !== 'one_time' && (
+              <>
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Billing Cycle</Text>
+                  <Text style={styles.infoValue}>
+                    {subscription.billingCycle === 'monthly' ? 'Monthly' : 'Yearly'}
+                  </Text>
+                </View>
+                <View style={styles.divider} />
+              </>
+            )}
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Billing Cycle</Text>
-              <Text style={styles.infoValue}>
-                {subscription.billingCycle === 'monthly' ? 'Monthly' : 'Yearly'}
+              <Text style={styles.infoLabel}>
+                {subscription.chargeType === 'one_time' ? 'Charge Date' : 'Next Renewal'}
               </Text>
-            </View>
-            <View style={styles.divider} />
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Next Renewal</Text>
               <Text style={styles.infoValue}>{renewalDateFormatted}</Text>
             </View>
-            <View style={styles.divider} />
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Days Until Renewal</Text>
-              <View style={styles.renewalBadge}>
-                <Text style={styles.renewalBadgeText}>
-                  {daysUntilRenewal === 0 ? 'Today' : 
-                   daysUntilRenewal === 1 ? 'Tomorrow' : 
-                   `${daysUntilRenewal} days`}
-                </Text>
-              </View>
-            </View>
+            {subscription.chargeType !== 'one_time' && (
+              <>
+                <View style={styles.divider} />
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Days Until Renewal</Text>
+                  <View style={styles.renewalBadge}>
+                    <Text style={styles.renewalBadgeText}>
+                      {daysUntilRenewal === 0 ? 'Today' :
+                       daysUntilRenewal === 1 ? 'Tomorrow' :
+                       `${daysUntilRenewal} days`}
+                    </Text>
+                  </View>
+                </View>
+              </>
+            )}
             <View style={styles.divider} />
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Category</Text>
               <Text style={styles.infoValue}>{subscription.category || 'Other'}</Text>
             </View>
-            {subscription.billingCycle === 'yearly' && (
+            {subscription.chargeType !== 'one_time' && subscription.billingCycle === 'yearly' && (
               <>
                 <View style={styles.divider} />
                 <View style={styles.infoRow}>
@@ -520,7 +533,9 @@ export default function EditSubscriptionScreen() {
             ]}
             onPress={handleEditPress}>
             <Ionicons name="create-outline" size={20} color="#FFFFFF" />
-            <Text style={styles.editButtonText}>Edit Recurring Item</Text>
+            <Text style={styles.editButtonText}>
+              {subscription.chargeType === 'one_time' ? 'Edit Charge' : 'Edit Recurring Item'}
+            </Text>
           </Pressable>
 
           <Pressable
@@ -530,7 +545,9 @@ export default function EditSubscriptionScreen() {
             ]}
             onPress={handleDelete}>
             <Ionicons name="trash-outline" size={20} color={theme.colors.error} />
-            <Text style={styles.deleteButtonText}>Delete Recurring Item</Text>
+            <Text style={styles.deleteButtonText}>
+              {subscription.chargeType === 'one_time' ? 'Delete Charge' : 'Delete Recurring Item'}
+            </Text>
           </Pressable>
         </View>
       </ScrollView>
