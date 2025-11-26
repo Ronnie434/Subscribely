@@ -8,8 +8,9 @@ import {
   Alert,
   ActivityIndicator,
   Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -55,6 +56,11 @@ export default function PaymentScreen({
 
   const planDetails = SUBSCRIPTION_PLANS[plan];
   const amount = planDetails.amount;
+  const insets = useSafeAreaInsets();
+  const headerHeight = insets.top + 44; // Safe area top + standard header height
+  const TAB_BAR_HEIGHT = 60;
+  const safeAreaBottom = insets.bottom > 0 ? insets.bottom : 8;
+  const bottomPadding = TAB_BAR_HEIGHT + safeAreaBottom + 20;
 
   // Handle initial screen setup
   useEffect(() => {
@@ -163,58 +169,11 @@ export default function PaymentScreen({
       console.log('Subscription ID:', response.subscriptionId);
       console.log('Status:', response.status);
 
-      // 🔍 DIAGNOSTIC: Track payment confirmation initiation
-      console.log('🔍 DIAGNOSTIC: About to confirm payment', {
-        hasClientSecret: !!response.clientSecret,
-        clientSecretPrefix: response.clientSecret?.substring(0, 20),
-        subscriptionId: response.subscriptionId,
-        subscriptionStatus: response.status,
-        cardComplete: cardComplete,
-        timestamp: new Date().toISOString(),
-      });
-
-      // 🔍 DIAGNOSTIC: Check if we can create a payment method from CardField
-      console.log('🔍 DIAGNOSTIC: Attempting to create payment method from CardField...');
-      try {
-        const { paymentMethod, error: pmError } = await createPaymentMethod({
-          paymentMethodType: 'Card',
-        });
-        console.log('🔍 DIAGNOSTIC: Payment method creation result:', {
-          hasPaymentMethod: !!paymentMethod,
-          paymentMethodId: paymentMethod?.id,
-          hasError: !!pmError,
-          errorCode: pmError?.code,
-          errorMessage: pmError?.message,
-        });
-        if (pmError) {
-          console.error('🔍 DIAGNOSTIC: Payment method creation failed:', pmError);
-        }
-      } catch (pmTestError) {
-        console.error('🔍 DIAGNOSTIC: Exception during payment method test:', pmTestError);
-      }
-
       // Step 2: Confirm payment with Stripe
       console.log('Step 2: Confirming payment with Stripe...');
-      console.log('🔍 DIAGNOSTIC: Calling confirmPayment with params:', {
-        clientSecretLength: response.clientSecret?.length,
-        paymentMethodType: 'Card',
-      });
       
       const { error, paymentIntent } = await confirmPayment(response.clientSecret, {
         paymentMethodType: 'Card',
-      });
-      
-      console.log('🔍 DIAGNOSTIC: confirmPayment call completed');
-
-      // 🔍 DIAGNOSTIC: Track payment confirmation result
-      console.log('🔍 DIAGNOSTIC: Payment confirmation completed', {
-        hasError: !!error,
-        errorCode: error?.code,
-        errorMessage: error?.message,
-        hasPaymentIntent: !!paymentIntent,
-        paymentIntentId: paymentIntent?.id,
-        paymentIntentStatus: paymentIntent?.status,
-        timestamp: new Date().toISOString(),
       });
 
       if (error) {
@@ -266,16 +225,6 @@ export default function PaymentScreen({
             subscriptionTierService.refreshTierInfo(),
           ]);
           console.log('✅ Cache refreshed successfully');
-          
-          // DIAGNOSTIC LOG: Check what the client sees after cache refresh
-          console.log('🔍 [DIAGNOSTIC] Checking subscription status after cache refresh...');
-          const statusCheck = await paymentService.checkSubscriptionStatus();
-          console.log('🔍 [DIAGNOSTIC] Client-side status check results:');
-          console.log('🔍 [DIAGNOSTIC]   - hasActiveSubscription:', statusCheck.hasActiveSubscription);
-          console.log('🔍 [DIAGNOSTIC]   - plan:', statusCheck.plan);
-          console.log('🔍 [DIAGNOSTIC]   - subscription.status:', statusCheck.subscription?.status);
-          console.log('🔍 [DIAGNOSTIC]   - subscription.tier_id:', statusCheck.subscription?.tier?.tier_id);
-          console.log('🔍 [DIAGNOSTIC] NOTE: If tier_id is "free", payment succeeded but tier not upgraded!');
         } catch (refreshError) {
           console.error('⚠️ Error refreshing cache (non-critical):', refreshError);
           // Continue anyway - the webhook will update the database
@@ -359,227 +308,42 @@ export default function PaymentScreen({
     );
   }
 
-  const styles = StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: theme.colors.background,
-    },
-    scrollView: {
-      flex: 1,
-    },
-    content: {
-      padding: 24,
-    },
-    section: {
-      marginBottom: 32,
-    },
-    sectionTitle: {
-      fontSize: 18,
-      fontWeight: '600',
-      color: theme.colors.text,
-      marginBottom: 16,
-    },
-    summaryCard: {
-      backgroundColor: theme.colors.card,
-      borderRadius: 16,
-      padding: 20,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: theme.colors.border,
-      marginBottom: 24,
-    },
-    summaryRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: 12,
-    },
-    summaryRowLast: {
-      marginBottom: 0,
-      paddingTop: 12,
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: theme.colors.border,
-    },
-    summaryLabel: {
-      fontSize: 16,
-      fontWeight: '400',
-      color: theme.colors.textSecondary,
-    },
-    summaryValue: {
-      fontSize: 16,
-      fontWeight: '600',
-      color: theme.colors.text,
-    },
-    summaryTotal: {
-      fontSize: 20,
-      fontWeight: '700',
-      color: theme.colors.text,
-    },
-    planBadge: {
-      backgroundColor: `${theme.colors.primary}20`,
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 8,
-    },
-    planBadgeText: {
-      fontSize: 14,
-      fontWeight: '600',
-      color: theme.colors.primary,
-    },
-    cardFieldContainer: {
-      backgroundColor: theme.colors.card,
-      borderRadius: 12,
-      padding: 16,
-      borderWidth: 2,
-      borderColor: theme.colors.border,
-      marginBottom: 16,
-    },
-    cardFieldContainerFocused: {
-      borderColor: theme.colors.primary,
-    },
-    cardField: {
-      width: '100%',
-      height: 50,
-    },
-    securityBadge: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: theme.isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
-      padding: 12,
-      borderRadius: 12,
-      marginBottom: 24,
-    },
-    securityText: {
-      fontSize: 13,
-      fontWeight: '500',
-      color: theme.colors.textSecondary,
-      marginLeft: 8,
-    },
-    featuresContainer: {
-      gap: 12,
-    },
-    featureRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    featureIcon: {
-      width: 24,
-      height: 24,
-      borderRadius: 12,
-      backgroundColor: `${theme.colors.success}20`,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginRight: 12,
-    },
-    featureText: {
-      fontSize: 15,
-      fontWeight: '400',
-      color: theme.colors.text,
-      flex: 1,
-    },
-    payButton: {
-      backgroundColor: theme.colors.primary,
-      borderRadius: 16,
-      paddingVertical: 18,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: 16,
-      ...Platform.select({
-        ios: {
-          shadowColor: theme.colors.primary,
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.3,
-          shadowRadius: 8,
-        },
-        android: {
-          elevation: 4,
-        },
-      }),
-    },
-    payButtonDisabled: {
-      opacity: 0.6,
-    },
-    payButtonContent: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-    },
-    payButtonText: {
-      fontSize: 18,
-      fontWeight: '700',
-      color: '#FFFFFF',
-    },
-    footerNote: {
-      fontSize: 13,
-      fontWeight: '400',
-      color: theme.colors.textSecondary,
-      textAlign: 'center',
-      lineHeight: 20,
-    },
-    testCardInfo: {
-      backgroundColor: theme.isDark ? 'rgba(255, 159, 10, 0.1)' : 'rgba(255, 159, 10, 0.1)',
-      borderRadius: 12,
-      padding: 16,
-      marginBottom: 24,
-    },
-    testCardTitle: {
-      fontSize: 14,
-      fontWeight: '600',
-      color: theme.colors.warning,
-      marginBottom: 8,
-    },
-    testCardText: {
-      fontSize: 13,
-      fontWeight: '400',
-      color: theme.colors.text,
-      lineHeight: 20,
-    },
-    pollingIndicator: {
-      backgroundColor: theme.colors.card,
-      borderRadius: 12,
-      padding: 16,
-      marginBottom: 16,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: theme.colors.border,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-    },
-    pollingText: {
-      fontSize: 15,
-      fontWeight: '500',
-      color: theme.colors.text,
-      flex: 1,
-    },
-  });
-
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}>
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}>
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: 228 }, // Button container height (~205px) + spacing
+        ]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag">
         {/* Order Summary */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Order Summary</Text>
-          <View style={styles.summaryCard}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Order Summary</Text>
+          <View style={[styles.summaryCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Plan</Text>
-              <View style={styles.planBadge}>
-                <Text style={styles.planBadgeText}>
+              <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>Plan</Text>
+              <View style={[styles.planBadge, { backgroundColor: `${theme.colors.primary}20` }]}>
+                <Text style={[styles.planBadgeText, { color: theme.colors.primary }]}>
                   {plan === 'yearly' ? 'Yearly' : 'Monthly'} Premium
                 </Text>
               </View>
             </View>
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Billing Cycle</Text>
-              <Text style={styles.summaryValue}>
+              <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>Billing Cycle</Text>
+              <Text style={[styles.summaryValue, { color: theme.colors.text }]}>
                 {plan === 'yearly' ? 'Annual' : 'Monthly'}
               </Text>
             </View>
-            <View style={[styles.summaryRow, styles.summaryRowLast]}>
-              <Text style={styles.summaryLabel}>Total</Text>
-              <Text style={styles.summaryTotal}>
+            <View style={[styles.summaryRow, styles.summaryRowLast, { borderTopColor: theme.colors.border }]}>
+              <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>Total</Text>
+              <Text style={[styles.summaryTotal, { color: theme.colors.text }]}>
                 ${amount.toFixed(2)}
                 {plan === 'yearly' ? '/year' : '/month'}
               </Text>
@@ -587,20 +351,20 @@ export default function PaymentScreen({
           </View>
 
           {/* What You Get */}
-          <Text style={[styles.sectionTitle, { marginTop: 24 }]}>
+          <Text style={[styles.sectionTitle, { marginTop: 24, color: theme.colors.text }]}>
             What You're Getting
           </Text>
           <View style={styles.featuresContainer}>
             {planDetails.features.map((feature, index) => (
               <View key={index} style={styles.featureRow}>
-                <View style={styles.featureIcon}>
+                <View style={[styles.featureIcon, { backgroundColor: `${theme.colors.success}20` }]}>
                   <Ionicons
                     name="checkmark"
                     size={16}
                     color={theme.colors.success}
                   />
                 </View>
-                <Text style={styles.featureText}>{feature}</Text>
+                <Text style={[styles.featureText, { color: theme.colors.text }]}>{feature}</Text>
               </View>
             ))}
           </View>
@@ -608,9 +372,9 @@ export default function PaymentScreen({
 
         {/* Test Card Info (Development Only) */}
         {__DEV__ && (
-          <View style={styles.testCardInfo}>
-            <Text style={styles.testCardTitle}>Test Mode</Text>
-            <Text style={styles.testCardText}>
+          <View style={[styles.testCardInfo, { backgroundColor: theme.isDark ? 'rgba(255, 159, 10, 0.1)' : 'rgba(255, 159, 10, 0.1)' }]}>
+            <Text style={[styles.testCardTitle, { color: theme.colors.warning }]}>Test Mode</Text>
+            <Text style={[styles.testCardText, { color: theme.colors.text }]}>
               Use card: 4242 4242 4242 4242{'\n'}
               Any future expiry date and CVC
             </Text>
@@ -619,16 +383,17 @@ export default function PaymentScreen({
 
         {/* Payment Information */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Payment Information</Text>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Payment Information</Text>
           
           <View
             style={[
               styles.cardFieldContainer,
-              cardComplete && styles.cardFieldContainerFocused,
+              { backgroundColor: theme.colors.card, borderColor: theme.colors.border },
+              cardComplete && [styles.cardFieldContainerFocused, { borderColor: theme.colors.primary }],
             ]}>
             <CardField
               postalCodeEnabled={true}
-              placeholder={{
+              placeholders={{
                 number: '4242 4242 4242 4242',
               }}
               cardStyle={{
@@ -643,23 +408,31 @@ export default function PaymentScreen({
             />
           </View>
 
-          <View style={styles.securityBadge}>
+          <View style={[styles.securityBadge, { backgroundColor: theme.isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)' }]}>
             <Ionicons
               name="shield-checkmark"
               size={20}
               color={theme.colors.success}
             />
-            <Text style={styles.securityText}>
+            <Text style={[styles.securityText, { color: theme.colors.textSecondary }]}>
               Secured by Stripe • PCI-DSS Compliant
             </Text>
           </View>
         </View>
 
+        <Text style={[styles.footerNote, { color: theme.colors.textSecondary }]}>
+          Your subscription will automatically renew. Cancel anytime.{'\n'}
+          7-day money-back guarantee.
+        </Text>
+      </ScrollView>
+
+      {/* Fixed Button Container */}
+      <View style={[styles.buttonContainer, { paddingBottom: bottomPadding, backgroundColor: theme.colors.background, borderTopColor: theme.colors.border }]}>
         {/* Polling Status Indicator */}
         {pollingMessage && (
-          <View style={styles.pollingIndicator}>
+          <View style={[styles.pollingIndicator, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
             <ActivityIndicator size="small" color={theme.colors.primary} />
-            <Text style={styles.pollingText}>{pollingMessage}</Text>
+            <Text style={[styles.pollingText, { color: theme.colors.text }]}>{pollingMessage}</Text>
           </View>
         )}
 
@@ -667,6 +440,14 @@ export default function PaymentScreen({
         <TouchableOpacity
           style={[
             styles.payButton,
+            {
+              backgroundColor: theme.colors.primary,
+              ...Platform.select({
+                ios: {
+                  shadowColor: theme.colors.primary,
+                },
+              }),
+            },
             (!cardComplete || processingPayment) && styles.payButtonDisabled,
           ]}
           onPress={handlePayment}
@@ -683,12 +464,217 @@ export default function PaymentScreen({
             </View>
           )}
         </TouchableOpacity>
-
-        <Text style={styles.footerNote}>
-          Your subscription will automatically renew. Cancel anytime.{'\n'}
-          7-day money-back guarantee.
-        </Text>
-      </ScrollView>
-    </SafeAreaView>
+      </View>
+    </KeyboardAvoidingView>
+  </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#000000', // Will be overridden by theme
+  },
+  keyboardAvoidingView: {
+    flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  content: {
+    padding: 24,
+    paddingBottom: 24,
+  },
+  section: {
+    marginBottom: 32,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#FFFFFF', // Will be overridden by theme
+    marginBottom: 16,
+  },
+  summaryCard: {
+    backgroundColor: '#1C1C1E', // Will be overridden by theme
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#38383A', // Will be overridden by theme
+    marginBottom: 24,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  summaryRowLast: {
+    marginBottom: 0,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#38383A', // Will be overridden by theme
+  },
+  summaryLabel: {
+    fontSize: 16,
+    fontWeight: '400',
+    color: '#8E8E93', // Will be overridden by theme
+  },
+  summaryValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF', // Will be overridden by theme
+  },
+  summaryTotal: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#FFFFFF', // Will be overridden by theme
+  },
+  planBadge: {
+    backgroundColor: 'rgba(0, 122, 255, 0.2)', // Will be overridden by theme
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  planBadgeText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#007AFF', // Will be overridden by theme
+  },
+  cardFieldContainer: {
+    backgroundColor: '#1C1C1E', // Will be overridden by theme
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 2,
+    borderColor: '#38383A', // Will be overridden by theme
+    marginBottom: 16,
+  },
+  cardFieldContainerFocused: {
+    borderColor: '#007AFF', // Will be overridden by theme
+  },
+  cardField: {
+    width: '100%',
+    height: 50,
+  },
+  securityBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 24,
+  },
+  securityText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#8E8E93', // Will be overridden by theme
+    marginLeft: 8,
+  },
+  featuresContainer: {
+    gap: 12,
+  },
+  featureRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  featureIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(52, 199, 89, 0.2)', // Will be overridden by theme
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  featureText: {
+    fontSize: 15,
+    fontWeight: '400',
+    color: '#FFFFFF', // Will be overridden by theme
+    flex: 1,
+  },
+  payButton: {
+    backgroundColor: '#007AFF', // Will be overridden by theme
+    borderRadius: 16,
+    paddingVertical: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#007AFF',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
+  },
+  payButtonDisabled: {
+    opacity: 0.6,
+  },
+  payButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  payButtonText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  footerNote: {
+    fontSize: 13,
+    fontWeight: '400',
+    color: '#8E8E93', // Will be overridden by theme
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  testCardInfo: {
+    backgroundColor: 'rgba(255, 159, 10, 0.1)',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
+  },
+  testCardTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FF9F0A', // Will be overridden by theme
+    marginBottom: 8,
+  },
+  testCardText: {
+    fontSize: 13,
+    fontWeight: '400',
+    color: '#FFFFFF', // Will be overridden by theme
+    lineHeight: 20,
+  },
+  pollingIndicator: {
+    backgroundColor: '#1C1C1E', // Will be overridden by theme
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#38383A', // Will be overridden by theme
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  pollingText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#FFFFFF', // Will be overridden by theme
+    flex: 1,
+  },
+  buttonContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 16,
+    paddingBottom: 88, // Will be overridden with inline style
+    backgroundColor: '#000000', // Will be overridden by theme
+    borderTopWidth: 1,
+    borderTopColor: '#38383A', // Will be overridden by theme
+  },
+});

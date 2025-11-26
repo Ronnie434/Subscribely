@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../contexts/ThemeContext';
 
 interface LimitReachedBannerProps {
@@ -26,6 +27,11 @@ export default function LimitReachedBanner({
   style,
 }: LimitReachedBannerProps) {
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
+
+  const TAB_BAR_HEIGHT = 60;
+  const safeAreaBottom = insets.bottom > 0 ? insets.bottom : 8;
+  const bottomMargin = 16 + TAB_BAR_HEIGHT + safeAreaBottom;
 
   const handlePress = () => {
     if (Platform.OS === 'ios') {
@@ -39,16 +45,16 @@ export default function LimitReachedBanner({
       borderRadius: 16,
       overflow: 'hidden',
       marginHorizontal: 16,
-      marginBottom: 16,
+      marginBottom: bottomMargin,
       ...Platform.select({
         ios: {
-          shadowColor: theme.colors.error,
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.2,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -4 },
+          shadowOpacity: 0.3,
           shadowRadius: 8,
         },
         android: {
-          elevation: 4,
+          elevation: 8,
         },
       }),
     },

@@ -50,6 +50,8 @@ type StatsStackParamList = {
 
 type SettingsStackParamList = {
   SettingsHome: undefined;
+  SubscriptionManagement: undefined;
+  PlanSelection: undefined;
 };
 
 type MainStackParamList = {
@@ -297,6 +299,24 @@ function SettingsNavigator() {
           title: 'Settings',
           headerShown: true,
           headerLeft: () => null,  // Remove back button
+        }}
+      />
+      <SettingsStack.Screen
+        name="SubscriptionManagement"
+        component={SubscriptionManagementScreen}
+        options={{
+          title: 'Manage Plan',
+          headerShown: true,
+          ...modernTransitionConfig
+        }}
+      />
+      <SettingsStack.Screen
+        name="PlanSelection"
+        component={PlanSelectionScreen}
+        options={{
+          title: 'Choose Your Plan',
+          headerShown: true,
+          ...modernTransitionConfig
         }}
       />
     </SettingsStack.Navigator>

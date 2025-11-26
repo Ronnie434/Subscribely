@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, ScrollView, Modal, Pressable } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -54,6 +54,10 @@ export default function SettingsScreen() {
   const [showIconPicker, setShowIconPicker] = useState(false);
   const [showThemePicker, setShowThemePicker] = useState(false);
   const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionLimitStatus | null>(null);
+  const insets = useSafeAreaInsets();
+  const TAB_BAR_HEIGHT = 60;
+  const safeAreaBottom = insets.bottom > 0 ? insets.bottom : 8;
+  const bottomPadding = TAB_BAR_HEIGHT + safeAreaBottom + 20;
 
   // Load saved icon preference
   useEffect(() => {
@@ -278,7 +282,7 @@ export default function SettingsScreen() {
     },
     scrollContent: {
       paddingTop: 0,
-      paddingBottom: theme.spacing.lg,
+      paddingBottom: bottomPadding,
     },
     section: {
       marginTop: theme.spacing.md + 4,

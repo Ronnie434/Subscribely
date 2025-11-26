@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../contexts/ThemeContext';
 
 interface UpgradePromptProps {
@@ -24,6 +25,12 @@ export default function UpgradePrompt({
   style,
 }: UpgradePromptProps) {
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
+  
+  const TAB_BAR_HEIGHT = 60;
+  const safeAreaBottom = insets.bottom > 0 ? insets.bottom : 8;
+  const bottomMargin = 16 + TAB_BAR_HEIGHT + safeAreaBottom;
+  
   const [dismissed, setDismissed] = useState(false);
 
   const handlePress = () => {
@@ -49,7 +56,7 @@ export default function UpgradePrompt({
       borderRadius: 16,
       overflow: 'hidden',
       marginHorizontal: 16,
-      marginBottom: 16,
+      marginBottom: bottomMargin,
       ...Platform.select({
         ios: {
           shadowColor: theme.colors.primary,

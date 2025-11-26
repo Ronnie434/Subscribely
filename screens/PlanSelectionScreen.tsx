@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -37,6 +37,10 @@ export default function PlanSelectionScreen({
   const { theme } = useTheme();
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('yearly');
   const savingsPercentage = calculateYearlySavingsPercentage();
+  const insets = useSafeAreaInsets();
+  const TAB_BAR_HEIGHT = 60;
+  const safeAreaBottom = insets.bottom > 0 ? insets.bottom : 8;
+  const bottomPadding = TAB_BAR_HEIGHT + safeAreaBottom + 20;
 
   const handlePlanSelect = (plan: 'monthly' | 'yearly') => {
     if (Platform.OS === 'ios') {
@@ -76,6 +80,7 @@ export default function PlanSelectionScreen({
     },
     content: {
       padding: 24,
+      paddingBottom: bottomPadding,
     },
     header: {
       alignItems: 'center',

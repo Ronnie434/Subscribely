@@ -10,7 +10,7 @@ import {
   Platform,
   Linking,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -48,6 +48,10 @@ export default function SubscriptionManagementScreen({
   navigation,
 }: SubscriptionManagementScreenProps) {
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
+  const TAB_BAR_HEIGHT = 60;
+  const safeAreaBottom = insets.bottom > 0 ? insets.bottom : 8;
+  const bottomPadding = TAB_BAR_HEIGHT + safeAreaBottom + 20;
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<SubscriptionLimitStatus | null>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -217,6 +221,11 @@ export default function SubscriptionManagementScreen({
     if (Platform.OS === 'ios') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
+    
+    // Navigate back to Settings after brief delay to show updated status
+    setTimeout(() => {
+      navigation.goBack();
+    }, 1000);
   };
 
   const handleUpgrade = () => {
@@ -236,7 +245,7 @@ export default function SubscriptionManagementScreen({
     },
     content: {
       padding: 24,
-      paddingBottom: 100, // Add space for bottom navigation bar
+      paddingBottom: bottomPadding,
     },
     headerCard: {
       backgroundColor: theme.colors.card,
