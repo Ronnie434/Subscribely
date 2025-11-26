@@ -18,7 +18,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../contexts/ThemeContext';
-import { Subscription, BillingCycle } from '../types';
+import { Subscription, BillingCycle, ChargeType } from '../types';
 import { extractDomain, getCompanyNames } from '../utils/domainHelpers';
 import { getLogoUrlForSource, getNextLogoSource, LogoSource } from '../utils/logoHelpers';
 import * as Haptics from 'expo-haptics';
@@ -45,6 +45,7 @@ export default function SubscriptionForm({ subscription, onSubmit, onCancel, isS
   const [name, setName] = useState(subscription?.name || '');
   const [cost, setCost] = useState(subscription?.cost ? subscription.cost.toFixed(2) : '');
   const [description, setDescription] = useState(subscription?.description || '');
+  const [chargeType, setChargeType] = useState<ChargeType>(subscription?.chargeType || 'recurring');
   const [billingFrequency, setBillingFrequency] = useState<BillingCycle>(subscription?.billingCycle || 'monthly');
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -86,6 +87,7 @@ export default function SubscriptionForm({ subscription, onSubmit, onCancel, isS
       setName(subscription.name);
       setCost(subscription.cost.toFixed(2));
       setDescription(subscription.description || '');
+      setChargeType(subscription.chargeType || 'recurring');
       setBillingFrequency(subscription.billingCycle);
     }
   }, [subscription]);
@@ -145,7 +147,8 @@ export default function SubscriptionForm({ subscription, onSubmit, onCancel, isS
       domain: extractDomain(name.trim()),
       description: description.trim() || undefined,
       isCustomRenewalDate: useCustomDate,
-      reminders: enableReminders,
+      reminders: chargeType === 'recurring' ? enableReminders : false,
+      chargeType,
     });
   };
 
@@ -641,7 +644,7 @@ export default function SubscriptionForm({ subscription, onSubmit, onCancel, isS
                     setShowSuggestions(false);
                   }, 200);
                 }}
-                placeholder="e.g., Netflix, Spotify, iCloud"
+                placeholder="e.g., Netflix, Gym Membership, Coffee"
                 placeholderTextColor={theme.colors.textSecondary}
                 autoCapitalize="words"
               />
@@ -753,7 +756,7 @@ export default function SubscriptionForm({ subscription, onSubmit, onCancel, isS
                 onChangeText={setDescription}
                 onFocus={() => setFocusedField('description')}
                 onBlur={() => setFocusedField(null)}
-                placeholder="Add notes about this recurring item..."
+                placeholder="Add notes about this charge..."
                 placeholderTextColor={theme.colors.textSecondary}
                 multiline={true}
                 numberOfLines={4}
@@ -762,10 +765,60 @@ export default function SubscriptionForm({ subscription, onSubmit, onCancel, isS
             </View>
           </View>
 
-          {/* Billing Frequency Selector */}
+          {/* Charge Type Selector */}
           <View style={styles.field}>
-            <Text style={styles.label}>Billing Frequency</Text>
+            <Text style={styles.label}>Charge Type</Text>
             <View style={styles.segmentedControl}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.segmentButton,
+                  styles.segmentButtonLeft,
+                  chargeType === 'recurring' && styles.segmentButtonActive,
+                  pressed && styles.segmentButtonPressed,
+                ]}
+                onPress={() => {
+                  if (Platform.OS === 'ios') {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }
+                  setChargeType('recurring');
+                }}>
+                <Text
+                  style={[
+                    styles.segmentButtonText,
+                    chargeType === 'recurring' && styles.segmentButtonTextActive,
+                  ]}>
+                  Recurring
+                </Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.segmentButton,
+                  styles.segmentButtonRight,
+                  chargeType === 'one_time' && styles.segmentButtonActive,
+                  pressed && styles.segmentButtonPressed,
+                ]}
+                onPress={() => {
+                  if (Platform.OS === 'ios') {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }
+                  setChargeType('one_time');
+                }}>
+                <Text
+                  style={[
+                    styles.segmentButtonText,
+                    chargeType === 'one_time' && styles.segmentButtonTextActive,
+                  ]}>
+                  One-time
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+
+          {/* Billing Frequency Selector - Only show for recurring charges */}
+          {chargeType === 'recurring' && (
+            <View style={styles.field}>
+              <Text style={styles.label}>Billing Frequency</Text>
+              <View style={styles.segmentedControl}>
               <Pressable
                 style={({ pressed }) => [
                   styles.segmentButton,
@@ -810,11 +863,14 @@ export default function SubscriptionForm({ subscription, onSubmit, onCancel, isS
               </Pressable>
             </View>
           </View>
+          )}
 
-          {/* Renewal Date Toggle */}
+          {/* Date Toggle */}
           <View style={styles.field}>
             <View style={styles.switchRow}>
-              <Text style={styles.label}>Set Renewal Date (Optional)</Text>
+              <Text style={styles.label}>
+                {chargeType === 'recurring' ? 'Set Renewal Date (Optional)' : 'Set Charge Date (Optional)'}
+              </Text>
               <Switch
                 value={useCustomDate}
                 onValueChange={(value) => {
@@ -829,7 +885,9 @@ export default function SubscriptionForm({ subscription, onSubmit, onCancel, isS
             </View>
             {!useCustomDate && (
               <Text style={styles.helperText}>
-                Renewal date will be set to 30 days from today
+                {chargeType === 'recurring'
+                  ? 'Renewal date will be set to 30 days from today'
+                  : 'Charge date will be set to today'}
               </Text>
             )}
             {useCustomDate && (
@@ -847,8 +905,9 @@ export default function SubscriptionForm({ subscription, onSubmit, onCancel, isS
             )}
           </View>
 
-          {/* Enable Reminders Toggle */}
-          <View style={styles.field}>
+          {/* Enable Reminders Toggle - Only show for recurring charges */}
+          {chargeType === 'recurring' && (
+            <View style={styles.field}>
             <View style={styles.switchRow}>
               <Text style={styles.label}>Renewal Reminders</Text>
               <Switch
@@ -869,14 +928,17 @@ export default function SubscriptionForm({ subscription, onSubmit, onCancel, isS
               </Text>
             )}
           </View>
+          )}
 
-          {/* Calculated Cost Display */}
+          {/* Calculated Cost Display - Only show suffix for recurring charges */}
           {cost && !isNaN(parseFloat(cost)) && parseFloat(cost) > 0 && (
             <View style={styles.calculatedCostContainer}>
               <Text style={styles.calculatedCost}>${calculateMonthlyCost()}</Text>
-              <Text style={styles.calculatedCostSuffix}>
-                {billingFrequency === 'monthly' ? '/mo' : '/yr'}
-              </Text>
+              {chargeType === 'recurring' && (
+                <Text style={styles.calculatedCostSuffix}>
+                  {billingFrequency === 'monthly' ? '/mo' : '/yr'}
+                </Text>
+              )}
             </View>
           )}
 
@@ -889,7 +951,9 @@ export default function SubscriptionForm({ subscription, onSubmit, onCancel, isS
               <View style={styles.modalOverlay}>
                 <View style={styles.modalContent}>
                   <View style={styles.modalHeader}>
-                    <Text style={styles.modalTitle}>Select Renewal Date</Text>
+                    <Text style={styles.modalTitle}>
+                      {chargeType === 'recurring' ? 'Select Renewal Date' : 'Select Charge Date'}
+                    </Text>
                     <Pressable
                       style={styles.modalDoneButton}
                       onPress={() => {
@@ -954,7 +1018,11 @@ export default function SubscriptionForm({ subscription, onSubmit, onCancel, isS
             </View>
           ) : (
             <Text style={styles.submitButtonText}>
-              {subscription ? 'Save Changes' : 'Add Recurring Item'}
+              {subscription
+                ? 'Save Changes'
+                : chargeType === 'recurring'
+                  ? 'Add Recurring Item'
+                  : 'Add One-time Charge'}
             </Text>
           )}
         </Pressable>

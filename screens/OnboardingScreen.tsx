@@ -30,27 +30,45 @@ interface OnboardingSlide {
 // Example: import calendarAnimation from '../assets/lottie/calendar.json';
 // Then add: lottieSource: calendarAnimation to the slide object
 const slides: OnboardingSlide[] = [
+  // {
+  //   id: '1',
+  //   icon: 'shield-checkmark-outline',
+  //   // lottieSource: require('../assets/lottie/calendar.json'), // Uncomment and add your Lottie file
+  //   title: 'Never get blindsided by any charge again',
+  //   subtitle: 'Track every subscription, bill, and renewal in one place',
+  // },
+  // {
+  //   id: '2',
+  //   icon: 'bar-chart-outline',
+  //   // lottieSource: require('../assets/lottie/chart.json'), // Uncomment and add your Lottie file
+  //   title: 'See every charge before it happens',
+  //   subtitle: 'Get full visibility into upcoming renewals and billing dates',
+  // },
+  // {
+  //   id: '3',
+  //   icon: 'notifications-outline',
+  //   // lottieSource: require('../assets/lottie/wallet.json'), // Uncomment and add your Lottie file
+  //   title: 'Stay ahead of every charge',
+  //   subtitle: "Get timely reminders so you're never caught off guard",
+  // },
   {
     id: '1',
     icon: 'shield-checkmark-outline',
-    // lottieSource: require('../assets/lottie/calendar.json'), // Uncomment and add your Lottie file
-    title: 'Never get blindsided by a recurring charge again',
-    subtitle: 'Track every subscription, bill, and renewal in one place',
+    title: 'Take control of your charges',
+    subtitle: 'Track subscriptions, bills, and renewals in one place',
   },
   {
     id: '2',
     icon: 'bar-chart-outline',
-    // lottieSource: require('../assets/lottie/chart.json'), // Uncomment and add your Lottie file
-    title: 'See every charge before it happens',
-    subtitle: 'Get full visibility into upcoming renewals and billing dates',
+    title: 'Plan ahead for upcoming payments',
+    subtitle: 'Get visibility into renewals and billing dates you track',
   },
   {
     id: '3',
     icon: 'notifications-outline',
-    // lottieSource: require('../assets/lottie/wallet.json'), // Uncomment and add your Lottie file
-    title: 'Stay ahead of every charge',
+    title: 'Stay ahead of your payments',
     subtitle: "Get timely reminders so you're never caught off guard",
-  },
+  }
 ];
 
 interface OnboardingScreenProps {

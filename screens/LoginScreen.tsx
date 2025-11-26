@@ -289,7 +289,8 @@ export default function LoginScreen({
             />
           </View>
           <Text style={styles.appName}>Renvo</Text>
-          <Text style={styles.tagline}>Never get blindsided by a recurring charge again</Text>
+          {/* <Text style={styles.tagline}>Know every charge before it hits</Text> */}
+          <Text style={styles.tagline}>Take control of your charges</Text>
         </View>
 
         {/* Sign In Form */}

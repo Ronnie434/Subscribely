@@ -8,6 +8,12 @@
  */
 export type BillingCycle = 'monthly' | 'yearly';
 
+/**
+ * Charge type - recurring or one-time
+ * @since v2.1.0
+ */
+export type ChargeType = 'recurring' | 'one_time';
+
 // ============================================================================
 // RECURRING ITEM TYPES (NEW TERMINOLOGY)
 // ============================================================================
@@ -51,6 +57,7 @@ export interface RecurringItem {
   domain?: string | null;
   reminders?: boolean;
   description?: string | null;
+  charge_type?: ChargeType;
   status: 'active' | 'paused' | 'cancelled';
   notes?: string | null;
   created_at: string;
@@ -88,6 +95,7 @@ export interface Subscription {
   domain?: string;
   reminders?: boolean;
   description?: string;
+  chargeType?: ChargeType;
   createdAt: string;
   updatedAt: string;
   user_id?: string;
@@ -159,6 +167,7 @@ export interface Database {
           domain: string | null;
           reminders: boolean;
           description: string | null;
+          charge_type: ChargeType;
           status: 'active' | 'paused' | 'cancelled';
           notes: string | null;
           created_at: string;
@@ -179,6 +188,7 @@ export interface Database {
           domain?: string | null;
           reminders?: boolean;
           description?: string | null;
+          charge_type?: ChargeType;
           status?: 'active' | 'paused' | 'cancelled';
           notes?: string | null;
           created_at?: string;
@@ -199,6 +209,7 @@ export interface Database {
           domain?: string | null;
           reminders?: boolean;
           description?: string | null;
+          charge_type?: ChargeType;
           status?: 'active' | 'paused' | 'cancelled';
           notes?: string | null;
           created_at?: string;
@@ -226,6 +237,7 @@ export interface Database {
           domain: string | null;
           reminders: boolean;
           description: string | null;
+          charge_type: ChargeType;
           created_at: string;
           updated_at: string;
         };
@@ -244,6 +256,7 @@ export interface Database {
           domain?: string | null;
           reminders?: boolean;
           description?: string | null;
+          charge_type?: ChargeType;
           created_at?: string;
           updated_at?: string;
         };
@@ -262,6 +275,7 @@ export interface Database {
           domain?: string | null;
           reminders?: boolean;
           description?: string | null;
+          charge_type?: ChargeType;
           created_at?: string;
           updated_at?: string;
         };
@@ -483,6 +497,7 @@ export interface CreateRecurringItemParams {
   reminders?: boolean;
   description?: string;
   is_custom_renewal_date?: boolean;
+  charge_type?: ChargeType;
 }
 
 /**

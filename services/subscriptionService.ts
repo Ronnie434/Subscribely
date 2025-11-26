@@ -41,6 +41,7 @@ export function dbToApp(dbSub: DbSubscription): Subscription {
     domain: dbSub.domain || undefined,
     reminders: dbSub.reminders,
     description: dbSub.description || undefined,
+    chargeType: dbSub.charge_type || 'recurring', // Default to recurring for backward compatibility
     createdAt: dbSub.created_at,
     updatedAt: dbSub.updated_at,
     user_id: dbSub.user_id,
@@ -68,6 +69,7 @@ export function appToDbInsert(
     domain: sub.domain ?? null,
     reminders: sub.reminders ?? true,
     description: sub.description ?? null,
+    charge_type: sub.chargeType ?? 'recurring', // Default to recurring for backward compatibility
   };
 }
 
@@ -89,6 +91,7 @@ export function appToDbUpdate(sub: Partial<Subscription>): DbSubscriptionUpdate 
   if (sub.domain !== undefined) update.domain = sub.domain ?? null;
   if (sub.reminders !== undefined) update.reminders = sub.reminders;
   if (sub.description !== undefined) update.description = sub.description ?? null;
+  if (sub.chargeType !== undefined) update.charge_type = sub.chargeType;
   
   return update;
 }

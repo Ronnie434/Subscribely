@@ -3,6 +3,11 @@ import { parseLocalDate } from './dateHelpers';
 
 export const calculations = {
   getMonthlyCost(subscription: Subscription): number {
+    // One-time charges don't contribute to monthly recurring costs
+    if (subscription.chargeType === 'one_time') {
+      return 0;
+    }
+    
     if (subscription.billingCycle === 'monthly') {
       return subscription.cost;
     }
@@ -17,6 +22,11 @@ export const calculations = {
 
   getTotalYearlyCost(subscriptions: Subscription[]): number {
     return subscriptions.reduce((total, sub) => {
+      // One-time charges don't contribute to yearly recurring costs
+      if (sub.chargeType === 'one_time') {
+        return total;
+      }
+      
       if (sub.billingCycle === 'yearly') {
         return total + sub.cost;
       }
@@ -56,6 +66,10 @@ export const calculations = {
   getUpcomingRenewals(subscriptions: Subscription[], days: number = 7): Subscription[] {
     return subscriptions
       .filter((sub) => {
+        // Only include recurring charges in upcoming renewals
+        if (sub.chargeType === 'one_time') {
+          return false;
+        }
         const daysUntil = this.getDaysUntilRenewal(sub.renewalDate);
         return daysUntil >= 0 && daysUntil <= days;
       })
@@ -145,7 +159,10 @@ export const calculations = {
 
   calculatePotentialSavings(subscriptions: Subscription[]): number {
     // Calculate potential savings by switching monthly to yearly (assuming 15% discount)
-    const monthlySubs = subscriptions.filter((sub) => sub.billingCycle === 'monthly');
+    // Only calculate for recurring charges
+    const monthlySubs = subscriptions.filter((sub) =>
+      sub.billingCycle === 'monthly' && sub.chargeType !== 'one_time'
+    );
     const yearlyCostOfMonthlySubs = monthlySubs.reduce((total, sub) => total + sub.cost * 12, 0);
     const potentialYearlyCost = yearlyCostOfMonthlySubs * 0.85; // 15% discount
     return yearlyCostOfMonthlySubs - potentialYearlyCost;
@@ -158,8 +175,10 @@ export const calculations = {
       return insights;
     }
 
-    // Check for potential yearly savings
-    const monthlySubs = subscriptions.filter((sub) => sub.billingCycle === 'monthly');
+    // Check for potential yearly savings (only for recurring charges)
+    const monthlySubs = subscriptions.filter((sub) =>
+      sub.billingCycle === 'monthly' && sub.chargeType !== 'one_time'
+    );
     if (monthlySubs.length > 0) {
       const savings = this.calculatePotentialSavings(subscriptions);
       if (savings > 10) {
