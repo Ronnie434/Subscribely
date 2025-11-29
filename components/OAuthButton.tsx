@@ -25,22 +25,68 @@ export default function OAuthButton({
   disabled = false,
   loading = false,
 }: OAuthButtonProps) {
-  const { theme } = useTheme();
+  const { theme, activeColorScheme } = useTheme();
 
   const isApple = provider === 'apple';
   const isGoogle = provider === 'google';
+  const isDarkMode = activeColorScheme === 'dark';
+
+  // Theme-aware button styles
+  const getButtonStyle = () => {
+    if (isApple) {
+      // Apple button: Black in light mode, White in dark mode
+      return {
+        backgroundColor: isDarkMode ? '#FFFFFF' : '#000000',
+      };
+    }
+    // Google button: White in light mode, Surface color in dark mode
+    return {
+      backgroundColor: isDarkMode ? theme.colors.surface : '#FFFFFF',
+      borderColor: theme.colors.border,
+      borderWidth: 1,
+    };
+  };
+
+  // Theme-aware text styles
+  const getTextStyle = () => {
+    if (isApple) {
+      // Apple text: White in light mode, Black in dark mode
+      return {
+        color: isDarkMode ? '#000000' : '#FFFFFF',
+      };
+    }
+    // Google text: Use theme text color
+    return {
+      color: theme.colors.text,
+    };
+  };
+
+  // Theme-aware icon color
+  const getIconColor = () => {
+    if (loading) {
+      return isApple
+        ? (isDarkMode ? '#000000' : '#FFFFFF')
+        : theme.colors.text;
+    }
+    
+    if (isApple) {
+      // Apple icon: White in light mode, Black in dark mode
+      return isDarkMode ? '#000000' : '#FFFFFF';
+    }
+    
+    // Google icon: Keep brand color
+    return '#4285F4';
+  };
 
   const buttonStyles = [
     styles.button,
-    isApple && styles.appleButton,
-    isGoogle && [styles.googleButton, { borderColor: theme.colors.border }],
+    getButtonStyle(),
     disabled && styles.disabled,
   ];
 
   const textStyles = [
     styles.buttonText,
-    isApple && styles.appleText,
-    isGoogle && { color: theme.colors.text },
+    getTextStyle(),
   ];
 
   const getIcon = () => {
@@ -48,7 +94,7 @@ export default function OAuthButton({
       return (
         <ActivityIndicator
           size="small"
-          color={isApple ? '#FFFFFF' : theme.colors.text}
+          color={getIconColor()}
           style={styles.icon}
         />
       );
@@ -59,7 +105,7 @@ export default function OAuthButton({
         <Ionicons
           name="logo-apple"
           size={20}
-          color="#FFFFFF"
+          color={getIconColor()}
           style={styles.icon}
         />
       );
@@ -71,7 +117,7 @@ export default function OAuthButton({
         <Ionicons
           name="logo-google"
           size={20}
-          color="#4285F4"
+          color={getIconColor()}
           style={styles.icon}
         />
       </View>
@@ -103,9 +149,11 @@ const styles = StyleSheet.create({
   button: {
     borderRadius: 26,
     paddingVertical: 16,
+    paddingHorizontal: 20,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
+    minHeight: 52,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -117,13 +165,6 @@ const styles = StyleSheet.create({
         elevation: 2,
       },
     }),
-  },
-  appleButton: {
-    backgroundColor: '#000000',
-  },
-  googleButton: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
   },
   disabled: {
     opacity: 0.6,
@@ -142,8 +183,5 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: 16,
     fontWeight: '600',
-  },
-  appleText: {
-    color: '#FFFFFF',
   },
 });
