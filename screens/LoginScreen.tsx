@@ -15,6 +15,7 @@ import { useNavigation } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../contexts/ThemeContext';
 import AuthInput from '../components/AuthInput';
+import OAuthButton from '../components/OAuthButton';
 import { useAuth } from '../contexts/AuthContext';
 
 interface LoginScreenProps {
@@ -28,7 +29,7 @@ export default function LoginScreen({
   onNavigateToForgotPassword
 }: LoginScreenProps) {
   const { theme } = useTheme();
-  const { signIn, loading: authLoading } = useAuth();
+  const { signIn, signInWithGoogle, signInWithApple, loading: authLoading } = useAuth();
   const navigation = useNavigation<any>();
   
   // Use React Navigation's navigate function, fallback to prop if provided
@@ -90,6 +91,7 @@ export default function LoginScreen({
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [oauthLoading, setOAuthLoading] = useState<'google' | 'apple' | null>(null);
   const [logoLoaded, setLogoLoaded] = useState(false);
 
   // Preload logo image to prevent flickering
@@ -169,7 +171,67 @@ export default function LoginScreen({
     }
   };
 
-  const isProcessing = isLoading || authLoading;
+  const handleGoogleSignIn = async () => {
+    setOAuthLoading('google');
+
+    try {
+      const response = await signInWithGoogle();
+
+      if (response.success) {
+        if (Platform.OS === 'ios') {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
+        // Navigation handled by AuthContext state change
+      } else {
+        if (Platform.OS === 'ios') {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        }
+        // Only show alert if not cancelled
+        if (response.message !== 'Sign in cancelled') {
+          Alert.alert('Google Sign In Failed', response.message || 'Please try again.');
+        }
+      }
+    } catch (error) {
+      if (Platform.OS === 'ios') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      }
+      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+    } finally {
+      setOAuthLoading(null);
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    setOAuthLoading('apple');
+
+    try {
+      const response = await signInWithApple();
+
+      if (response.success) {
+        if (Platform.OS === 'ios') {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
+        // Navigation handled by AuthContext state change
+      } else {
+        if (Platform.OS === 'ios') {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        }
+        // Only show alert if not cancelled
+        if (response.message !== 'Sign in cancelled') {
+          Alert.alert('Apple Sign In Failed', response.message || 'Please try again.');
+        }
+      }
+    } catch (error) {
+      if (Platform.OS === 'ios') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      }
+      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+    } finally {
+      setOAuthLoading(null);
+    }
+  };
+
+  const isProcessing = isLoading || authLoading || oauthLoading !== null;
 
   const styles = StyleSheet.create({
     container: {
@@ -266,6 +328,22 @@ export default function LoginScreen({
       fontSize: 16,
       fontWeight: '600',
     },
+    dividerContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginVertical: theme.spacing.lg,
+    },
+    dividerLine: {
+      flex: 1,
+      height: 1,
+      backgroundColor: theme.colors.border,
+    },
+    dividerText: {
+      marginHorizontal: theme.spacing.md,
+      color: theme.colors.textSecondary,
+      fontSize: 14,
+      fontWeight: '500',
+    },
   });
 
   return (
@@ -293,8 +371,30 @@ export default function LoginScreen({
           <Text style={styles.tagline}>Take control of your charges</Text>
         </View>
 
-        {/* Sign In Form */}
+        {/* OAuth Buttons */}
         <View style={styles.formContainer}>
+          <OAuthButton
+            provider="apple"
+            onPress={handleAppleSignIn}
+            disabled={isProcessing}
+            loading={oauthLoading === 'apple'}
+          />
+          
+          <OAuthButton
+            provider="google"
+            onPress={handleGoogleSignIn}
+            disabled={isProcessing}
+            loading={oauthLoading === 'google'}
+          />
+
+          {/* Divider */}
+          <View style={styles.dividerContainer}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>OR CONTINUE WITH EMAIL</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          {/* Email/Password Form */}
           <AuthInput
             value={email}
             onChangeText={(text) => {

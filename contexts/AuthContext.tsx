@@ -6,6 +6,11 @@ import { migrateLocalSubscriptions } from '../services/subscriptionService';
 import { useInactivityTimer } from '../hooks/useInactivityTimer';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
+import { makeRedirectUri } from 'expo-auth-session';
+
+// Complete auth session for web platform
+WebBrowser.maybeCompleteAuthSession();
 
 interface AuthContextType {
   user: User | null;
@@ -15,6 +20,8 @@ interface AuthContextType {
   isHandlingDuplicate: boolean;
   signUp: (email: string, password: string, name?: string) => Promise<{ success: boolean; message?: string }>;
   signIn: (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
+  signInWithGoogle: () => Promise<{ success: boolean; message?: string }>;
+  signInWithApple: () => Promise<{ success: boolean; message?: string }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ success: boolean; message?: string }>;
   updatePassword: (newPassword: string) => Promise<{ success: boolean; message?: string }>;
@@ -865,6 +872,335 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
+  /**
+   * Extract OAuth tokens from callback URL hash
+   * Supabase returns tokens in the URL hash fragment
+   */
+  const extractParamsFromUrl = (url: string) => {
+    try {
+      const parsedUrl = new URL(url);
+      const hash = parsedUrl.hash.substring(1); // Remove the leading '#'
+      const params = new URLSearchParams(hash);
+      
+      return {
+        access_token: params.get('access_token'),
+        refresh_token: params.get('refresh_token'),
+        expires_in: params.get('expires_in'),
+        token_type: params.get('token_type'),
+        provider_token: params.get('provider_token'),
+      };
+    } catch (err) {
+      if (__DEV__) {
+        console.error('[OAuth] Error extracting params from URL:', err);
+      }
+      return {
+        access_token: null,
+        refresh_token: null,
+        expires_in: null,
+        token_type: null,
+        provider_token: null,
+      };
+    }
+  };
+
+  /**
+   * Sign in with Google using Supabase OAuth
+   * Uses expo-web-browser to open OAuth flow in browser
+   */
+  const signInWithGoogle = async (): Promise<{ success: boolean; message?: string }> => {
+    try {
+      setError(null);
+      setLoading(true);
+
+      if (__DEV__) {
+        console.log('[OAuth] Starting Google sign-in');
+      }
+
+      // Generate redirect URL for the current platform
+      const redirectTo = makeRedirectUri({
+        scheme: 'renvo',
+        path: 'oauth-callback',
+      });
+
+      if (__DEV__) {
+        console.log('[OAuth] Redirect URL:', redirectTo);
+      }
+
+      // Initiate OAuth flow with Supabase
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo,
+          skipBrowserRedirect: true, // We'll handle the redirect manually
+          queryParams: {
+            prompt: 'consent', // Force consent screen to appear
+            access_type: 'offline', // Request refresh token
+          },
+        },
+      });
+
+      if (error) {
+        setError(error.message);
+        if (__DEV__) {
+          console.error('[OAuth] Error initiating Google OAuth:', error);
+        }
+        return {
+          success: false,
+          message: getReadableErrorMessage(error),
+        };
+      }
+
+      if (!data?.url) {
+        const errorMsg = 'Failed to get OAuth URL from Supabase';
+        setError(errorMsg);
+        if (__DEV__) {
+          console.error('[OAuth]', errorMsg);
+        }
+        return {
+          success: false,
+          message: errorMsg,
+        };
+      }
+
+      if (__DEV__) {
+        console.log('[OAuth] Opening browser for Google OAuth');
+      }
+
+      // Open OAuth URL in browser
+      const result = await WebBrowser.openAuthSessionAsync(
+        data.url,
+        redirectTo,
+        { showInRecents: true }
+      );
+
+      if (__DEV__) {
+        console.log('[OAuth] Browser result:', result.type);
+      }
+
+      // Handle the result
+      if (result.type === 'success') {
+        if (__DEV__) {
+          console.log('[OAuth] OAuth success, extracting tokens');
+        }
+
+        const params = extractParamsFromUrl(result.url);
+
+        if (!params.access_token || !params.refresh_token) {
+          const errorMsg = 'Failed to extract tokens from OAuth callback';
+          setError(errorMsg);
+          if (__DEV__) {
+            console.error('[OAuth]', errorMsg);
+          }
+          return {
+            success: false,
+            message: errorMsg,
+          };
+        }
+
+        // Set the session with the tokens
+        const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+          access_token: params.access_token,
+          refresh_token: params.refresh_token,
+        });
+
+        if (sessionError) {
+          setError(sessionError.message);
+          if (__DEV__) {
+            console.error('[OAuth] Error setting session:', sessionError);
+          }
+          return {
+            success: false,
+            message: getReadableErrorMessage(sessionError),
+          };
+        }
+
+        if (__DEV__) {
+          console.log('[OAuth] Session set successfully');
+        }
+
+        // Trigger migration after successful OAuth sign-in
+        performMigration();
+
+        // Reset inactivity timer
+        resetTimer();
+
+        return { success: true };
+      } else if (result.type === 'cancel') {
+        if (__DEV__) {
+          console.log('[OAuth] User cancelled OAuth');
+        }
+        return {
+          success: false,
+          message: 'Sign in cancelled',
+        };
+      } else {
+        if (__DEV__) {
+          console.log('[OAuth] OAuth failed or was dismissed');
+        }
+        return {
+          success: false,
+          message: 'Sign in failed. Please try again.',
+        };
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to sign in with Google';
+      setError(message);
+      if (__DEV__) {
+        console.error('[OAuth] Exception during Google sign-in:', err);
+      }
+      return { success: false, message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Sign in with Apple using Supabase OAuth
+   * Uses expo-web-browser to open OAuth flow in browser
+   */
+  const signInWithApple = async (): Promise<{ success: boolean; message?: string }> => {
+    try {
+      setError(null);
+      setLoading(true);
+
+      if (__DEV__) {
+        console.log('[OAuth] Starting Apple sign-in');
+      }
+
+      // Generate redirect URL for the current platform
+      const redirectTo = makeRedirectUri({
+        scheme: 'renvo',
+        path: 'oauth-callback',
+      });
+
+      if (__DEV__) {
+        console.log('[OAuth] Redirect URL:', redirectTo);
+      }
+
+      // Initiate OAuth flow with Supabase
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'apple',
+        options: {
+          redirectTo,
+          skipBrowserRedirect: true, // We'll handle the redirect manually
+        },
+      });
+
+      if (error) {
+        setError(error.message);
+        if (__DEV__) {
+          console.error('[OAuth] Error initiating Apple OAuth:', error);
+        }
+        return {
+          success: false,
+          message: getReadableErrorMessage(error),
+        };
+      }
+
+      if (!data?.url) {
+        const errorMsg = 'Failed to get OAuth URL from Supabase';
+        setError(errorMsg);
+        if (__DEV__) {
+          console.error('[OAuth]', errorMsg);
+        }
+        return {
+          success: false,
+          message: errorMsg,
+        };
+      }
+
+      if (__DEV__) {
+        console.log('[OAuth] Opening browser for Apple OAuth');
+      }
+
+      // Open OAuth URL in browser
+      const result = await WebBrowser.openAuthSessionAsync(
+        data.url,
+        redirectTo,
+        { showInRecents: true }
+      );
+
+      if (__DEV__) {
+        console.log('[OAuth] Browser result:', result.type);
+      }
+
+      // Handle the result
+      if (result.type === 'success') {
+        if (__DEV__) {
+          console.log('[OAuth] OAuth success, extracting tokens');
+        }
+
+        const params = extractParamsFromUrl(result.url);
+
+        if (!params.access_token || !params.refresh_token) {
+          const errorMsg = 'Failed to extract tokens from OAuth callback';
+          setError(errorMsg);
+          if (__DEV__) {
+            console.error('[OAuth]', errorMsg);
+          }
+          return {
+            success: false,
+            message: errorMsg,
+          };
+        }
+
+        // Set the session with the tokens
+        const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+          access_token: params.access_token,
+          refresh_token: params.refresh_token,
+        });
+
+        if (sessionError) {
+          setError(sessionError.message);
+          if (__DEV__) {
+            console.error('[OAuth] Error setting session:', sessionError);
+          }
+          return {
+            success: false,
+            message: getReadableErrorMessage(sessionError),
+          };
+        }
+
+        if (__DEV__) {
+          console.log('[OAuth] Session set successfully');
+        }
+
+        // Trigger migration after successful OAuth sign-in
+        performMigration();
+
+        // Reset inactivity timer
+        resetTimer();
+
+        return { success: true };
+      } else if (result.type === 'cancel') {
+        if (__DEV__) {
+          console.log('[OAuth] User cancelled OAuth');
+        }
+        return {
+          success: false,
+          message: 'Sign in cancelled',
+        };
+      } else {
+        if (__DEV__) {
+          console.log('[OAuth] OAuth failed or was dismissed');
+        }
+        return {
+          success: false,
+          message: 'Sign in failed. Please try again.',
+        };
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to sign in with Apple';
+      setError(message);
+      if (__DEV__) {
+        console.error('[OAuth] Exception during Apple sign-in:', err);
+      }
+      return { success: false, message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const clearError = () => {
     setError(null);
   };
@@ -877,6 +1213,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     isHandlingDuplicate,
     signUp,
     signIn,
+    signInWithGoogle,
+    signInWithApple,
     signOut,
     resetPassword,
     updatePassword,
