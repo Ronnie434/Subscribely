@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, ScrollView, Modal, Pressable } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, ScrollView, Modal, Pressable, Image, Switch } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -11,9 +11,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme, ThemeMode } from '../contexts/ThemeContext';
 import TierBadge from '../components/TierBadge';
 import { subscriptionLimitService } from '../services/subscriptionLimitService';
-import { SubscriptionLimitStatus } from '../types';
+import { SubscriptionLimitStatus, UserProfile } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { useRealtimeSubscriptions } from '../hooks/useRealtimeSubscriptions';
+import { supabase } from '../config/supabase';
 
 // Navigation types
 type SettingsStackParamList = {
@@ -44,6 +45,7 @@ const USER_ICONS = [
 ] as const;
 
 const ICON_STORAGE_KEY = '@user_icon_preference';
+const USE_PROFILE_PHOTO_KEY = '@use_profile_photo';
 
 export default function SettingsScreen() {
   const navigation = useNavigation<SettingsScreenNavigationProp>();
@@ -54,15 +56,31 @@ export default function SettingsScreen() {
   const [showIconPicker, setShowIconPicker] = useState(false);
   const [showThemePicker, setShowThemePicker] = useState(false);
   const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionLimitStatus | null>(null);
+  
+  // Profile photo states
+  const [profileData, setProfileData] = useState<UserProfile | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [imageLoadError, setImageLoadError] = useState(false);
+  const [isImageLoading, setIsImageLoading] = useState(false);
+  const [useProfilePhoto, setUseProfilePhoto] = useState(true);
+  
   const insets = useSafeAreaInsets();
   const TAB_BAR_HEIGHT = 60;
   const safeAreaBottom = insets.bottom > 0 ? insets.bottom : 8;
   const bottomPadding = TAB_BAR_HEIGHT + safeAreaBottom + 20;
 
-  // Load saved icon preference
+  // Load saved icon preference and profile photo preference
   useEffect(() => {
     loadIconPreference();
+    loadProfilePhotoPreference();
   }, []);
+
+  // Load profile data when user is available
+  useEffect(() => {
+    if (user?.id) {
+      loadProfileData();
+    }
+  }, [user?.id]);
 
   // Reset inactivity timer when screen comes into focus
 
@@ -170,10 +188,58 @@ export default function SettingsScreen() {
     }
   };
 
+  const loadProfilePhotoPreference = async () => {
+    try {
+      const savedPreference = await AsyncStorage.getItem(USE_PROFILE_PHOTO_KEY);
+      if (savedPreference !== null) {
+        setUseProfilePhoto(savedPreference === 'true');
+      }
+    } catch (error) {
+      console.error('Error loading profile photo preference:', error);
+    }
+  };
+
+  const loadProfileData = async () => {
+    if (!user?.id) return;
+    
+    try {
+      setProfileLoading(true);
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, email, full_name, avatar_url, created_at, updated_at')
+        .eq('id', user.id)
+        .single();
+      
+      if (error) {
+        console.error('Error loading profile:', error);
+        return;
+      }
+      
+      setProfileData(data);
+      
+      if (__DEV__) {
+        console.log('[Settings] Profile loaded:', {
+          hasAvatar: !!data?.avatar_url,
+          avatarUrl: data?.avatar_url
+        });
+      }
+    } catch (error) {
+      console.error('Error in loadProfileData:', error);
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
   const handleIconSelect = async (iconName: string) => {
     try {
       await AsyncStorage.setItem(ICON_STORAGE_KEY, iconName);
       setSelectedIcon(iconName);
+      
+      // When user selects an icon, switch to using icons instead of profile photo
+      setUseProfilePhoto(false);
+      await AsyncStorage.setItem(USE_PROFILE_PHOTO_KEY, 'false');
+      setImageLoadError(false);
+      
       setShowIconPicker(false);
       
       if (Platform.OS === 'ios') {
@@ -185,12 +251,36 @@ export default function SettingsScreen() {
     }
   };
 
+  const handleToggleProfilePhoto = async (value: boolean) => {
+    try {
+      setUseProfilePhoto(value);
+      await AsyncStorage.setItem(USE_PROFILE_PHOTO_KEY, value.toString());
+      
+      if (!value) {
+        // Reset image error when switching away from photo
+        setImageLoadError(false);
+      }
+      
+      if (Platform.OS === 'ios') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+    } catch (error) {
+      console.error('Error saving profile photo preference:', error);
+    }
+  };
+
   const handleAvatarPress = () => {
     if (Platform.OS === 'ios') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
     setShowIconPicker(true);
   };
+
+  // Determine if we should show profile photo
+  const shouldShowProfilePhoto =
+    useProfilePhoto &&
+    profileData?.avatar_url &&
+    !imageLoadError;
 
   const handleThemeSelect = async (mode: ThemeMode) => {
     if (Platform.OS === 'ios') {
@@ -393,6 +483,16 @@ export default function SettingsScreen() {
       alignItems: 'center',
       marginRight: theme.spacing.md,
       overflow: 'hidden',
+      position: 'relative',
+    },
+    avatarImage: {
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+    },
+    imageLoader: {
+      position: 'absolute',
+      zIndex: 10,
     },
     avatarGradient: {
       width: '100%',
@@ -558,6 +658,35 @@ export default function SettingsScreen() {
       color: theme.colors.primary,
       fontWeight: '600',
     },
+    photoToggleContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginRight: 12,
+    },
+    photoToggleLabel: {
+      fontSize: 13,
+      color: theme.colors.text,
+      fontWeight: '500',
+    },
+    photoPreviewContainer: {
+      alignItems: 'center',
+      paddingVertical: 20,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border,
+      marginBottom: 12,
+    },
+    photoPreview: {
+      width: 80,
+      height: 80,
+      borderRadius: 40,
+      marginBottom: 12,
+    },
+    photoPreviewText: {
+      fontSize: 14,
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
+    },
     themeOptionsContainer: {
       padding: 16,
     },
@@ -625,13 +754,39 @@ export default function SettingsScreen() {
             activeOpacity={0.7}>
             <View style={styles.userInfoRow}>
               <View style={styles.avatarContainer}>
-                <LinearGradient
-                  colors={theme.gradients.primary as any}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.avatarGradient}>
-                  <Ionicons name={selectedIcon as any} size={28} color="#FFFFFF" />
-                </LinearGradient>
+                {shouldShowProfilePhoto ? (
+                  <>
+                    {isImageLoading && (
+                      <ActivityIndicator
+                        size="small"
+                        color={theme.colors.primary}
+                        style={styles.imageLoader}
+                      />
+                    )}
+                    <Image
+                      source={{ uri: profileData.avatar_url!, cache: 'force-cache' }}
+                      style={styles.avatarImage}
+                      onLoadStart={() => setIsImageLoading(true)}
+                      onLoadEnd={() => setIsImageLoading(false)}
+                      onError={(e) => {
+                        console.error('Profile photo load error:', {
+                          url: profileData?.avatar_url,
+                          error: e.nativeEvent.error,
+                        });
+                        setImageLoadError(true);
+                        setIsImageLoading(false);
+                      }}
+                    />
+                  </>
+                ) : (
+                  <LinearGradient
+                    colors={theme.gradients.primary as any}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.avatarGradient}>
+                    <Ionicons name={selectedIcon as any} size={28} color="#FFFFFF" />
+                  </LinearGradient>
+                )}
               </View>
               <View style={styles.userInfo}>
                 <Text style={styles.userName}>{user?.user_metadata?.name || 'User'}</Text>
@@ -641,7 +796,9 @@ export default function SettingsScreen() {
                 <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
               </View>
             </View>
-            <Text style={styles.tapToChangeText}>Tap to change icon</Text>
+            <Text style={styles.tapToChangeText}>
+              {profileData?.avatar_url ? 'Tap to change avatar' : 'Tap to change icon'}
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -784,7 +941,24 @@ export default function SettingsScreen() {
           />
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Choose Your Icon</Text>
+              <Text style={styles.modalTitle}>
+                {profileData?.avatar_url ? 'Choose Avatar' : 'Choose Your Icon'}
+              </Text>
+              {profileData?.avatar_url && (
+                <View style={styles.photoToggleContainer}>
+                  <Text style={styles.photoToggleLabel}>Profile Photo</Text>
+                  <Switch
+                    value={useProfilePhoto}
+                    onValueChange={handleToggleProfilePhoto}
+                    trackColor={{
+                      false: theme.colors.border,
+                      true: theme.colors.primary
+                    }}
+                    thumbColor="#FFFFFF"
+                    ios_backgroundColor={theme.colors.border}
+                  />
+                </View>
+              )}
               <TouchableOpacity
                 onPress={() => setShowIconPicker(false)}
                 style={styles.modalCloseButton}>
@@ -792,38 +966,54 @@ export default function SettingsScreen() {
               </TouchableOpacity>
             </View>
             
-            <ScrollView 
-              style={styles.iconGrid}
-              contentContainerStyle={styles.iconGridContent}
-              showsVerticalScrollIndicator={false}>
-              {USER_ICONS.map((icon) => (
-                <TouchableOpacity
-                  key={icon.name}
-                  style={[
-                    styles.iconOption,
-                    selectedIcon === icon.name && styles.iconOptionSelected,
-                  ]}
-                  onPress={() => handleIconSelect(icon.name)}
-                  activeOpacity={0.7}>
-                  <View style={[
-                    styles.iconCircle,
-                    selectedIcon === icon.name && styles.iconCircleSelected,
-                  ]}>
-                    <Ionicons 
-                      name={icon.name as any} 
-                      size={32} 
-                      color={selectedIcon === icon.name ? '#FFFFFF' : theme.colors.primary} 
-                    />
-                  </View>
-                  <Text style={[
-                    styles.iconLabel,
-                    selectedIcon === icon.name && styles.iconLabelSelected,
-                  ]}>
-                    {icon.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+            {/* Show profile photo preview when toggle is on */}
+            {profileData?.avatar_url && useProfilePhoto && (
+              <View style={styles.photoPreviewContainer}>
+                <Image
+                  source={{ uri: profileData.avatar_url, cache: 'force-cache' }}
+                  style={styles.photoPreview}
+                />
+                <Text style={styles.photoPreviewText}>
+                  Using your profile photo
+                </Text>
+              </View>
+            )}
+            
+            {/* Only show icon grid when not using profile photo or no profile photo available */}
+            {(!profileData?.avatar_url || !useProfilePhoto) && (
+              <ScrollView
+                style={styles.iconGrid}
+                contentContainerStyle={styles.iconGridContent}
+                showsVerticalScrollIndicator={false}>
+                {USER_ICONS.map((icon) => (
+                  <TouchableOpacity
+                    key={icon.name}
+                    style={[
+                      styles.iconOption,
+                      selectedIcon === icon.name && styles.iconOptionSelected,
+                    ]}
+                    onPress={() => handleIconSelect(icon.name)}
+                    activeOpacity={0.7}>
+                    <View style={[
+                      styles.iconCircle,
+                      selectedIcon === icon.name && styles.iconCircleSelected,
+                    ]}>
+                      <Ionicons
+                        name={icon.name as any}
+                        size={32}
+                        color={selectedIcon === icon.name ? '#FFFFFF' : theme.colors.primary}
+                      />
+                    </View>
+                    <Text style={[
+                      styles.iconLabel,
+                      selectedIcon === icon.name && styles.iconLabelSelected,
+                    ]}>
+                      {icon.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
           </View>
         </View>
       </Modal>
