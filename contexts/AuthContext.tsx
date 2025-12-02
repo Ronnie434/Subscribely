@@ -7,9 +7,19 @@ import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { makeRedirectUri } from 'expo-auth-session';
+import {
+  evaluateSession,
+  saveSessionMetadata,
+  clearSessionMetadata,
+  SessionEnforcementReason,
+  getDefaultReasonMessage,
+} from '../utils/sessionManager';
 
 // Complete auth session for web platform
 WebBrowser.maybeCompleteAuthSession();
+
+const ACCESS_TOKEN_REFRESH_BUFFER_MS = 2 * 60 * 1000; // 2 minutes
+const MIN_REFRESH_DELAY_MS = 5 * 1000; // 5 seconds fallback
 
 interface AuthContextType {
   user: User | null;
@@ -42,10 +52,61 @@ export function AuthProvider({ children }: AuthProviderProps) {
   
   // Ref to track if we're handling a duplicate email (to prevent navigation)
   const isHandlingDuplicateRef = useRef(false);
+  const refreshTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const refreshFailureCountRef = useRef(0);
+  const performSessionRefreshRef = useRef<() => Promise<void>>();
+  const scheduleAccessTokenRefreshRef = useRef<(activeSession: Session | null) => void>();
   
   // State to track if we're handling a duplicate (for AppNavigator to show auth screens)
   const [isHandlingDuplicate, setIsHandlingDuplicate] = useState(false);
   
+  const clearRefreshTimer = useCallback(() => {
+    if (refreshTimerRef.current) {
+      clearTimeout(refreshTimerRef.current);
+      refreshTimerRef.current = null;
+    }
+  }, []);
+
+  const scheduleAccessTokenRefresh = useCallback(
+    (activeSession: Session | null) => {
+      clearRefreshTimer();
+
+      if (!activeSession?.expires_at) {
+        return;
+      }
+
+      const expiresAtMs = activeSession.expires_at * 1000;
+      const now = Date.now();
+      const triggerAt = expiresAtMs - ACCESS_TOKEN_REFRESH_BUFFER_MS;
+      const delay = Math.max(triggerAt - now, MIN_REFRESH_DELAY_MS);
+
+      refreshTimerRef.current = setTimeout(() => {
+        if (__DEV__) {
+          console.log('[AuthContext] Proactively refreshing session before expiry');
+        }
+        if (performSessionRefreshRef.current) {
+          performSessionRefreshRef.current();
+        }
+      }, delay);
+    },
+    [clearRefreshTimer],
+  );
+
+  useEffect(() => {
+    scheduleAccessTokenRefreshRef.current = scheduleAccessTokenRefresh;
+  }, [scheduleAccessTokenRefresh]);
+
+  useEffect(() => {
+    return () => {
+      clearRefreshTimer();
+    };
+  }, [clearRefreshTimer]);
+
+  const persistSessionState = useCallback(async (activeSession: Session) => {
+    await saveSessionMetadata(activeSession);
+    scheduleAccessTokenRefreshRef.current?.(activeSession);
+  }, []);
+
   // Expose a function to clear the duplicate flag (for manual navigation)
   const clearDuplicateFlag = useCallback(() => {
     if (__DEV__) {
@@ -58,106 +119,96 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setUser(null);
   }, []);
 
+  const initializeAuth = useCallback(async () => {
+    try {
+      const {
+        data: { session: existingSession },
+        error,
+      } = await supabase.auth.getSession();
+      
+      if (error) {
+        console.error('Error getting session:', error);
+        setSession(null);
+        setUser(null);
+        await clearSessionMetadata();
+        clearRefreshTimer();
+        return;
+      }
+
+      if (existingSession) {
+        const enforcement = await evaluateSession(existingSession);
+        if (enforcement) {
+          await handleForcedLogout(enforcement.reason, enforcement.message);
+          return;
+        }
+
+        setSession(existingSession);
+        setUser(existingSession.user ?? null);
+        await persistSessionState(existingSession);
+
+        if (existingSession.user) {
+          performMigration();
+        }
+      } else {
+        setSession(null);
+        setUser(null);
+        await clearSessionMetadata();
+        clearRefreshTimer();
+      }
+    } catch (err) {
+      console.error('Error initializing auth:', err);
+      setSession(null);
+      setUser(null);
+      await clearSessionMetadata();
+      clearRefreshTimer();
+    } finally {
+      setLoading(false);
+    }
+  }, [clearRefreshTimer, handleForcedLogout, performMigration, persistSessionState]);
+
   useEffect(() => {
-    // Check for existing session on mount
     initializeAuth();
 
-    // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      // Don't update user state if we're handling a duplicate email
-      // This prevents navigation away from the sign-up screen
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, nextSession) => {
       if (isHandlingDuplicateRef.current) {
         if (__DEV__) {
           console.log('[AuthContext] Ignoring auth state change - handling duplicate email');
         }
         return;
       }
-      
-      setSession(session);
-      setUser(session?.user ?? null);
+
+      setSession(nextSession);
+      setUser(nextSession?.user ?? null);
       setLoading(false);
-      
+
+      if (nextSession) {
+        try {
+          await persistSessionState(nextSession);
+        } catch (metadataError) {
+          console.warn('[AuthContext] Failed to persist session metadata:', metadataError);
+        }
+
+        if (event === 'SIGNED_IN' && nextSession.user) {
+          performMigration();
+        }
+      } else {
+        await clearSessionMetadata();
+        clearRefreshTimer();
+      }
     });
 
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
-
-  const initializeAuth = async () => {
-    try {
-      // Get the current session from Supabase
-      const { data: { session }, error } = await supabase.auth.getSession();
-      
-      if (error) {
-        // Only log errors, don't show to user during initialization
-        // Most auth errors during init are expected (no session, expired session, etc.)
-        console.error('Error getting session:', error);
-        // Clear any stale session data
-        setSession(null);
-        setUser(null);
-        // Don't set error state - these are usually expected scenarios
-      } else if (session) {
-        // Validate that the session is not expired
-        // Supabase sessions have expires_at in seconds (Unix timestamp)
-        const expiresAt = session.expires_at;
-        const now = Math.floor(Date.now() / 1000); // Current time in seconds
-        
-        if (__DEV__) {
-          console.log('[AuthContext] Checking session:', {
-            hasSession: !!session,
-            hasUser: !!session.user,
-            expiresAt,
-            now,
-            isExpired: expiresAt ? expiresAt < now : 'unknown',
-            expiresIn: expiresAt ? `${Math.floor((expiresAt - now) / 60)} minutes` : 'unknown'
-          });
-        }
-        
-        if (expiresAt && expiresAt < now) {
-          // Session is expired, clear it
-          if (__DEV__) {
-            console.log('[AuthContext] Session expired, clearing session');
-          }
-          await supabase.auth.signOut();
-          setSession(null);
-          setUser(null);
-        } else {
-          // Session is valid, set it
-          if (__DEV__) {
-            console.log('[AuthContext] Valid session found, restoring user');
-          }
-          setSession(session);
-          setUser(session.user ?? null);
-          
-          // Trigger migration if user is authenticated
-          if (session.user) {
-            performMigration();
-          }
-        }
-      } else {
-        // No session found
-        setSession(null);
-        setUser(null);
-      }
-    } catch (err) {
-      // Only log initialization errors, don't show to user
-      // These are usually network issues or setup problems that shouldn't block the app
-      console.error('Error initializing auth:', err);
-      // Clear session on error
-      setSession(null);
-      setUser(null);
-      // Don't set error state - let user try to sign in
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [initializeAuth, performMigration, clearRefreshTimer, persistSessionState]);
 
   /**
    * Perform one-time migration of local subscriptions to Supabase
    * Runs in the background without blocking the UI
    */
-  const performMigration = async () => {
+  const performMigration = useCallback(async () => {
     try {
       const result = await migrateLocalSubscriptions();
       
@@ -170,7 +221,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       console.error('Error during migration:', err);
       // Don't block user experience if migration fails
     }
-  };
+  }, []);
 
   const signUp = async (
     email: string,
@@ -561,6 +612,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
       if (__DEV__) {
         console.log('[SignUp] Success - user signed up and logged in');
       }
+
+      if (data?.session) {
+        await persistSessionState(data.session);
+      }
+
       return { success: true };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to create account';
@@ -602,6 +658,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         };
       }
 
+      await persistSessionState(data.session);
+
       // Trigger migration after successful sign in
       performMigration();
 
@@ -615,116 +673,170 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  const signOut = useCallback(async (silent: boolean = false): Promise<void> => {
-    try {
-      // Clear error state unless it's a silent logout (auto-logout)
-      if (!silent) {
-        setError(null);
-      }
-      setLoading(true);
-
-      // Clear local subscription data
-      await AsyncStorage.removeItem('subscriptions');
-
-      // Sign out from Supabase - this should clear the session from SecureStore
-      const { error } = await supabase.auth.signOut();
-      
-      if (error) {
-        // Only set error if it's not a silent logout and not an expected auth error
-        // AuthSessionMissingError is expected during auto-logout when session is already expired
-        const isExpectedAuthError = error.message.includes('AuthSessionMissingError') || 
-                                     error.message.includes('session');
-        
-        if (!silent && !isExpectedAuthError) {
-          setError(error.message);
-        }
-        // Log expected errors at debug level, unexpected errors as warnings
-        if (isExpectedAuthError) {
-          if (__DEV__) {
-            console.log('Expected auth error during sign out (session already expired):', error.message);
-          }
-        } else {
-          console.warn('Error signing out:', error);
-        }
-      }
-
-      // Manually ensure session is cleared from SecureStore/AsyncStorage
-      // This is critical for both manual logout and inactivity logout
-      // We want to prevent auto-login on app restart after any logout
-      // Supabase's signOut should handle this, but we ensure it's cleared even if signOut had errors
+  const performSignOut = useCallback(
+    async ({ silent = false }: { silent?: boolean } = {}): Promise<void> => {
       try {
-        // Supabase uses a specific key format based on the URL
-        // Format: sb-{project-ref}-auth-token and sb-{project-ref}-auth-token-code-verifier
-        const supabaseUrl = supabase.supabaseUrl.replace('https://', '').replace('http://', '');
-        const projectRef = supabaseUrl.split('.')[0];
+        if (!silent) {
+          setError(null);
+        }
+        setLoading(true);
+
+        clearRefreshTimer();
+        await clearSessionMetadata();
+
+        // Clear local subscription data
+        await AsyncStorage.removeItem('subscriptions');
+
+        // Sign out from Supabase - this should clear the session from SecureStore
+        const { error } = await supabase.auth.signOut();
         
-        // List of all possible Supabase auth storage keys
-        const storageKeys = [
-          `sb-${projectRef}-auth-token`,
-          `sb-${projectRef}-auth-token-code-verifier`,
-          // Also try with full URL hash (Supabase might use this in some cases)
-          `sb-${supabaseUrl}-auth-token`,
-          `sb-${supabaseUrl}-auth-token-code-verifier`,
-        ];
-        
-        // Clear all possible keys from storage
-        if (Platform.OS !== 'web') {
-          // Clear from SecureStore (iOS/Android)
-          for (const key of storageKeys) {
-            try {
-              await SecureStore.deleteItemAsync(key);
-              if (__DEV__) {
-                console.log(`[AuthContext] Cleared storage key: ${key}`);
-              }
-            } catch (e) {
-              // Ignore if key doesn't exist - this is expected
-            }
+        if (error) {
+          // Only set error if it's not a silent logout and not an expected auth error
+          // AuthSessionMissingError is expected during auto-logout when session is already expired
+          const isExpectedAuthError = error.message.includes('AuthSessionMissingError') || 
+                                       error.message.includes('session');
+          
+          if (!silent && !isExpectedAuthError) {
+            setError(error.message);
           }
-        } else {
-          // Clear from AsyncStorage (Web)
-          for (const key of storageKeys) {
-            try {
-              await AsyncStorage.removeItem(key);
-              if (__DEV__) {
-                console.log(`[AuthContext] Cleared storage key: ${key}`);
-              }
-            } catch (e) {
-              // Ignore if key doesn't exist - this is expected
+          // Log expected errors at debug level, unexpected errors as warnings
+          if (isExpectedAuthError) {
+            if (__DEV__) {
+              console.log('Expected auth error during sign out (session already expired):', error.message);
             }
+          } else {
+            console.warn('Error signing out:', error);
           }
         }
+
+        // Manually ensure session is cleared from SecureStore/AsyncStorage
+        // Supabase's signOut should handle this, but we ensure it's cleared even if signOut had errors
+        try {
+          // Supabase uses a specific key format based on the URL
+          // Format: sb-{project-ref}-auth-token and sb-{project-ref}-auth-token-code-verifier
+          const supabaseUrl = supabase.supabaseUrl.replace('https://', '').replace('http://', '');
+          const projectRef = supabaseUrl.split('.')[0];
+          
+          // List of all possible Supabase auth storage keys
+          const storageKeys = [
+            `sb-${projectRef}-auth-token`,
+            `sb-${projectRef}-auth-token-code-verifier`,
+            // Also try with full URL hash (Supabase might use this in some cases)
+            `sb-${supabaseUrl}-auth-token`,
+            `sb-${supabaseUrl}-auth-token-code-verifier`,
+          ];
+          
+          // Clear all possible keys from storage
+          if (Platform.OS !== 'web') {
+            // Clear from SecureStore (iOS/Android)
+            for (const key of storageKeys) {
+              try {
+                await SecureStore.deleteItemAsync(key);
+                if (__DEV__) {
+                  console.log(`[AuthContext] Cleared storage key: ${key}`);
+                }
+              } catch (e) {
+                // Ignore if key doesn't exist - this is expected
+              }
+            }
+          } else {
+            // Clear from AsyncStorage (Web)
+            for (const key of storageKeys) {
+              try {
+                await AsyncStorage.removeItem(key);
+                if (__DEV__) {
+                  console.log(`[AuthContext] Cleared storage key: ${key}`);
+                }
+              } catch (e) {
+                // Ignore if key doesn't exist - this is expected
+              }
+            }
+          }
+          
+          if (__DEV__) {
+            console.log('[AuthContext] Session cleared from storage, user logged out');
+          }
+        } catch (storageError) {
+          if (__DEV__) {
+            console.warn('[AuthContext] Error clearing session storage:', storageError);
+          }
+        }
+
+        // Reset state
+        setUser(null);
+        setSession(null);
+      } catch (err) {
+        // Only set error if it's not a silent logout
+        if (!silent) {
+          const message = err instanceof Error ? err.message : 'Failed to sign out';
+          setError(message);
+        }
+        console.error('Error signing out:', err);
         
-        if (__DEV__) {
-          console.log('[AuthContext] Session cleared from storage, user logged out');
-        }
-      } catch (storageError) {
-        if (__DEV__) {
-          console.warn('[AuthContext] Error clearing session storage:', storageError);
-        }
+        // Reset state even if there was an error
+        setUser(null);
+        setSession(null);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [clearRefreshTimer],
+  );
+
+  const signOut = useCallback(async (): Promise<void> => {
+    await performSignOut({ silent: false });
+    setError(null);
+  }, [performSignOut]);
+
+  const handleForcedLogout = useCallback(
+    async (reason: SessionEnforcementReason, message?: string) => {
+      if (__DEV__) {
+        console.log('[AuthContext] Forcing logout due to', reason);
+      }
+      setError(message ?? getDefaultReasonMessage(reason));
+      await performSignOut({ silent: true });
+    },
+    [performSignOut],
+  );
+
+  const performSessionRefresh = useCallback(async () => {
+    if (!session) {
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.auth.refreshSession();
+
+      if (error) {
+        throw error;
       }
 
-      // Reset state
-      setUser(null);
-      setSession(null);
-      
-      // Clear error on successful logout (even if there was an error, user is logged out)
-      setError(null);
-    } catch (err) {
-      // Only set error if it's not a silent logout
-      if (!silent) {
-        const message = err instanceof Error ? err.message : 'Failed to sign out';
-        setError(message);
+      if (data.session) {
+        setSession(data.session);
+        setUser(data.session.user ?? null);
+        await persistSessionState(data.session);
       }
-      console.error('Error signing out:', err);
-      
-      // Reset state even if there was an error
-      setUser(null);
-      setSession(null);
-      setError(null);
-    } finally {
-      setLoading(false);
+
+      refreshFailureCountRef.current = 0;
+    } catch (err) {
+      refreshFailureCountRef.current += 1;
+      console.error('[AuthContext] Session refresh failed:', err);
+
+      if (refreshFailureCountRef.current >= 2) {
+        refreshFailureCountRef.current = 0;
+        await handleForcedLogout(
+          SessionEnforcementReason.SuspiciousActivity,
+          getDefaultReasonMessage(SessionEnforcementReason.SuspiciousActivity),
+        );
+      }
     }
-  }, []);
+  }, [session, handleForcedLogout, persistSessionState]);
+
+  useEffect(() => {
+    performSessionRefreshRef.current = () => {
+      void performSessionRefresh();
+    };
+  }, [performSessionRefresh]);
 
   const resetPassword = async (
     email: string
@@ -1005,6 +1117,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
           }
         }
 
+        await persistSessionState(sessionData.session);
+
         // Trigger migration after successful OAuth sign-in
         performMigration();
 
@@ -1171,6 +1285,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
             console.warn('[OAuth] Failed to refresh profile:', err);
           }
         }
+
+        await persistSessionState(sessionData.session);
 
         // Trigger migration after successful OAuth sign-in
         performMigration();
