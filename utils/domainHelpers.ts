@@ -1,9 +1,20 @@
 /**
  * Utility functions for extracting and managing company domains
+ *
+ * Note: This file now integrates with the intelligent domain discovery system.
+ * The discovery service handles caching, verification, and pattern matching.
  */
 
+import { domainDiscoveryService } from '../services/domainDiscoveryService';
+import type { DomainSuggestion } from '../services/domainDiscoveryService';
+
+// Export types for external use
+export type { DomainSuggestion };
+
 // Known domain mappings for popular services
-const DOMAIN_MAPPINGS: { [key: string]: string } = {
+// Note: This is also duplicated in domainDiscoveryService for performance
+// Both should be kept in sync
+export const DOMAIN_MAPPINGS: { [key: string]: string } = {
   'netflix': 'netflix.com',
   'spotify': 'spotify.com',
   'apple': 'apple.com',
@@ -109,25 +120,14 @@ export function extractDomain(companyName: string): string {
     }
   }
 
-  // Fall back to simple domain construction
-  // Remove special characters and spaces, convert to lowercase
-  const cleaned = normalized
-    .replace(/[^a-z0-9\s]/g, '') // Remove special characters
-    .replace(/\s+/g, '') // Remove spaces
-    .trim();
-
-  // If we have a valid cleaned name, append .com
-  if (cleaned) {
-    return `${cleaned}.com`;
-  }
-
-  // If all else fails, return empty string
+  // No known mapping found - return empty string instead of auto-generating
+  // This prevents creating invalid domains that fail when users try to redirect
   return '';
 }
 
 /**
  * Validates if a domain string is in a valid format
- * 
+ *
  * @param domain - The domain to validate
  * @returns true if the domain appears valid
  */
@@ -137,4 +137,56 @@ export function isValidDomain(domain: string): boolean {
   // Basic domain validation regex
   const domainRegex = /^[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,}$/i;
   return domainRegex.test(domain);
+}
+
+/**
+ * Get domain suggestion using the intelligent discovery system
+ * This is an async version that uses caching and pattern matching
+ *
+ * @param companyName - The service name
+ * @returns Promise<DomainSuggestion | null>
+ */
+export async function getDomainSuggestion(companyName: string): Promise<DomainSuggestion | null> {
+  return domainDiscoveryService.discoverDomain(companyName);
+}
+
+/**
+ * Get multiple domain suggestions for a service
+ *
+ * @param companyName - The service name
+ * @returns Promise<DomainSuggestion[]>
+ */
+export async function getDomainSuggestions(companyName: string): Promise<DomainSuggestion[]> {
+  return domainDiscoveryService.getSuggestions(companyName);
+}
+
+/**
+ * Verify a domain and cache if successful
+ * Used when saving a subscription with a guessed/unverified domain
+ *
+ * @param serviceName - The service name
+ * @param domain - The domain to verify
+ * @returns Promise<boolean> - True if verified
+ */
+export async function verifyAndCacheDomain(serviceName: string, domain: string): Promise<boolean> {
+  return domainDiscoveryService.verifyAndCache(serviceName, domain);
+}
+
+/**
+ * Cache a manually entered domain
+ * Used when user provides their own domain
+ *
+ * @param serviceName - The service name
+ * @param domain - The user-provided domain
+ */
+export async function cacheManualDomain(serviceName: string, domain: string): Promise<void> {
+  return domainDiscoveryService.cacheManualDomain(serviceName, domain);
+}
+
+/**
+ * Initialize the domain discovery system
+ * Should be called on app startup
+ */
+export async function initializeDomainDiscovery(): Promise<void> {
+  return domainDiscoveryService.initialize();
 }

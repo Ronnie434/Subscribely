@@ -175,7 +175,7 @@ function SubscriptionsNavigator() {
         name="Home"
         component={HomeScreen}
         options={{
-          title: 'Recurring Items',
+          title: 'Home',
           headerShown: true,
           headerLeft: () => null,  // Remove back button
         }}
@@ -347,7 +347,7 @@ function CustomTabBar() {
   });
 
   const tabs = [
-    { name: 'Subscriptions', label: 'Items', icon: 'list' as const },
+    { name: 'Subscriptions', label: 'Home', icon: 'list' as const },
     { name: 'Stats', label: 'Stats', icon: 'stats-chart' as const },
     { name: 'Settings', label: 'Settings', icon: 'settings' as const },
   ];

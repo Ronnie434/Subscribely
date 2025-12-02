@@ -12,6 +12,7 @@ import * as Notifications from 'expo-notifications';
 import { requestNotificationPermissions } from './utils/notificationService';
 import { checkAndHandleTimezoneChange } from './utils/timezoneService';
 import { stripeConfig } from './config/stripe';
+import { initializeDomainDiscovery } from './utils/domainHelpers';
 // Import dev tools (only loads in development)
 import './utils/devTools';
 
@@ -50,9 +51,17 @@ export default function App() {
     preloadLogo();
   }, []);
 
-  // Initialize notifications
+  // Initialize app services
   React.useEffect(() => {
-    const initializeNotifications = async () => {
+    const initializeServices = async () => {
+      // Initialize domain discovery service (loads cache into memory)
+      try {
+        await initializeDomainDiscovery();
+        console.log('[App] Domain discovery service initialized');
+      } catch (error) {
+        console.error('[App] Error initializing domain discovery:', error);
+      }
+
       // Request notification permissions on app start
       await requestNotificationPermissions();
       
@@ -64,7 +73,7 @@ export default function App() {
       }
     };
     
-    initializeNotifications();
+    initializeServices();
     
     // Set up notification response listener (when user taps notification)
     const subscription = Notifications.addNotificationResponseReceivedListener(response => {

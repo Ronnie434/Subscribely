@@ -524,7 +524,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 
         {/* Recurring Items Section */}
         {recurringItems.length > 0 && (
-          <CollapsibleSection title="Recurring Items" count={recurringItems.length}>
+          <CollapsibleSection title="Home" count={recurringItems.length}>
             {recurringItems.map((item, index) => (
               <Animated.View
                 key={item.id}

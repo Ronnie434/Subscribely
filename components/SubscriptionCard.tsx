@@ -53,6 +53,8 @@ const SubscriptionCard = memo(function SubscriptionCard({
 
   // Handle logo press to open company website
   const handleLogoPress = async () => {
+    // Don't attempt to open URL if domain is missing/empty
+    // This prevents invalid redirections for subscriptions without validated domains
     if (!subscription.domain) {
       return;
     }
@@ -118,6 +120,9 @@ const SubscriptionCard = memo(function SubscriptionCard({
       fontSize: 20,
       fontWeight: '700',
     },
+    fallbackIcon: {
+      opacity: 0.7,
+    },
     contentContainer: {
       marginLeft: 12,
       flex: 1,
@@ -179,8 +184,9 @@ const SubscriptionCard = memo(function SubscriptionCard({
     }
 
     // Fallback to letter-based icon when no domain or all sources failed
+    // Reduced opacity indicates it's not clickable
     return (
-      <View style={[styles.iconContainer, { backgroundColor: getIconColor() }]}>
+      <View style={[styles.iconContainer, styles.fallbackIcon, { backgroundColor: getIconColor() }]}>
         <Text style={styles.iconText}>{getIconLetter()}</Text>
       </View>
     );

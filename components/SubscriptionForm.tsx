@@ -19,8 +19,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../contexts/ThemeContext';
 import { Subscription, BillingCycle, ChargeType } from '../types';
-import { extractDomain, getCompanyNames } from '../utils/domainHelpers';
+import {
+  extractDomain,
+  getCompanyNames,
+  isValidDomain,
+  getDomainSuggestion,
+  verifyAndCacheDomain,
+  cacheManualDomain,
+  type DomainSuggestion as DomainSuggestionType,
+} from '../utils/domainHelpers';
 import { getLogoUrlForSource, getNextLogoSource, LogoSource } from '../utils/logoHelpers';
+import DomainSuggestion from './DomainSuggestion';
 import * as Haptics from 'expo-haptics';
 
 interface SubscriptionFormProps {
@@ -53,6 +62,13 @@ export default function SubscriptionForm({ subscription, onSubmit, onCancel, isS
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [logoSources, setLogoSources] = useState<Map<string, LogoSource>>(new Map());
   const nameInputRef = useRef<TextInput>(null);
+  
+  // Domain discovery state
+  const [domainSuggestion, setDomainSuggestion] = useState<DomainSuggestionType | null>(null);
+  const [showManualDomainInput, setShowManualDomainInput] = useState(false);
+  const [manualDomain, setManualDomain] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
+  const domainDiscoveryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   // Helper to parse date string without timezone offset
   const parseDateWithoutTimezone = (dateStr: string): Date => {
     // If date is in YYYY-MM-DD format, parse it correctly
@@ -108,7 +124,7 @@ export default function SubscriptionForm({ subscription, onSubmit, onCancel, isS
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validate()) {
       if (Platform.OS === 'ios') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -137,6 +153,46 @@ export default function SubscriptionForm({ subscription, onSubmit, onCancel, isS
     const category = 'Other';
     const selectedCategory = CATEGORIES.find(cat => cat.name === category) || CATEGORIES[CATEGORIES.length - 1];
 
+    // Determine final domain to use
+    let finalDomain = '';
+    
+    if (showManualDomainInput && manualDomain) {
+      // User manually entered a domain
+      if (isValidDomain(manualDomain)) {
+        finalDomain = manualDomain;
+        // Cache the manual domain
+        try {
+          await cacheManualDomain(name.trim(), manualDomain);
+        } catch (error) {
+          console.error('[Form] Error caching manual domain:', error);
+        }
+      }
+    } else if (domainSuggestion) {
+      // Use discovered domain
+      finalDomain = domainSuggestion.domain;
+      
+      // Verify low-confidence domains before saving
+      if (domainSuggestion.confidence === 'low' && !domainSuggestion.verified) {
+        setIsVerifying(true);
+        try {
+          const verified = await verifyAndCacheDomain(name.trim(), domainSuggestion.domain);
+          if (!verified) {
+            console.log('[Form] Domain verification failed, but proceeding with save');
+            // Still use the domain even if verification failed
+            // User can always edit later
+          }
+        } catch (error) {
+          console.error('[Form] Error verifying domain:', error);
+        } finally {
+          setIsVerifying(false);
+        }
+      }
+    } else {
+      // Fallback to old extraction method
+      const extractedDomain = extractDomain(name.trim());
+      finalDomain = (extractedDomain && isValidDomain(extractedDomain)) ? extractedDomain : '';
+    }
+
     onSubmit({
       name: name.trim(),
       cost: parseFloat(cost),
@@ -144,7 +200,7 @@ export default function SubscriptionForm({ subscription, onSubmit, onCancel, isS
       renewalDate: formatDateOnly(renewalDate),
       category,
       color: selectedCategory.color,
-      domain: extractDomain(name.trim()),
+      domain: finalDomain,
       description: description.trim() || undefined,
       isCustomRenewalDate: useCustomDate,
       reminders: chargeType === 'recurring' ? enableReminders : false,
@@ -170,6 +226,48 @@ export default function SubscriptionForm({ subscription, onSubmit, onCancel, isS
     setSuggestions(filtered);
     setShowSuggestions(filtered.length > 0);
   };
+
+  // Debounced domain discovery
+  const discoverDomain = React.useCallback(async (serviceName: string) => {
+    if (!serviceName || serviceName.trim().length === 0) {
+      setDomainSuggestion(null);
+      return;
+    }
+
+    try {
+      const suggestion = await getDomainSuggestion(serviceName);
+      setDomainSuggestion(suggestion);
+      console.log('[Form] Domain suggestion:', suggestion);
+    } catch (error) {
+      console.error('[Form] Error discovering domain:', error);
+      setDomainSuggestion(null);
+    }
+  }, []);
+
+  // Debounced domain discovery when name changes
+  React.useEffect(() => {
+    // Clear previous timeout
+    if (domainDiscoveryTimeoutRef.current) {
+      clearTimeout(domainDiscoveryTimeoutRef.current);
+    }
+
+    // Skip if name is empty or if we have autocomplete suggestions showing
+    if (!name || name.trim().length === 0 || showSuggestions) {
+      setDomainSuggestion(null);
+      return;
+    }
+
+    // Debounce domain discovery (wait 500ms after user stops typing)
+    domainDiscoveryTimeoutRef.current = setTimeout(() => {
+      discoverDomain(name);
+    }, 500);
+
+    return () => {
+      if (domainDiscoveryTimeoutRef.current) {
+        clearTimeout(domainDiscoveryTimeoutRef.current);
+      }
+    };
+  }, [name, showSuggestions, discoverDomain]);
 
   // Handle logo error for suggestions and try fallback sources
   const handleSuggestionLogoError = (suggestion: string) => {
@@ -693,6 +791,46 @@ export default function SubscriptionForm({ subscription, onSubmit, onCancel, isS
               )}
             </View>
             {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
+            
+            {/* Domain Suggestion Display */}
+            {!showSuggestions && name.trim().length > 0 && (
+              <DomainSuggestion
+                suggestion={domainSuggestion}
+                onEdit={() => {
+                  setShowManualDomainInput(true);
+                  setManualDomain(domainSuggestion?.domain || '');
+                }}
+                onManualInput={() => {
+                  setShowManualDomainInput(true);
+                  setManualDomain('');
+                }}
+              />
+            )}
+
+            {/* Manual Domain Input */}
+            {showManualDomainInput && (
+              <View style={{ marginTop: 12 }}>
+                <Text style={styles.label}>Website Domain (Optional)</Text>
+                <TextInput
+                  style={[
+                    styles.input,
+                    focusedField === 'manualDomain' && styles.inputFocused,
+                  ]}
+                  value={manualDomain}
+                  onChangeText={setManualDomain}
+                  onFocus={() => setFocusedField('manualDomain')}
+                  onBlur={() => setFocusedField(null)}
+                  placeholder="e.g., planetfitness.com"
+                  placeholderTextColor={theme.colors.textSecondary}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  keyboardType="url"
+                />
+                <Text style={styles.helperText}>
+                  Enter the company's website domain for logo display
+                </Text>
+              </View>
+            )}
           </View>
 
           {/* Price Field */}
