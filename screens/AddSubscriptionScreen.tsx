@@ -131,6 +131,7 @@ export default function AddSubscriptionScreen() {
         subscription={existingSubscription}
         onSubmit={handleSubmit}
         onCancel={handleCancel}
+        isSubmitting={saving}
       />
     </View>
   );
