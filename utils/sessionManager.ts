@@ -5,8 +5,13 @@ import * as Crypto from 'expo-crypto';
 import { Platform } from 'react-native';
 
 const STORAGE_PREFIX = 'session_manager';
-const DEVICE_ID_KEY = `${STORAGE_PREFIX}:device_id_v1`;
-const SESSION_METADATA_KEY = `${STORAGE_PREFIX}:metadata_v1`;
+// Updated keys to comply with SecureStore validation (only alphanumeric, '.', '-', and '_' allowed)
+const DEVICE_ID_KEY = `${STORAGE_PREFIX}_device_id_v1`;
+const SESSION_METADATA_KEY = `${STORAGE_PREFIX}_metadata_v1`;
+
+// Old keys with invalid colon characters (for migration purposes)
+const OLD_DEVICE_ID_KEY = `${STORAGE_PREFIX}:device_id_v1`;
+const OLD_SESSION_METADATA_KEY = `${STORAGE_PREFIX}:metadata_v1`;
 
 const DEFAULT_REFRESH_TTL_DAYS = 14;
 const DEFAULT_SESSION_VERSION = 1;
@@ -89,7 +94,105 @@ const removeStorageItem = async (key: string): Promise<void> => {
   }
 };
 
+// Track which keys have been migrated in this app lifecycle to avoid redundant operations
+const migrationCache = {
+  deviceId: false,
+  sessionMetadata: false,
+};
+
+/**
+ * Migrates data from old key format (with colons) to new key format (with underscores).
+ * This migration is idempotent and safe to run multiple times.
+ *
+ * @param oldKey - The old key format with colons
+ * @param newKey - The new key format with underscores
+ * @param migrationName - Name for logging purposes
+ * @returns true if migration was performed, false otherwise
+ */
+const migrateKey = async (
+  oldKey: string,
+  newKey: string,
+  migrationName: string
+): Promise<boolean> => {
+  try {
+    // Check if new key already has data - if so, migration already complete
+    const newValue = await getStorageItem(newKey);
+    if (newValue) {
+      // Migration already complete, clean up old key if it exists
+      // Note: Attempting to remove old invalid keys will also fail, but that's okay
+      await removeStorageItem(oldKey);
+      console.log(`[sessionManager] Migration ${migrationName}: Already migrated, cleaned up old key`);
+      return false;
+    }
+
+    // Check if old key has data to migrate
+    // Old keys with invalid characters (colons) will throw "Invalid key" error from SecureStore
+    let oldValue: string | null = null;
+    try {
+      oldValue = await getStorageItem(oldKey);
+    } catch (error) {
+      // SecureStore validates keys BEFORE allowing read operations
+      // Invalid keys (e.g., containing colons) cannot be read
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('Invalid key')) {
+        // Expected error for old keys with invalid characters - treat as no data to migrate
+        console.log(`[sessionManager] Migration ${migrationName}: Old key has invalid format, proceeding with fresh data`);
+        return false;
+      }
+      // Re-throw unexpected errors
+      throw error;
+    }
+
+    if (!oldValue) {
+      // No data to migrate
+      console.log(`[sessionManager] Migration ${migrationName}: No data to migrate`);
+      return false;
+    }
+
+    // Migrate: write to new key, then delete old key
+    await setStorageItem(newKey, oldValue);
+    await removeStorageItem(oldKey);
+    
+    console.log(`[sessionManager] Migration ${migrationName}: Successfully migrated data from old to new key`);
+    return true;
+  } catch (error) {
+    // Migration failed - log but don't crash the app
+    // Use console.log instead of console.warn since invalid keys are expected
+    console.log(`[sessionManager] Migration ${migrationName} completed with error:`, error);
+    return false;
+  }
+};
+
+/**
+ * Migrates device ID from old key format to new key format.
+ * Safe to call multiple times - uses cache to avoid redundant operations.
+ */
+const migrateDeviceId = async (): Promise<void> => {
+  if (migrationCache.deviceId) {
+    return; // Already migrated in this app lifecycle
+  }
+  
+  await migrateKey(OLD_DEVICE_ID_KEY, DEVICE_ID_KEY, 'deviceId');
+  migrationCache.deviceId = true;
+};
+
+/**
+ * Migrates session metadata from old key format to new key format.
+ * Safe to call multiple times - uses cache to avoid redundant operations.
+ */
+const migrateSessionMetadata = async (): Promise<void> => {
+  if (migrationCache.sessionMetadata) {
+    return; // Already migrated in this app lifecycle
+  }
+  
+  await migrateKey(OLD_SESSION_METADATA_KEY, SESSION_METADATA_KEY, 'sessionMetadata');
+  migrationCache.sessionMetadata = true;
+};
+
 export const getOrCreateDeviceId = async (): Promise<string> => {
+  // Migrate from old key format before attempting to read
+  await migrateDeviceId();
+  
   const existingId = await getStorageItem(DEVICE_ID_KEY);
   if (existingId) {
     return existingId;
@@ -119,6 +222,9 @@ const deserializeMetadata = (value: string | null): SessionMetadata | null => {
 };
 
 export const readSessionMetadata = async (): Promise<SessionMetadata | null> => {
+  // Migrate from old key format before attempting to read
+  await migrateSessionMetadata();
+  
   const value = await getStorageItem(SESSION_METADATA_KEY);
   return deserializeMetadata(value);
 };
