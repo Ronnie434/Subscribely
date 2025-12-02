@@ -29,7 +29,7 @@ export default function AddSubscriptionScreen() {
   // Set the header title based on mode
   useEffect(() => {
     navigation.setOptions({
-      title: isEditMode ? 'Edit Recurring Item' : 'Add Recurring Item',
+      title: isEditMode ? 'Edit' : 'Add',
     });
   }, [isEditMode, navigation]);
 

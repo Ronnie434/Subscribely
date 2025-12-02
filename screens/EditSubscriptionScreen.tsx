@@ -76,7 +76,7 @@ export default function EditSubscriptionScreen() {
   // Set up navigation header
   useEffect(() => {
     navigation.setOptions({
-      title: subscription.chargeType === 'one_time' ? 'Charge Details' : 'Recurring Item Details',
+      title: subscription.chargeType === 'one_time' ? 'Charge Details' : 'Details',
     });
   }, [navigation, subscription.chargeType]);
 
@@ -534,7 +534,8 @@ export default function EditSubscriptionScreen() {
             onPress={handleEditPress}>
             <Ionicons name="create-outline" size={20} color="#FFFFFF" />
             <Text style={styles.editButtonText}>
-              {subscription.chargeType === 'one_time' ? 'Edit Charge' : 'Edit Recurring Item'}
+              {/* {subscription.chargeType === 'one_time' ? 'Edit Charge' : 'Edit Recurring Item'} */}
+              Edit
             </Text>
           </Pressable>
 
@@ -546,7 +547,8 @@ export default function EditSubscriptionScreen() {
             onPress={handleDelete}>
             <Ionicons name="trash-outline" size={20} color={theme.colors.error} />
             <Text style={styles.deleteButtonText}>
-              {subscription.chargeType === 'one_time' ? 'Delete Charge' : 'Delete Recurring Item'}
+              {/* {subscription.chargeType === 'one_time' ? 'Delete Charge' : 'Delete Recurring Item'} */}
+              Delete
             </Text>
           </Pressable>
         </View>

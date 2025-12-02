@@ -1157,10 +1157,10 @@ export default function SubscriptionForm({ subscription, onSubmit, onCancel, isS
           ) : (
             <Text style={styles.submitButtonText}>
               {subscription
-                ? 'Save Changes'
+                ? 'Save'
                 : chargeType === 'recurring'
-                  ? 'Add Recurring Item'
-                  : 'Add One-time Charge'}
+                  ? 'Add'
+                  : 'Add'}
             </Text>
           )}
         </Pressable>
