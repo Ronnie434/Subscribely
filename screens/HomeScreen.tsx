@@ -63,12 +63,14 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       // Get fresh status from backend
       const status = await subscriptionLimitService.getSubscriptionLimitStatus();
       
-      setLimitStatus({
+      const newLimitStatus = {
         currentCount: status.currentCount,
         maxCount: status.maxAllowed || 5,
         atLimit: !status.canAddMore,
         isPremium: status.isPremium,
-      });
+      };
+      
+      setLimitStatus(newLimitStatus);
       
       if (__DEV__) {
         console.log('✅ Limit status refreshed from backend:', {
@@ -184,10 +186,14 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   // Update subscription count in real-time when subscriptions change
   // while preserving backend's maxCount and atLimit values
   useEffect(() => {
-    setLimitStatus(prev => ({
-      ...prev,
-      currentCount: subscriptions.length,
-    }));
+    setLimitStatus(prev => {
+      const newCount = subscriptions.length;
+      return {
+        ...prev,
+        currentCount: newCount,
+        atLimit: newCount >= prev.maxCount,  // Recalculate based on new count
+      };
+    });
   }, [subscriptions.length]);
 
   // REMOVED: This useEffect was overwriting correct backend premium status with hardcoded logic
@@ -265,15 +271,10 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       const refreshAll = async () => {
         try {
           // Refresh subscription limit status (clears cache and re-fetches)
-          console.log('🐛 DEBUG: useFocusEffect - Starting refreshAll...');
-          console.log('Refreshing subscription limit status...');
           await subscriptionLimitService.refreshLimitStatus();
           
           // Get fresh status
           const status = await subscriptionLimitService.getSubscriptionLimitStatus();
-          console.log('Updated limit status:', status);
-          console.log('🐛 DEBUG: Backend says canAddMore:', status.canAddMore);
-          console.log('🐛 DEBUG: Setting limitStatus.atLimit to:', !status.canAddMore);
           
           setLimitStatus({
             currentCount: status.currentCount,
@@ -282,12 +283,8 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
             isPremium: status.isPremium,
           });
           
-          console.log('🐛 DEBUG: ✅ Correct backend data set - limitStatus.atLimit should be:', !status.canAddMore);
-          
           // Refresh subscriptions list
-          console.log('🐛 DEBUG: About to load subscriptions - this will trigger useEffect...');
           await loadSubscriptions(true);
-          console.log('🐛 DEBUG: ⚠️ Subscriptions loaded - useEffect will now OVERWRITE the correct data!');
         } catch (error) {
           console.error('Error refreshing on focus:', error);
           // Still try to load subscriptions even if limit refresh fails
@@ -335,6 +332,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
             }
             
             const previousSubscriptions = [...subscriptions];
+            
             setSubscriptions(prev => prev.filter(s => s.id !== subscription.id));
             
             try {
@@ -353,7 +351,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
               } else {
                 // Refresh limit status after successful delete
                 // (Real-time hook will also trigger, but this ensures sync even if real-time is delayed)
-                refreshLimitStatusFromBackend();
+                await refreshLimitStatusFromBackend();
               }
             } catch (error) {
               console.error('Error deleting subscription:', error);
@@ -567,7 +565,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       />
 
       {/* Upgrade Prompt for Free Users (shown when not at limit) */}
-      {!loading && subscriptions.length > 0 && !limitStatus.isPremium && subscriptions.length < 5 && (
+      {!loading && subscriptions.length > 0 && !limitStatus.isPremium && limitStatus.currentCount < limitStatus.maxCount && (
         <UpgradePrompt onPress={handleUpgradePromptPress} />
       )}
 
