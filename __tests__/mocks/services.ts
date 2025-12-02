@@ -109,10 +109,6 @@ export const mockSupabase = {
 // Mock hooks
 export const mockUseRealtimeSubscriptions = jest.fn(() => undefined);
 
-export const mockUseInactivityTimer = jest.fn(() => ({
-  resetTimer: jest.fn(),
-}));
-
 // Mock AsyncStorage
 export const mockAsyncStorage = {
   getItem: jest.fn(() => Promise.resolve(null)),

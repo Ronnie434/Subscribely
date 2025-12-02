@@ -49,7 +49,7 @@ const USE_PROFILE_PHOTO_KEY = '@use_profile_photo';
 
 export default function SettingsScreen() {
   const navigation = useNavigation<SettingsScreenNavigationProp>();
-  const { user, signOut, resetInactivityTimer } = useAuth();
+  const { user, signOut } = useAuth();
   const { theme, themeMode, setThemeMode } = useTheme();
   const [isLoading, setIsLoading] = useState(false);
   const [selectedIcon, setSelectedIcon] = useState<string>('person');
@@ -81,8 +81,6 @@ export default function SettingsScreen() {
       loadProfileData();
     }
   }, [user?.id]);
-
-  // Reset inactivity timer when screen comes into focus
 
   // Load subscription status
   useEffect(() => {
@@ -151,12 +149,6 @@ export default function SettingsScreen() {
       console.error('Settings: Real-time connection error:', realtimeError);
     }
   }, [realtimeError]);
-
-  useFocusEffect(
-    useCallback(() => {
-      resetInactivityTimer();
-    }, [resetInactivityTimer])
-  );
 
   // Refresh subscription status when screen comes into focus
   useFocusEffect(

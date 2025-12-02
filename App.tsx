@@ -7,7 +7,6 @@ import AppNavigator from './navigation/AppNavigator';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import ErrorBoundary from './components/ErrorBoundary';
-import ActivityTracker from './components/ActivityTracker';
 import * as Notifications from 'expo-notifications';
 import { requestNotificationPermissions } from './utils/notificationService';
 import { checkAndHandleTimezoneChange } from './utils/timezoneService';
@@ -143,9 +142,7 @@ export default function App() {
           <SafeAreaProvider>
             <ThemeProvider>
               <AuthProvider>
-                <ActivityTracker>
-                  <AppNavigator />
-                </ActivityTracker>
+                <AppNavigator />
               </AuthProvider>
             </ThemeProvider>
           </SafeAreaProvider>

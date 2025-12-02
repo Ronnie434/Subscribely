@@ -65,7 +65,7 @@ Stripe price IDs, billing copy, and refund policies live in `config/stripe.ts`, 
 
 ## Architecture at a Glance
 - **Frontend:** React 19 + React Native 0.81.5, Expo SDK 54, TypeScript 5, React Navigation tabs/stacks, Reanimated 3/4, gesture handler, Safe Area Context, Expo Haptics, Blur, Linear Gradient, SecureStore, FileSystem, Sharing, AuthSession, Lottie, etc.
-- **State & Context:** `AuthContext`, `ThemeContext`, and `ToastContext` coordinate auth, theming, and global toasts; hooks like `useRealtimeSubscriptions` and `useInactivityTimer` encapsulate real-time sync and session security.
+- **State & Context:** `AuthContext`, `ThemeContext`, and `ToastContext` coordinate auth, theming, and global toasts; hooks like `useRealtimeSubscriptions` encapsulate real-time sync and session security.
 - **Backend:** Supabase Postgres with Row Level Security, Supabase Auth, RPC functions, `recurring_items` tables, `usage_tracking_events`, and SQL migrations under `database/`.
 - **Edge Functions:** Located in `supabase/functions/*`, each function (create/cancel subscriptions, switch billing cycle, request refunds, manage billing portal, Stripe webhooks, debug tooling) proxies secure operations to Stripe.
 - **Payments:** `services/paymentService.ts`, `services/subscriptionTierService.ts`, and `components` (PlanSelection, PaywallModal, UpgradePrompt) orchestrate purchase flows using `@stripe/stripe-react-native`.

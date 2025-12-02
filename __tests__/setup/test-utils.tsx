@@ -20,7 +20,6 @@ export const mockAuthContext = {
   signOut: jest.fn(),
   resetPassword: jest.fn(),
   clearError: jest.fn(),
-  resetInactivityTimer: jest.fn(),
   clearDuplicateFlag: jest.fn(),
 };
 

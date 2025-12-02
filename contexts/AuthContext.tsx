@@ -3,7 +3,6 @@ import { Session, User, AuthError } from '@supabase/supabase-js';
 import { supabase } from '../config/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { migrateLocalSubscriptions } from '../services/subscriptionService';
-import { useInactivityTimer } from '../hooks/useInactivityTimer';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
@@ -26,7 +25,6 @@ interface AuthContextType {
   resetPassword: (email: string) => Promise<{ success: boolean; message?: string }>;
   updatePassword: (newPassword: string) => Promise<{ success: boolean; message?: string }>;
   clearError: () => void;
-  resetInactivityTimer: () => void;
   clearDuplicateFlag: () => void;
 }
 
@@ -41,9 +39,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
-  // Ref to store signOut function for inactivity timer
-  const signOutRef = useRef<(() => Promise<void>) | null>(null);
   
   // Ref to track if we're handling a duplicate email (to prevent navigation)
   const isHandlingDuplicateRef = useRef(false);
@@ -82,16 +77,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setUser(session?.user ?? null);
       setLoading(false);
       
-      // Reset inactivity timer when user logs in
-      if (session?.user) {
-        resetTimer();
-      }
     });
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [resetTimer]);
+  }, []);
 
   const initializeAuth = async () => {
     try {
@@ -614,9 +605,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // Trigger migration after successful sign in
       performMigration();
 
-      // Reset inactivity timer on successful login
-      resetTimer();
-
       return { success: true };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to sign in';
@@ -737,30 +725,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setLoading(false);
     }
   }, []);
-
-  // Store signOut in ref for inactivity timer
-  useEffect(() => {
-    signOutRef.current = signOut;
-  }, [signOut]);
-
-  // Note: Session clearing on background is handled by useInactivityTimer
-  // which waits 2 minutes before calling signOut. This ensures users can
-  // quickly switch apps without being logged out immediately.
-
-  // Set up inactivity timer for auto-logout
-  // Only enabled when user is authenticated
-  const { resetTimer } = useInactivityTimer({
-    timeout: 5 * 60 * 1000, // 5 minutes for foreground inactivity
-    backgroundTimeout: 2 * 60 * 1000, // 2 minutes when app goes to background
-    onTimeout: async () => {
-      console.log('Auto-logout triggered due to inactivity');
-      if (signOutRef.current) {
-        // Use silent logout to prevent error messages from showing
-        await signOutRef.current(true);
-      }
-    },
-    enabled: !!user, // Only enable when user is logged in
-  });
 
   const resetPassword = async (
     email: string
@@ -1044,9 +1008,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
         // Trigger migration after successful OAuth sign-in
         performMigration();
 
-        // Reset inactivity timer
-        resetTimer();
-
         return { success: true };
       } else if (result.type === 'cancel') {
         if (__DEV__) {
@@ -1214,9 +1175,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
         // Trigger migration after successful OAuth sign-in
         performMigration();
 
-        // Reset inactivity timer
-        resetTimer();
-
         return { success: true };
       } else if (result.type === 'cancel') {
         if (__DEV__) {
@@ -1265,8 +1223,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     resetPassword,
     updatePassword,
     clearError,
-    // Expose resetTimer for manual activity tracking
-    resetInactivityTimer: resetTimer,
     clearDuplicateFlag,
   };
 

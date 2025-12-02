@@ -441,7 +441,7 @@ function MainNavigator() {
 
 export default function AppNavigator() {
   const { theme } = useTheme();
-  const { user, session, loading: authLoading, resetInactivityTimer, error, clearError, isHandlingDuplicate } = useAuth();
+  const { user, session, loading: authLoading, error, clearError, isHandlingDuplicate } = useAuth();
   const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [justCompletedOnboarding, setJustCompletedOnboarding] = useState(false);
@@ -458,14 +458,6 @@ export default function AppNavigator() {
       clearError();
     }
   }, [user, error, clearError]);
-
-  // Handle navigation state changes to reset inactivity timer
-  const handleNavigationStateChange = () => {
-    if (user) {
-      // Reset inactivity timer on any navigation event when user is authenticated
-      resetInactivityTimer();
-    }
-  };
 
   const checkOnboardingStatus = async () => {
     try {
@@ -509,7 +501,6 @@ export default function AppNavigator() {
   return (
     <NavigationContainer
       ref={navigationRef}
-      onStateChange={handleNavigationStateChange}
       linking={{
         prefixes: ['renvo://'],
         config: {
