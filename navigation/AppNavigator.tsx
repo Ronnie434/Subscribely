@@ -585,10 +585,10 @@ export default function AppNavigator() {
         // OR if we're handling a duplicate email (to prevent navigation reset)
         // This handles the case where a duplicate user is created but has no valid session
         // Use a stable key to prevent remounting when isHandlingDuplicate changes
-        // Navigate to SignUp if user just completed onboarding
-        <AuthNavigator 
-          key="auth-navigator" 
-          initialRoute={justCompletedOnboarding ? 'SignUp' : 'Login'}
+        // Navigate to Login if user just completed onboarding
+        <AuthNavigator
+          key="auth-navigator"
+          initialRoute={justCompletedOnboarding ? 'Login' : 'Login'}
         />
       ) : (
         // Show main app if user is authenticated AND has a valid session

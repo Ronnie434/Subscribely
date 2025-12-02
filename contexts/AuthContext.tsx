@@ -1018,6 +1018,29 @@ export function AuthProvider({ children }: AuthProviderProps) {
           console.log('[OAuth] Session set successfully');
         }
 
+        // Refresh profile data to get updated avatar_url from OAuth
+        // This ensures the UI has the latest profile data immediately
+        try {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('id, email, full_name, avatar_url')
+            .eq('id', sessionData.session.user.id)
+            .single();
+          
+          if (__DEV__ && profile) {
+            console.log('[OAuth] Profile refreshed:', {
+              hasAvatar: !!profile.avatar_url,
+              avatarUrl: profile.avatar_url,
+              fullName: profile.full_name
+            });
+          }
+        } catch (err) {
+          // Non-critical - profile will be loaded on next screen anyway
+          if (__DEV__) {
+            console.warn('[OAuth] Failed to refresh profile:', err);
+          }
+        }
+
         // Trigger migration after successful OAuth sign-in
         performMigration();
 
@@ -1163,6 +1186,29 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
         if (__DEV__) {
           console.log('[OAuth] Session set successfully');
+        }
+
+        // Refresh profile data to get updated avatar_url from OAuth
+        // This ensures the UI has the latest profile data immediately
+        try {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('id, email, full_name, avatar_url')
+            .eq('id', sessionData.session.user.id)
+            .single();
+          
+          if (__DEV__ && profile) {
+            console.log('[OAuth] Profile refreshed:', {
+              hasAvatar: !!profile.avatar_url,
+              avatarUrl: profile.avatar_url,
+              fullName: profile.full_name
+            });
+          }
+        } catch (err) {
+          // Non-critical - profile will be loaded on next screen anyway
+          if (__DEV__) {
+            console.warn('[OAuth] Failed to refresh profile:', err);
+          }
         }
 
         // Trigger migration after successful OAuth sign-in
