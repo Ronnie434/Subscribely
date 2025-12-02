@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -14,22 +13,19 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../contexts/ThemeContext';
-import AuthInput from '../components/AuthInput';
 import OAuthButton from '../components/OAuthButton';
 import { useAuth } from '../contexts/AuthContext';
 
 interface LoginScreenProps {
   // Props are optional now since we use useNavigation
   onNavigateToSignUp?: () => void;
-  onNavigateToForgotPassword?: () => void;
 }
 
 export default function LoginScreen({
-  onNavigateToSignUp,
-  onNavigateToForgotPassword
+  onNavigateToSignUp
 }: LoginScreenProps) {
   const { theme } = useTheme();
-  const { signIn, signInWithGoogle, signInWithApple, loading: authLoading } = useAuth();
+  const { signInWithGoogle, signInWithApple, loading: authLoading } = useAuth();
   const navigation = useNavigation<any>();
   
   // Use React Navigation's navigate function, fallback to prop if provided
@@ -60,21 +56,16 @@ export default function LoginScreen({
     }
   };
   
-  const navigateToForgotPassword = () => {
+  const navigateToEmailLogin = () => {
     if (__DEV__) {
-      console.log('[LoginScreen] navigateToForgotPassword called');
+      console.log('[LoginScreen] navigateToEmailLogin called');
     }
     try {
       if (navigation?.navigate) {
         if (__DEV__) {
-          console.log('[LoginScreen] Using React Navigation to navigate to ForgotPassword');
+          console.log('[LoginScreen] Using React Navigation to navigate to EmailLogin');
         }
-        navigation.navigate('ForgotPassword');
-      } else if (onNavigateToForgotPassword) {
-        if (__DEV__) {
-          console.log('[LoginScreen] Using prop callback to navigate');
-        }
-        onNavigateToForgotPassword();
+        navigation.navigate('EmailLogin');
       } else {
         if (__DEV__) {
           console.error('[LoginScreen] No navigation method available!');
@@ -86,11 +77,7 @@ export default function LoginScreen({
       }
     }
   };
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [emailError, setEmailError] = useState('');
-  const [passwordError, setPasswordError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  
   const [oauthLoading, setOAuthLoading] = useState<'google' | 'apple' | null>(null);
   const [logoLoaded, setLogoLoaded] = useState(false);
 
@@ -103,73 +90,6 @@ export default function LoginScreen({
     }, 0);
     return () => clearTimeout(timer);
   }, []);
-
-  const validateEmail = (email: string): boolean => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email.trim());
-  };
-
-  const validateForm = (): boolean => {
-    let isValid = true;
-
-    // Reset errors
-    setEmailError('');
-    setPasswordError('');
-
-    // Validate email
-    if (!email.trim()) {
-      setEmailError('Email is required');
-      isValid = false;
-    } else if (!validateEmail(email)) {
-      setEmailError('Please enter a valid email address');
-      isValid = false;
-    }
-
-    // Validate password
-    if (!password) {
-      setPasswordError('Password is required');
-      isValid = false;
-    } else if (password.length < 6) {
-      setPasswordError('Password must be at least 6 characters');
-      isValid = false;
-    }
-
-    return isValid;
-  };
-
-  const handleSignIn = async () => {
-    if (!validateForm()) {
-      if (Platform.OS === 'ios') {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      }
-      return;
-    }
-
-    setIsLoading(true);
-
-    try {
-      const response = await signIn(email.trim(), password);
-
-      if (response.success) {
-        if (Platform.OS === 'ios') {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        }
-        // Navigation handled by AuthContext state change
-      } else {
-        if (Platform.OS === 'ios') {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        }
-        Alert.alert('Sign In Failed', response.message || 'Please check your credentials and try again.');
-      }
-    } catch (error) {
-      if (Platform.OS === 'ios') {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      }
-      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleGoogleSignIn = async () => {
     setOAuthLoading('google');
@@ -231,7 +151,7 @@ export default function LoginScreen({
     }
   };
 
-  const isProcessing = isLoading || authLoading || oauthLoading !== null;
+  const isProcessing = authLoading || oauthLoading !== null;
 
   const styles = StyleSheet.create({
     container: {
@@ -254,9 +174,9 @@ export default function LoginScreen({
       marginBottom: theme.spacing.lg,
     },
     logoImage: {
-      width: 120,
-      height: 120,
-      borderRadius: 21.5,
+      width: 100,
+      height: 100,
+      borderRadius: 18,
       resizeMode: 'contain' as const,
     },
     appName: {
@@ -276,23 +196,12 @@ export default function LoginScreen({
       flex: 1,
       paddingTop: theme.spacing.lg,
     },
-    forgotPasswordButton: {
-      alignSelf: 'flex-end',
-      marginTop: -theme.spacing.xs,
-      marginBottom: theme.spacing.md,
-      paddingVertical: theme.spacing.xs,
-    },
-    forgotPasswordText: {
-      color: theme.colors.primary,
-      fontSize: 14,
-      fontWeight: '600',
-    },
-    signInButton: {
+    continueWithEmailButton: {
       backgroundColor: theme.colors.primary,
       borderRadius: 26,
       paddingVertical: 16,
       alignItems: 'center',
-      marginTop: theme.spacing.md,
+      marginTop: theme.spacing.lg,
       ...Platform.select({
         ios: {
           shadowColor: theme.colors.primary,
@@ -305,25 +214,23 @@ export default function LoginScreen({
         },
       }),
     },
-    signInButtonDisabled: {
+    continueWithEmailButtonDisabled: {
       opacity: 0.6,
     },
-    signInButtonText: {
+    continueWithEmailButtonText: {
       color: '#FFFFFF',
       fontSize: 16,
       fontWeight: '700',
     },
     footer: {
-      flexDirection: 'row',
       justifyContent: 'center',
       alignItems: 'center',
       marginTop: theme.spacing.xl,
     },
-    footerText: {
-      color: theme.colors.text,
-      fontSize: 16,
+    footerButton: {
+      paddingVertical: theme.spacing.sm,
     },
-    signUpLink: {
+    footerText: {
       color: theme.colors.primary,
       fontSize: 16,
       fontWeight: '600',
@@ -390,71 +297,27 @@ export default function LoginScreen({
           {/* Divider */}
           <View style={styles.dividerContainer}>
             <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>OR CONTINUE WITH EMAIL</Text>
+            <Text style={styles.dividerText}>or</Text>
             <View style={styles.dividerLine} />
           </View>
 
-          {/* Email/Password Form */}
-          <AuthInput
-            value={email}
-            onChangeText={(text) => {
-              setEmail(text);
-              setEmailError('');
-            }}
-            placeholder="Email"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoComplete="email"
-            textContentType="emailAddress"
-            importantForAutofill="yes"
-            error={emailError}
-            editable={!isProcessing}
-          />
-
-          <AuthInput
-            value={password}
-            onChangeText={(text) => {
-              setPassword(text);
-              setPasswordError('');
-            }}
-            placeholder="Password"
-            secureTextEntry
-            autoComplete="password"
-            textContentType="password"
-            importantForAutofill="yes"
-            error={passwordError}
-            editable={!isProcessing}
-          />
-
-          {/* Forgot Password Link */}
+          {/* Continue with Email Button */}
           <TouchableOpacity
-            style={styles.forgotPasswordButton}
-            onPress={navigateToForgotPassword}
-            disabled={isProcessing}
-            activeOpacity={0.7}>
-            <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.signInButton, isProcessing && styles.signInButtonDisabled]}
-            onPress={handleSignIn}
+            style={[styles.continueWithEmailButton, isProcessing && styles.continueWithEmailButtonDisabled]}
+            onPress={navigateToSignUp}
             disabled={isProcessing}
             activeOpacity={0.8}>
-            {isProcessing ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <Text style={styles.signInButtonText}>Sign In</Text>
-            )}
+            <Text style={styles.continueWithEmailButtonText}>Continue with Email</Text>
           </TouchableOpacity>
 
-          {/* Sign Up Link */}
+          {/* Already have account link */}
           <View style={styles.footer}>
-            <Text style={styles.footerText}>Don't have an account? </Text>
             <TouchableOpacity
-              onPress={navigateToSignUp}
+              style={styles.footerButton}
+              onPress={navigateToEmailLogin}
               disabled={isProcessing}
               activeOpacity={0.7}>
-              <Text style={styles.signUpLink}>Sign Up</Text>
+              <Text style={styles.footerText}>Already have an account? Log in</Text>
             </TouchableOpacity>
           </View>
         </View>

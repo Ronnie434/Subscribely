@@ -115,7 +115,7 @@ export default function SignUpScreen({ onNavigateToSignIn }: SignUpScreenProps) 
     scrollContent: { flexGrow: 1, paddingHorizontal: theme.spacing.xl, paddingTop: 120, paddingBottom: 40 },
     header: { alignItems: 'center', marginBottom: theme.spacing.xxl },
     logoContainer: { justifyContent: 'center', alignItems: 'center', marginBottom: theme.spacing.lg },
-    logoImage: { width: 120, height: 120, borderRadius: 21.5, resizeMode: 'contain' as const },
+    logoImage: { width: 100, height: 100, borderRadius: 18, resizeMode: 'contain' as const },
     appName: { fontSize: 36, fontWeight: '700', color: theme.colors.text, marginBottom: theme.spacing.xs, lineHeight: 44 },
     tagline: { fontSize: 16, fontWeight: '400', color: theme.colors.textSecondary, lineHeight: 22 },
     formContainer: { flex: 1, paddingTop: theme.spacing.lg },
@@ -126,9 +126,6 @@ export default function SignUpScreen({ onNavigateToSignIn }: SignUpScreenProps) 
     createButton: { backgroundColor: theme.colors.primary, borderRadius: 26, paddingVertical: 16, alignItems: 'center', marginTop: theme.spacing.md, ...Platform.select({ android: { elevation: 3 } }) },
     createButtonDisabled: { opacity: 0.6 },
     createButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-    footer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: theme.spacing.xl },
-    footerText: { color: theme.colors.text, fontSize: 16 },
-    signInLink: { color: theme.colors.primary, fontSize: 16, fontWeight: '600' },
   });
 
   return (
@@ -174,13 +171,6 @@ export default function SignUpScreen({ onNavigateToSignIn }: SignUpScreenProps) 
         <TouchableOpacity style={[styles.createButton, isProcessing && styles.createButtonDisabled]} onPress={handleSignUp} disabled={isProcessing}>
           {isProcessing ? <ActivityIndicator color="#fff" /> : <Text style={styles.createButtonText}>Create Account</Text>}
         </TouchableOpacity>
-
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>Already have an account? </Text>
-          <TouchableOpacity onPress={navigateToSignIn} disabled={isProcessing}>
-            <Text style={styles.signInLink}>Sign In</Text>
-          </TouchableOpacity>
-        </View>
       </View>
       </ScrollView>
     </KeyboardAvoidingView>

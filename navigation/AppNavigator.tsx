@@ -15,6 +15,7 @@ import { hasSeenOnboarding } from '../utils/storage';
 import { useAuth } from '../contexts/AuthContext';
 import OnboardingScreen from '../screens/OnboardingScreen';
 import LoginScreen from '../screens/LoginScreen';
+import EmailLoginScreen from '../screens/EmailLoginScreen';
 import SignUpScreen from '../screens/SignUpScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import ResetPasswordScreen from '../screens/ResetPasswordScreen';
@@ -30,6 +31,7 @@ import SettingsScreen from '../screens/SettingsScreen';
 // Type definitions for navigation
 type AuthStackParamList = {
   Login: undefined;
+  EmailLogin: undefined;
   SignUp: undefined;
   ForgotPassword: undefined;
   ResetPassword: { token?: string; access_token?: string };
@@ -138,8 +140,43 @@ function AuthNavigator({ initialRoute = 'Login' }: { initialRoute?: 'Login' | 'S
         ...modernTransitionConfig,
       }}
       initialRouteName={initialRoute}>
-      <AuthStack.Screen name="Login" component={LoginScreen} />
-      <AuthStack.Screen name="SignUp" component={SignUpScreen} />
+      <AuthStack.Screen 
+        name="Login" 
+        component={LoginScreen}
+        options={{
+          headerShown: false,
+        }}
+      />
+      <AuthStack.Screen 
+        name="EmailLogin" 
+        component={EmailLoginScreen}
+        options={{
+          headerShown: true,
+          title: '',
+          headerTransparent: true,
+          headerStyle: {
+            backgroundColor: 'transparent',
+          },
+          headerTintColor: theme.colors.text,
+          headerBackTitleVisible: false,
+          headerShadowVisible: false,
+        }}
+      />
+      <AuthStack.Screen 
+        name="SignUp" 
+        component={SignUpScreen}
+        options={{
+          headerShown: true,
+          title: '',
+          headerTransparent: true,
+          headerStyle: {
+            backgroundColor: 'transparent',
+          },
+          headerTintColor: theme.colors.text,
+          headerBackTitleVisible: false,
+          headerShadowVisible: false,
+        }}
+      />
       <AuthStack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
       <AuthStack.Screen name="ResetPassword" component={ResetPasswordScreen} />
     </AuthStack.Navigator>
