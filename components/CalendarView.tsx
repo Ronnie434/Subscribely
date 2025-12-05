@@ -218,10 +218,25 @@ export default function CalendarView({
     dot: {
       position: 'absolute',
       bottom: 4,
-      width: 6,
-      height: 6,
-      borderRadius: 3,
+      width: 8,
+      height: 8,
+      borderRadius: 4,
       backgroundColor: dotColor,
+      // Add glow effect
+      ...Platform.select({
+        ios: {
+          shadowColor: dotColor,
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: 0.8,
+          shadowRadius: 4,
+        },
+        android: {
+          elevation: 3,
+        },
+      }),
+      // Add subtle border for definition
+      borderWidth: theme.isDark ? 0 : 0.5,
+      borderColor: theme.isDark ? 'transparent' : 'rgba(0, 0, 0, 0.1)',
     },
     legend: {
       flexDirection: 'row',
@@ -238,9 +253,21 @@ export default function CalendarView({
       gap: 8,
     },
     legendDot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+      // Add subtle glow to match calendar dots
+      ...Platform.select({
+        ios: {
+          shadowColor: dotColor,
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: 0.6,
+          shadowRadius: 3,
+        },
+        android: {
+          elevation: 2,
+        },
+      }),
     },
     legendText: {
       fontSize: 14,
@@ -336,9 +363,22 @@ export default function CalendarView({
                       styles.dayText,
                       isCurrentDay && styles.todayText,
                     ]}>
-                    {date.getDate()}
-                  </Text>
-                  {hasRenewalDate && <View style={styles.dot} />}
+                     {date.getDate()}
+                   </Text>
+                   {hasRenewalDate && (
+                     <View style={styles.dot}>
+                       {/* Inner glow for better visibility in both themes */}
+                       <View style={{
+                         position: 'absolute',
+                         width: 6,
+                         height: 6,
+                         borderRadius: 3,
+                         backgroundColor: theme.isDark ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.5)',
+                         top: 1,
+                         left: 1,
+                       }} />
+                     </View>
+                   )}
                 </View>
               </View>
             );
