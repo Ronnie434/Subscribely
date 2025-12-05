@@ -5,6 +5,7 @@ import { Subscription } from '../types';
 import { calculations } from '../utils/calculations';
 import AnimatedPressable from './AnimatedPressable';
 import { getLogoUrlForSource, getNextLogoSource, LogoSource } from '../utils/logoHelpers';
+import { getIntervalLabel } from '../utils/repeatInterval';
 
 interface SubscriptionCardProps {
   subscription: Subscription;
@@ -33,7 +34,8 @@ const SubscriptionCard = memo(function SubscriptionCard({
 }: SubscriptionCardProps) {
   const { theme } = useTheme();
   const [logoSource, setLogoSource] = useState<LogoSource>('primary');
-  const monthlyCost = calculations.getDisplayCost(subscription);
+  // Show actual cost, not monthly equivalent
+  const displayCost = subscription.cost;
 
   // Get service icon color based on service name
   const getIconColor = (): string => {
@@ -199,7 +201,7 @@ const SubscriptionCard = memo(function SubscriptionCard({
       style={styles.card}
       scaleOnPress={0.98}
       accessible={true}
-      accessibilityLabel={`${subscription.name} recurring item, costs $${monthlyCost.toFixed(2)} per month`}
+      accessibilityLabel={`${subscription.name} recurring item, costs ${displayCost.toFixed(2)} ${getIntervalLabel(subscription.repeat_interval).toLowerCase()}`}
       accessibilityHint="Tap to edit, long press to delete"
       accessibilityRole="button">
       <View style={styles.container}>
@@ -212,11 +214,11 @@ const SubscriptionCard = memo(function SubscriptionCard({
             {subscription.name}
           </Text>
           <View style={styles.priceContainer}>
-            <Text style={styles.price}>${monthlyCost.toFixed(2)}</Text>
+            <Text style={styles.price}>${displayCost.toFixed(2)}</Text>
             {/* Only show billing frequency for recurring charges */}
-            {(!subscription.chargeType || subscription.chargeType === 'recurring') && (
+            {subscription.repeat_interval !== 'never' && (
               <Text style={styles.priceLabel}>
-                /{subscription.billingCycle === 'yearly' ? 'year' : 'month'}
+                {/* / {getIntervalLabel(subscription.repeat_interval).toLowerCase()} */}
               </Text>
             )}
           </View>

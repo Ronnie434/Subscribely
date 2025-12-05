@@ -19,6 +19,7 @@ import { storage } from '../utils/storage';
 import { dateHelpers } from '../utils/dateHelpers';
 import { calculations } from '../utils/calculations';
 import { Subscription } from '../types';
+import { getIntervalLabel } from '../utils/repeatInterval';
 import * as Haptics from 'expo-haptics';
 import { LogoSource, getNextLogoSource, getLogoUrlForSource } from '../utils/logoHelpers';
 import { subscriptionLimitService } from '../services/subscriptionLimitService';
@@ -190,7 +191,8 @@ export default function EditSubscriptionScreen() {
     );
   };
 
-  const monthlyCost = calculations.getDisplayCost(subscription);
+  const displayCost = subscription.cost;
+  const monthlyCost = calculations.getMonthlyCost(subscription);
   const renewalDateFormatted = dateHelpers.formatFullDate(subscription.renewalDate);
   const daysUntilRenewal = calculations.getDaysUntilRenewal(subscription.renewalDate);
 
@@ -456,7 +458,7 @@ export default function EditSubscriptionScreen() {
           <Text style={styles.price}>${monthlyCost.toFixed(2)}</Text>
           {subscription.chargeType !== 'one_time' && (
             <Text style={styles.billingCycle}>
-              per {subscription.billingCycle === 'monthly' ? 'month' : 'year'}
+              {getIntervalLabel(subscription.repeat_interval).toLowerCase()}
             </Text>
           )}
         </View>
@@ -468,9 +470,9 @@ export default function EditSubscriptionScreen() {
             {subscription.chargeType !== 'one_time' && (
               <>
                 <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Billing Cycle</Text>
+                  <Text style={styles.infoLabel}>Repeat Interval</Text>
                   <Text style={styles.infoValue}>
-                    {subscription.billingCycle === 'monthly' ? 'Monthly' : 'Yearly'}
+                    {getIntervalLabel(subscription.repeat_interval)}
                   </Text>
                 </View>
                 <View style={styles.divider} />

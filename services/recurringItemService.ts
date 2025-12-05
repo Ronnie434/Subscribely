@@ -20,6 +20,8 @@ import { supabase } from '../config/supabase';
 import { RecurringItem, Database } from '../types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SubscriptionLimitError } from '../utils/paywallErrors';
+import { convertToRepeatInterval, convertFromRepeatInterval } from '../utils/repeatInterval';
+import { convertToRepeatInterval, convertFromRepeatInterval } from '../utils/repeatInterval';
 
 type DbRecurringItem = Database['public']['Tables']['recurring_items']['Row'];
 type DbRecurringItemInsert = Database['public']['Tables']['recurring_items']['Insert'];
@@ -35,12 +37,16 @@ const MIGRATION_KEY = '@recurring_items_migration_complete';
  * @returns RecurringItem in app format
  */
 export function dbToApp(dbItem: DbRecurringItem): RecurringItem {
+  // Prefer repeat_interval if available, otherwise convert from legacy fields
+  const repeat_interval = dbItem.repeat_interval ||
+    convertToRepeatInterval(dbItem.charge_type, dbItem.billing_cycle);
+  
   return {
     id: dbItem.id,
     user_id: dbItem.user_id,
     name: dbItem.name,
     cost: Number(dbItem.cost),
-    billing_cycle: dbItem.billing_cycle,
+    repeat_interval,
     renewal_date: dbItem.renewal_date,
     is_custom_renewal_date: dbItem.is_custom_renewal_date,
     notification_id: dbItem.notification_id || undefined,
@@ -54,6 +60,9 @@ export function dbToApp(dbItem: DbRecurringItem): RecurringItem {
     notes: dbItem.notes || undefined,
     created_at: dbItem.created_at,
     updated_at: dbItem.updated_at,
+    // Keep legacy fields for backward compatibility
+    billing_cycle: dbItem.billing_cycle,
+    charge_type: dbItem.charge_type,
   };
 }
 
@@ -68,11 +77,22 @@ export function appToDbInsert(
   item: Omit<RecurringItem, 'id' | 'created_at' | 'updated_at' | 'user_id'>,
   userId: string
 ): DbRecurringItemInsert {
+  // DUAL-WRITE: Write to both new repeat_interval and legacy fields
+  const repeat_interval = item.repeat_interval ||
+    convertToRepeatInterval(item.charge_type, item.billing_cycle);
+  
+  // Convert back to legacy format for backward compatibility
+  const { chargeType, billingCycle } = convertFromRepeatInterval(repeat_interval);
+  
   return {
     user_id: userId,
     name: item.name,
     cost: item.cost,
-    billing_cycle: item.billing_cycle,
+    // NEW field - this is what actually matters!
+    repeat_interval,
+    // Legacy fields (for backward compatibility during transition)
+    billing_cycle: billingCycle,
+    charge_type: chargeType,
     renewal_date: item.renewal_date,
     is_custom_renewal_date: item.is_custom_renewal_date ?? false,
     notification_id: item.notification_id ?? null,

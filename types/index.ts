@@ -5,14 +5,62 @@
 /**
  * Billing cycle frequency for recurring items
  * @since v1.0.0
+ * @deprecated Use RepeatInterval instead. Will be removed in v4.0.0
  */
 export type BillingCycle = 'monthly' | 'yearly';
 
 /**
  * Charge type - recurring or one-time
  * @since v2.1.0
+ * @deprecated Use RepeatInterval instead. Will be removed in v4.0.0
  */
 export type ChargeType = 'recurring' | 'one_time';
+
+// ============================================================================
+// REPEAT INTERVAL TYPES (NEW)
+// ============================================================================
+
+/**
+ * Repeat interval for recurring items
+ * Replaces the combination of ChargeType and BillingCycle
+ * @since v3.0.0
+ */
+export type RepeatInterval =
+  | 'weekly'           // Every Week (7 days)
+  | 'biweekly'         // Every 2 Weeks (14 days)
+  | 'semimonthly'      // Twice Per Month (15 days)
+  | 'monthly'          // Every Month (30 days)
+  | 'bimonthly'        // Every 2 Months (60 days)
+  | 'quarterly'        // Every 3 Months (90 days)
+  | 'semiannually'     // Every 6 Months (180 days)
+  | 'yearly'           // Every Year (365 days)
+  | 'never';           // Never (one-time charge)
+
+/**
+ * Configuration for each repeat interval
+ * @since v3.0.0
+ */
+export interface RepeatIntervalConfig {
+  days: number;
+  label: string;
+  monthlyMultiplier: number;
+}
+
+/**
+ * Mapping of repeat intervals to their configuration
+ * @since v3.0.0
+ */
+export const REPEAT_INTERVAL_CONFIG: Record<RepeatInterval, RepeatIntervalConfig> = {
+  weekly: { days: 7, label: 'Every Week', monthlyMultiplier: 4.33 },
+  biweekly: { days: 14, label: 'Every 2 Weeks', monthlyMultiplier: 2.17 },
+  semimonthly: { days: 15, label: 'Twice Per Month', monthlyMultiplier: 2 },
+  monthly: { days: 30, label: 'Every Month', monthlyMultiplier: 1 },
+  bimonthly: { days: 60, label: 'Every 2 Months', monthlyMultiplier: 0.5 },
+  quarterly: { days: 90, label: 'Every 3 Months', monthlyMultiplier: 0.33 },
+  semiannually: { days: 180, label: 'Every 6 Months', monthlyMultiplier: 0.167 },
+  yearly: { days: 365, label: 'Every Year', monthlyMultiplier: 0.083 },
+  never: { days: 0, label: 'One Time Only', monthlyMultiplier: 0 }
+} as const;
 
 // ============================================================================
 // RECURRING ITEM TYPES (NEW TERMINOLOGY)
@@ -47,7 +95,7 @@ export interface RecurringItem {
   user_id: string;
   name: string;
   cost: number;
-  billing_cycle: BillingCycle;
+  repeat_interval: RepeatInterval;
   renewal_date: string;
   is_custom_renewal_date?: boolean;
   notification_id?: string | null;
@@ -57,11 +105,16 @@ export interface RecurringItem {
   domain?: string | null;
   reminders?: boolean;
   description?: string | null;
-  charge_type?: ChargeType;
   status: 'active' | 'paused' | 'cancelled';
   notes?: string | null;
   created_at: string;
   updated_at: string;
+  
+  // DEPRECATED: Keep for backward compatibility during migration
+  /** @deprecated Use repeat_interval instead. Will be removed in v4.0.0 */
+  billing_cycle?: BillingCycle;
+  /** @deprecated Use repeat_interval instead. Will be removed in v4.0.0 */
+  charge_type?: ChargeType;
 }
 
 /**
@@ -85,7 +138,7 @@ export interface Subscription {
   id: string;
   name: string;
   cost: number;
-  billingCycle: BillingCycle;
+  repeat_interval: RepeatInterval;
   renewalDate: string;
   isCustomRenewalDate?: boolean;
   notificationId?: string;
@@ -95,10 +148,15 @@ export interface Subscription {
   domain?: string;
   reminders?: boolean;
   description?: string;
-  chargeType?: ChargeType;
   createdAt: string;
   updatedAt: string;
   user_id?: string;
+  
+  // DEPRECATED: Keep for backward compatibility during migration
+  /** @deprecated Use repeat_interval instead. Will be removed in v4.0.0 */
+  billingCycle?: BillingCycle;
+  /** @deprecated Use repeat_interval instead. Will be removed in v4.0.0 */
+  chargeType?: ChargeType;
 }
 
 // ============================================================================
@@ -157,7 +215,7 @@ export interface Database {
           user_id: string;
           name: string;
           cost: number;
-          billing_cycle: BillingCycle;
+          repeat_interval: RepeatInterval;
           renewal_date: string;
           is_custom_renewal_date: boolean;
           notification_id: string | null;
@@ -167,18 +225,20 @@ export interface Database {
           domain: string | null;
           reminders: boolean;
           description: string | null;
-          charge_type: ChargeType;
           status: 'active' | 'paused' | 'cancelled';
           notes: string | null;
           created_at: string;
           updated_at: string;
+          // Legacy fields for backward compatibility
+          billing_cycle: BillingCycle;
+          charge_type: ChargeType;
         };
         Insert: {
           id?: string;
           user_id: string;
           name: string;
           cost: number;
-          billing_cycle: BillingCycle;
+          repeat_interval?: RepeatInterval;
           renewal_date: string;
           is_custom_renewal_date?: boolean;
           notification_id?: string | null;
@@ -188,18 +248,20 @@ export interface Database {
           domain?: string | null;
           reminders?: boolean;
           description?: string | null;
-          charge_type?: ChargeType;
           status?: 'active' | 'paused' | 'cancelled';
           notes?: string | null;
           created_at?: string;
           updated_at?: string;
+          // Legacy fields for backward compatibility during transition
+          billing_cycle?: BillingCycle;
+          charge_type?: ChargeType;
         };
         Update: {
           id?: string;
           user_id?: string;
           name?: string;
           cost?: number;
-          billing_cycle?: BillingCycle;
+          repeat_interval?: RepeatInterval;
           renewal_date?: string;
           is_custom_renewal_date?: boolean;
           notification_id?: string | null;
@@ -209,11 +271,13 @@ export interface Database {
           domain?: string | null;
           reminders?: boolean;
           description?: string | null;
-          charge_type?: ChargeType;
           status?: 'active' | 'paused' | 'cancelled';
           notes?: string | null;
           created_at?: string;
           updated_at?: string;
+          // Legacy fields for backward compatibility during transition
+          billing_cycle?: BillingCycle;
+          charge_type?: ChargeType;
         };
       };
       /**

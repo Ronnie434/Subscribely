@@ -18,7 +18,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../contexts/ThemeContext';
-import { Subscription, BillingCycle, ChargeType } from '../types';
+import { Subscription, BillingCycle, ChargeType, RepeatInterval, REPEAT_INTERVAL_CONFIG } from '../types';
 import {
   extractDomain,
   getCompanyNames,
@@ -29,7 +29,9 @@ import {
   type DomainSuggestion as DomainSuggestionType,
 } from '../utils/domainHelpers';
 import { getLogoUrlForSource, getNextLogoSource, LogoSource } from '../utils/logoHelpers';
+import { convertToRepeatInterval, convertFromRepeatInterval, getIntervalLabel } from '../utils/repeatInterval';
 import DomainSuggestion from './DomainSuggestion';
+import RepeatIntervalPicker from './RepeatIntervalPicker';
 import * as Haptics from 'expo-haptics';
 
 interface SubscriptionFormProps {
@@ -54,8 +56,14 @@ export default function SubscriptionForm({ subscription, onSubmit, onCancel, isS
   const [name, setName] = useState(subscription?.name || '');
   const [cost, setCost] = useState(subscription?.cost ? subscription.cost.toFixed(2) : '');
   const [description, setDescription] = useState(subscription?.description || '');
-  const [chargeType, setChargeType] = useState<ChargeType>(subscription?.chargeType || 'recurring');
-  const [billingFrequency, setBillingFrequency] = useState<BillingCycle>(subscription?.billingCycle || 'monthly');
+  // Use new repeat_interval if available, otherwise convert from legacy fields
+  const [repeatInterval, setRepeatInterval] = useState<RepeatInterval>(() => {
+    if (subscription?.repeat_interval) {
+      return subscription.repeat_interval;
+    }
+    // Convert from legacy fields if needed
+    return convertToRepeatInterval(subscription?.chargeType, subscription?.billingCycle);
+  });
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -90,9 +98,10 @@ export default function SubscriptionForm({ subscription, onSubmit, onCancel, isS
   const [customRenewalDate, setCustomRenewalDate] = useState<Date>(
     subscription?.renewalDate
       ? parseDateWithoutTimezone(subscription.renewalDate)
-      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+      : new Date()
   );
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showIntervalPicker, setShowIntervalPicker] = useState(false);
   const [enableReminders, setEnableReminders] = useState(subscription?.reminders ?? true);
 
   // Get all company names for autocomplete
@@ -103,8 +112,13 @@ export default function SubscriptionForm({ subscription, onSubmit, onCancel, isS
       setName(subscription.name);
       setCost(subscription.cost.toFixed(2));
       setDescription(subscription.description || '');
-      setChargeType(subscription.chargeType || 'recurring');
-      setBillingFrequency(subscription.billingCycle);
+      // Use new repeat_interval if available
+      if (subscription.repeat_interval) {
+        setRepeatInterval(subscription.repeat_interval);
+      } else {
+        // Convert from legacy fields
+        setRepeatInterval(convertToRepeatInterval(subscription.chargeType, subscription.billingCycle));
+      }
     }
   }, [subscription]);
 
@@ -193,17 +207,22 @@ export default function SubscriptionForm({ subscription, onSubmit, onCancel, isS
       finalDomain = (extractedDomain && isValidDomain(extractedDomain)) ? extractedDomain : '';
     }
 
+    // Convert to legacy format for backward compatibility during transition
+    const { chargeType, billingCycle } = convertFromRepeatInterval(repeatInterval);
+    
     onSubmit({
       name: name.trim(),
       cost: parseFloat(cost),
-      billingCycle: billingFrequency,
+      repeat_interval: repeatInterval,
       renewalDate: formatDateOnly(renewalDate),
       category,
       color: selectedCategory.color,
       domain: finalDomain,
       description: description.trim() || undefined,
       isCustomRenewalDate: useCustomDate,
-      reminders: chargeType === 'recurring' ? enableReminders : false,
+      reminders: repeatInterval !== 'never' ? enableReminders : false,
+      // Include legacy fields for backward compatibility
+      billingCycle,
       chargeType,
     });
   };
@@ -903,148 +922,47 @@ export default function SubscriptionForm({ subscription, onSubmit, onCancel, isS
             </View>
           </View>
 
-          {/* Charge Type Selector */}
+          {/* Repeat Interval Selector */}
           <View style={styles.field}>
-            <Text style={styles.label}>Charge Type</Text>
-            <View style={styles.segmentedControl}>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.segmentButton,
-                  styles.segmentButtonLeft,
-                  chargeType === 'recurring' && styles.segmentButtonActive,
-                  pressed && styles.segmentButtonPressed,
-                ]}
-                onPress={() => {
-                  if (Platform.OS === 'ios') {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  }
-                  setChargeType('recurring');
-                }}>
-                <Text
-                  style={[
-                    styles.segmentButtonText,
-                    chargeType === 'recurring' && styles.segmentButtonTextActive,
-                  ]}>
-                  Recurring
-                </Text>
-              </Pressable>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.segmentButton,
-                  styles.segmentButtonRight,
-                  chargeType === 'one_time' && styles.segmentButtonActive,
-                  pressed && styles.segmentButtonPressed,
-                ]}
-                onPress={() => {
-                  if (Platform.OS === 'ios') {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  }
-                  setChargeType('one_time');
-                }}>
-                <Text
-                  style={[
-                    styles.segmentButtonText,
-                    chargeType === 'one_time' && styles.segmentButtonTextActive,
-                  ]}>
-                  One-time
-                </Text>
-              </Pressable>
-            </View>
+            <Text style={styles.label}>Repeat Interval</Text>
+            <Pressable
+              style={({ pressed }) => [
+                styles.dateButton,
+                pressed && styles.dateButtonPressed,
+              ]}
+              onPress={() => {
+                if (Platform.OS === 'ios') {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }
+                setShowIntervalPicker(true);
+              }}>
+              <Text style={styles.dateButtonText}>
+                {getIntervalLabel(repeatInterval)}
+              </Text>
+              <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
+            </Pressable>
           </View>
 
-          {/* Billing Frequency Selector - Only show for recurring charges */}
-          {chargeType === 'recurring' && (
-            <View style={styles.field}>
-              <Text style={styles.label}>Billing Frequency</Text>
-              <View style={styles.segmentedControl}>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.segmentButton,
-                  styles.segmentButtonLeft,
-                  billingFrequency === 'monthly' && styles.segmentButtonActive,
-                  pressed && styles.segmentButtonPressed,
-                ]}
-                onPress={() => {
-                  if (Platform.OS === 'ios') {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  }
-                  setBillingFrequency('monthly');
-                }}>
-                <Text
-                  style={[
-                    styles.segmentButtonText,
-                    billingFrequency === 'monthly' && styles.segmentButtonTextActive,
-                  ]}>
-                  Monthly
-                </Text>
-              </Pressable>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.segmentButton,
-                  styles.segmentButtonRight,
-                  billingFrequency === 'yearly' && styles.segmentButtonActive,
-                  pressed && styles.segmentButtonPressed,
-                ]}
-                onPress={() => {
-                  if (Platform.OS === 'ios') {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  }
-                  setBillingFrequency('yearly');
-                }}>
-                <Text
-                  style={[
-                    styles.segmentButtonText,
-                    billingFrequency === 'yearly' && styles.segmentButtonTextActive,
-                  ]}>
-                  Yearly
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-          )}
-
-          {/* Date Toggle */}
+          {/* Date Field - Now Mandatory */}
           <View style={styles.field}>
-            <View style={styles.switchRow}>
-              <Text style={styles.label}>
-                {chargeType === 'recurring' ? 'Set Renewal Date (Optional)' : 'Set Charge Date (Optional)'}
+            <Text style={styles.label}>
+              {repeatInterval !== 'never' ? 'Renewal Date' : 'Charge Date'}
+            </Text>
+            <Pressable
+              style={({ pressed }) => [
+                styles.dateButton,
+                pressed && styles.dateButtonPressed,
+              ]}
+              onPress={() => setShowDatePicker(true)}>
+              <Text style={styles.dateButtonText}>
+                {customRenewalDate.toLocaleDateString()}
               </Text>
-              <Switch
-                value={useCustomDate}
-                onValueChange={(value) => {
-                  setUseCustomDate(value);
-                  if (Platform.OS === 'ios') {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  }
-                }}
-                trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
-                thumbColor="#FFFFFF"
-              />
-            </View>
-            {!useCustomDate && (
-              <Text style={styles.helperText}>
-                {chargeType === 'recurring'
-                  ? 'Renewal date will be set to 30 days from today'
-                  : 'Charge date will be set to today'}
-              </Text>
-            )}
-            {useCustomDate && (
-              <Pressable
-                style={({ pressed }) => [
-                  styles.dateButton,
-                  pressed && styles.dateButtonPressed,
-                ]}
-                onPress={() => setShowDatePicker(true)}>
-                <Text style={styles.dateButtonText}>
-                  {customRenewalDate.toLocaleDateString()}
-                </Text>
-                <Ionicons name="calendar-outline" size={20} color={theme.colors.primary} />
-              </Pressable>
-            )}
+              <Ionicons name="calendar-outline" size={20} color={theme.colors.primary} />
+            </Pressable>
           </View>
 
           {/* Enable Reminders Toggle - Only show for recurring charges */}
-          {chargeType === 'recurring' && (
+          {repeatInterval !== 'never' && (
             <View style={styles.field}>
             <View style={styles.switchRow}>
               <Text style={styles.label}>Renewal Reminders</Text>
@@ -1072,9 +990,9 @@ export default function SubscriptionForm({ subscription, onSubmit, onCancel, isS
           {cost && !isNaN(parseFloat(cost)) && parseFloat(cost) > 0 && (
             <View style={styles.calculatedCostContainer}>
               <Text style={styles.calculatedCost}>${calculateMonthlyCost()}</Text>
-              {chargeType === 'recurring' && (
+              {repeatInterval !== 'never' && (
                 <Text style={styles.calculatedCostSuffix}>
-                  {billingFrequency === 'monthly' ? '/mo' : '/yr'}
+                  {getIntervalLabel(repeatInterval).toLowerCase()}
                 </Text>
               )}
             </View>
@@ -1090,7 +1008,7 @@ export default function SubscriptionForm({ subscription, onSubmit, onCancel, isS
                 <View style={styles.modalContent}>
                   <View style={styles.modalHeader}>
                     <Text style={styles.modalTitle}>
-                      {chargeType === 'recurring' ? 'Select Renewal Date' : 'Select Charge Date'}
+                      {repeatInterval !== 'never' ? 'Select Renewal Date' : 'Select Charge Date'}
                     </Text>
                     <Pressable
                       style={styles.modalDoneButton}
@@ -1158,13 +1076,24 @@ export default function SubscriptionForm({ subscription, onSubmit, onCancel, isS
             <Text style={styles.submitButtonText}>
               {subscription
                 ? 'Save'
-                : chargeType === 'recurring'
-                  ? 'Add'
-                  : 'Add'}
+                : 'Add'}
             </Text>
           )}
         </Pressable>
       </View>
+      {/* Repeat Interval Picker Modal */}
+      <RepeatIntervalPicker
+        visible={showIntervalPicker}
+        currentInterval={repeatInterval}
+        onSelect={(interval) => {
+          setRepeatInterval(interval);
+          if (Platform.OS === 'ios') {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          }
+        }}
+        onClose={() => setShowIntervalPicker(false)}
+      />
+
     </KeyboardAvoidingView>
   );
 }

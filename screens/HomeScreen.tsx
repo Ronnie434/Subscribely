@@ -371,17 +371,31 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     );
   };
 
-  // Filter subscriptions by charge type
-  const recurringItems = subscriptions.filter(
-    sub => !sub.chargeType || sub.chargeType === 'recurring'
-  );
-  const oneTimeItems = subscriptions.filter(
-    sub => sub.chargeType === 'one_time'
-  );
+  // Group subscriptions by repeat interval
+  const groupedByInterval = subscriptions.reduce((acc, sub) => {
+    const interval = sub.repeat_interval;
+    if (!acc[interval]) {
+      acc[interval] = [];
+    }
+    acc[interval].push(sub);
+    return acc;
+  }, {} as Record<string, Subscription[]>);
 
   const totalMonthlyCost = calculations.getTotalMonthlyCost(subscriptions);
-  const monthlyCount = recurringItems.filter(sub => sub.billingCycle === 'monthly').length;
-  const yearlyCount = recurringItems.filter(sub => sub.billingCycle === 'yearly').length;
+  
+  // Define display order for intervals
+  const intervalOrder = ['weekly', 'biweekly', 'semimonthly', 'monthly', 'bimonthly', 'quarterly', 'semiannually', 'yearly', 'never'];
+  const intervalLabels: Record<string, string> = {
+    weekly: 'Every Week',
+    biweekly: 'Every 2 Weeks',
+    semimonthly: 'Twice Per Month',
+    monthly: 'Every Month',
+    bimonthly: 'Every 2 Months',
+    quarterly: 'Every 3 Months',
+    semiannually: 'Every 6 Months',
+    yearly: 'Every Year',
+    never: 'One-Time Charges'
+  };
 
   // Calculate bottom padding to avoid tab bar overlay
   const TAB_BAR_HEIGHT = 60;
@@ -501,58 +515,42 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         <View style={styles.headerCard}>
           <Text style={styles.headerLabel}>MONTHLY TOTAL</Text>
           <Text style={styles.totalAmount}>${totalMonthlyCost.toFixed(2)}</Text>
-          {recurringItems.length > 0 && (
+          {/* {recurringItems.length > 0 && (
             <View style={styles.statsRow}>
-              {monthlyCount > 0 && (
-                <View style={styles.statBadge}>
-                  <Text style={styles.statText}>{monthlyCount} monthly</Text>
-                </View>
-              )}
-              {yearlyCount > 0 && (
-                <View style={styles.statBadge}>
-                  <Text style={styles.statText}>{yearlyCount} yearly</Text>
-                </View>
-              )}
+              <View style={styles.statBadge}>
+                <Text style={styles.statText}>-- items</Text>
+              </View>
             </View>
-          )}
+          )} */}
         </View>
 
         {/* Empty State */}
         {subscriptions.length === 0 && <EmptyState />}
 
-        {/* Recurring Items Section */}
-        {recurringItems.length > 0 && (
-          <CollapsibleSection title="Home" count={recurringItems.length}>
-            {recurringItems.map((item, index) => (
-              <Animated.View
-                key={item.id}
-                entering={FadeInDown.delay(index * 50).springify()}>
-                <SubscriptionCard
-                  subscription={item}
-                  onPress={() => handleEdit(item)}
-                  onLongPress={() => handleDelete(item)}
-                />
-              </Animated.View>
-            ))}
-          </CollapsibleSection>
-        )}
-
-        {/* One-Time Charges Section */}
-        {oneTimeItems.length > 0 && (
-          <CollapsibleSection title="One-Time Charges" count={oneTimeItems.length}>
-            {oneTimeItems.map((item, index) => (
-              <Animated.View
-                key={item.id}
-                entering={FadeInDown.delay(index * 50).springify()}>
-                <SubscriptionCard
-                  subscription={item}
-                  onPress={() => handleEdit(item)}
-                  onLongPress={() => handleDelete(item)}
-                />
-              </Animated.View>
-            ))}
-          </CollapsibleSection>
-        )}
+        {/* Grouped by Interval Sections */}
+        {intervalOrder.map((interval) => {
+          const items = groupedByInterval[interval];
+          if (!items || items.length === 0) return null;
+          
+          return (
+            <CollapsibleSection
+              key={interval}
+              title={intervalLabels[interval]}
+              count={items.length}>
+              {items.map((item, index) => (
+                <Animated.View
+                  key={item.id}
+                  entering={FadeInDown.delay(index * 50).springify()}>
+                  <SubscriptionCard
+                    subscription={item}
+                    onPress={() => handleEdit(item)}
+                    onLongPress={() => handleDelete(item)}
+                  />
+                </Animated.View>
+              ))}
+            </CollapsibleSection>
+          );
+        })}
       </ScrollView>
 
       {/* Paywall Modal */}

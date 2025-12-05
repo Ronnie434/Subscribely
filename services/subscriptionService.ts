@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { subscriptionLimitService } from './subscriptionLimitService';
 import { usageTrackingService } from './usageTrackingService';
 import { SubscriptionLimitError } from '../utils/paywallErrors';
+import { convertToRepeatInterval, convertFromRepeatInterval } from '../utils/repeatInterval';
 
 /**
  * MIGRATION NOTE:
@@ -16,9 +17,9 @@ import { SubscriptionLimitError } from '../utils/paywallErrors';
  * @see {@link ./recurringItemService.ts} for the new implementation
  */
 
-type DbSubscription = Database['public']['Tables']['subscriptions']['Row'];
-type DbSubscriptionInsert = Database['public']['Tables']['subscriptions']['Insert'];
-type DbSubscriptionUpdate = Database['public']['Tables']['subscriptions']['Update'];
+type DbSubscription = Database['public']['Tables']['recurring_items']['Row'];
+type DbSubscriptionInsert = Database['public']['Tables']['recurring_items']['Insert'];
+type DbSubscriptionUpdate = Database['public']['Tables']['recurring_items']['Update'];
 
 const STORAGE_KEY = '@subscriptions';
 const MIGRATION_KEY = '@migration_complete';
@@ -27,11 +28,15 @@ const MIGRATION_KEY = '@migration_complete';
  * Convert database format (snake_case) to app format (camelCase)
  */
 export function dbToApp(dbSub: DbSubscription): Subscription {
+  // Prefer repeat_interval if available, otherwise convert from legacy fields
+  const repeat_interval = dbSub.repeat_interval || 
+    convertToRepeatInterval(dbSub.charge_type, dbSub.billing_cycle);
+  
   return {
     id: dbSub.id,
     name: dbSub.name,
     cost: Number(dbSub.cost),
-    billingCycle: dbSub.billing_cycle,
+    repeat_interval,
     renewalDate: dbSub.renewal_date,
     isCustomRenewalDate: dbSub.is_custom_renewal_date,
     notificationId: dbSub.notification_id || undefined,
@@ -41,10 +46,12 @@ export function dbToApp(dbSub: DbSubscription): Subscription {
     domain: dbSub.domain || undefined,
     reminders: dbSub.reminders,
     description: dbSub.description || undefined,
-    chargeType: dbSub.charge_type || 'recurring', // Default to recurring for backward compatibility
     createdAt: dbSub.created_at,
     updatedAt: dbSub.updated_at,
     user_id: dbSub.user_id,
+    // Keep legacy fields for backward compatibility
+    billingCycle: dbSub.billing_cycle,
+    chargeType: dbSub.charge_type || 'recurring',
   };
 }
 
@@ -55,11 +62,22 @@ export function appToDbInsert(
   sub: Omit<Subscription, 'id' | 'createdAt' | 'updatedAt'>,
   userId: string
 ): DbSubscriptionInsert {
+  // DUAL-WRITE: Write to both new repeat_interval and legacy fields
+  const repeat_interval = sub.repeat_interval || 
+    convertToRepeatInterval(sub.chargeType, sub.billingCycle);
+  
+  // Convert back to legacy format for backward compatibility
+  const { chargeType, billingCycle } = convertFromRepeatInterval(repeat_interval);
+  
   return {
     user_id: userId,
     name: sub.name,
     cost: sub.cost,
-    billing_cycle: sub.billingCycle,
+    // NEW field - this saves the actual interval!
+    repeat_interval,
+    // Legacy fields (for backward compatibility)
+    billing_cycle: billingCycle,
+    charge_type: chargeType,
     renewal_date: sub.renewalDate,
     is_custom_renewal_date: sub.isCustomRenewalDate ?? false,
     notification_id: sub.notificationId ?? null,
@@ -69,7 +87,6 @@ export function appToDbInsert(
     domain: sub.domain ?? null,
     reminders: sub.reminders ?? true,
     description: sub.description ?? null,
-    charge_type: sub.chargeType ?? 'recurring', // Default to recurring for backward compatibility
   };
 }
 
@@ -81,7 +98,25 @@ export function appToDbUpdate(sub: Partial<Subscription>): DbSubscriptionUpdate 
   
   if (sub.name !== undefined) update.name = sub.name;
   if (sub.cost !== undefined) update.cost = sub.cost;
-  if (sub.billingCycle !== undefined) update.billing_cycle = sub.billingCycle;
+  
+  // DUAL-WRITE: Handle repeat_interval updates
+  if (sub.repeat_interval !== undefined) {
+    update.repeat_interval = sub.repeat_interval;
+    // Also update legacy fields for backward compatibility
+    const { chargeType, billingCycle } = convertFromRepeatInterval(sub.repeat_interval);
+    update.billing_cycle = billingCycle;
+    update.charge_type = chargeType;
+  } else if (sub.billingCycle !== undefined || sub.chargeType !== undefined) {
+    // If legacy fields are being updated, sync to repeat_interval
+    const repeat_interval = convertToRepeatInterval(
+      sub.chargeType,
+      sub.billingCycle
+    );
+    update.repeat_interval = repeat_interval;
+    if (sub.billingCycle !== undefined) update.billing_cycle = sub.billingCycle;
+    if (sub.chargeType !== undefined) update.charge_type = sub.chargeType;
+  }
+  
   if (sub.renewalDate !== undefined) update.renewal_date = sub.renewalDate;
   if (sub.isCustomRenewalDate !== undefined) update.is_custom_renewal_date = sub.isCustomRenewalDate;
   if (sub.notificationId !== undefined) update.notification_id = sub.notificationId ?? null;
@@ -91,7 +126,6 @@ export function appToDbUpdate(sub: Partial<Subscription>): DbSubscriptionUpdate 
   if (sub.domain !== undefined) update.domain = sub.domain ?? null;
   if (sub.reminders !== undefined) update.reminders = sub.reminders;
   if (sub.description !== undefined) update.description = sub.description ?? null;
-  if (sub.chargeType !== undefined) update.charge_type = sub.chargeType;
   
   return update;
 }

@@ -1,8 +1,20 @@
 import { Subscription } from '../types';
 import { parseLocalDate } from './dateHelpers';
+import {
+  calculateMonthlyCost as getMonthlyFromInterval,
+  calculateYearlyCost as getYearlyFromInterval,
+  isRecurring,
+  convertToRepeatInterval
+} from './repeatInterval';
 
 export const calculations = {
   getMonthlyCost(subscription: Subscription): number {
+    // Use new repeat_interval if available, otherwise fall back to legacy fields
+    if (subscription.repeat_interval) {
+      return getMonthlyFromInterval(subscription.cost, subscription.repeat_interval);
+    }
+    
+    // LEGACY: Support old charge_type and billing_cycle fields
     // One-time charges don't contribute to monthly recurring costs
     if (subscription.chargeType === 'one_time') {
       return 0;
@@ -15,6 +27,14 @@ export const calculations = {
   },
 
   getDisplayCost(subscription: Subscription): number {
+    // Use new repeat_interval if available
+    if (subscription.repeat_interval) {
+      return subscription.repeat_interval === 'never'
+        ? subscription.cost
+        : getMonthlyFromInterval(subscription.cost, subscription.repeat_interval);
+    }
+    
+    // LEGACY: Support old charge_type field
     // For one-time charges, show the actual cost
     if (subscription.chargeType === 'one_time') {
       return subscription.cost;
