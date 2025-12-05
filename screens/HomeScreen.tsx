@@ -22,6 +22,7 @@ import EmptyState from '../components/EmptyState';
 import AnimatedPressable from '../components/AnimatedPressable';
 import { SkeletonCard } from '../components/SkeletonLoader';
 import CollapsibleSection from '../components/CollapsibleSection';
+import SearchInput from '../components/SearchInput';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../contexts/AuthContext';
 import PaywallModal from '../components/PaywallModal';
@@ -53,6 +54,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   const [refreshing, setRefreshing] = useState(false);
   const [paywallVisible, setPaywallVisible] = useState(false);
   const [limitStatus, setLimitStatus] = useState({ currentCount: 0, maxCount: 5, atLimit: false, isPremium: false });
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Helper function to refresh limit status from backend
   const refreshLimitStatusFromBackend = async () => {
@@ -317,6 +319,10 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     navigation.navigate('EditSubscription', { subscription });
   };
 
+  const handleClearSearch = () => {
+    setSearchQuery('');
+  };
+
   const handleDelete = (subscription: Subscription) => {
     Alert.alert(
       'Delete Recurring Item',
@@ -371,8 +377,17 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     );
   };
 
-  // Group subscriptions by repeat interval
-  const groupedByInterval = subscriptions.reduce((acc, sub) => {
+  // Filter subscriptions based on search query
+  const filteredSubscriptions = searchQuery.trim() === ''
+    ? subscriptions
+    : subscriptions.filter(sub =>
+        sub.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (sub.category && sub.category.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (sub.cost && sub.cost.toString().includes(searchQuery))
+      );
+
+  // Group filtered subscriptions by repeat interval
+  const groupedByInterval = filteredSubscriptions.reduce((acc, sub) => {
     const interval = sub.repeat_interval;
     if (!acc[interval]) {
       acc[interval] = [];
@@ -381,7 +396,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     return acc;
   }, {} as Record<string, Subscription[]>);
 
-  const totalMonthlyCost = calculations.getTotalMonthlyCost(subscriptions);
+  const totalMonthlyCost = calculations.getTotalMonthlyCost(filteredSubscriptions);
   
   // Define display order for intervals
   const intervalOrder = ['weekly', 'biweekly', 'semimonthly', 'monthly', 'bimonthly', 'quarterly', 'semiannually', 'yearly', 'never'];
@@ -474,6 +489,28 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       paddingHorizontal: 16,
       paddingTop: 8,
     },
+    noResultsContainer: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 60,
+      paddingHorizontal: 32,
+    },
+    noResultsIcon: {
+      marginBottom: 16,
+      opacity: 0.5,
+    },
+    noResultsText: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: theme.colors.text,
+      marginBottom: 8,
+      textAlign: 'center',
+    },
+    noResultsSubtext: {
+      fontSize: 14,
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
+    },
   });
 
   // Render skeleton loading
@@ -524,8 +561,34 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
           )} */}
         </View>
 
+        {/* Search Input - Only show when there are subscriptions */}
+        {subscriptions.length > 0 && (
+          <SearchInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            onClear={handleClearSearch}
+            placeholder="Search..."
+          />
+        )}
+
         {/* Empty State */}
         {subscriptions.length === 0 && <EmptyState />}
+
+        {/* No Search Results */}
+        {subscriptions.length > 0 && filteredSubscriptions.length === 0 && (
+          <View style={styles.noResultsContainer}>
+            <Ionicons
+              name="search-outline"
+              size={48}
+              color={theme.colors.textSecondary}
+              style={styles.noResultsIcon}
+            />
+            <Text style={styles.noResultsText}>No subscriptions found</Text>
+            <Text style={styles.noResultsSubtext}>
+              Try adjusting your search query
+            </Text>
+          </View>
+        )}
 
         {/* Grouped by Interval Sections */}
         {intervalOrder.map((interval) => {
