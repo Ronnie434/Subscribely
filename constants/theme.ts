@@ -11,24 +11,26 @@ export type ThemeColorMode = 'light' | 'dark';
 export function createTheme(mode: ThemeColorMode) {
   const colorPalette = mode === 'light' ? colors.light : colors.dark;
   
+  const gradients = {
+    primary: ['#007AFF', '#0056D2'] as readonly [string, string],
+    accent: ['#007AFF', '#5856D6'] as readonly [string, string],
+    surface: (mode === 'light'
+      ? ['#F8F9FA', '#FFFFFF']
+      : ['#1A1A1C', '#2C2C2E']) as readonly [string, string],
+    card: (mode === 'light'
+      ? ['#FFFFFF', '#F8F9FA']
+      : ['#1C1C1E', '#2C2C2E']) as readonly [string, string],
+    success: (mode === 'light'
+      ? ['#34C759', '#30D158']
+      : ['#32D74B', '#30D158']) as readonly [string, string],
+    error: (mode === 'light'
+      ? ['#FF3B30', '#FF453A']
+      : ['#FF453A', '#FF6961']) as readonly [string, string],
+  };
+  
   return {
     colors: colorPalette,
-    gradients: {
-      primary: ['#007AFF', '#0056D2'],
-      accent: ['#007AFF', '#5856D6'],
-      surface: mode === 'light'
-        ? ['#F8F9FA', '#FFFFFF']
-        : ['#1A1A1C', '#2C2C2E'],
-      card: mode === 'light'
-        ? ['#FFFFFF', '#F8F9FA']
-        : ['#1C1C1E', '#2C2C2E'],
-      success: mode === 'light'
-        ? ['#34C759', '#30D158']
-        : ['#32D74B', '#30D158'],
-      error: mode === 'light'
-        ? ['#FF3B30', '#FF453A']
-        : ['#FF453A', '#FF6961'],
-    },
+    gradients,
     animation: {
       timing: {
         fast: 150,

@@ -110,11 +110,12 @@ export const storage = {
         result = data;
       } else {
         // Create new subscription (ignore any local ID)
-        const { data, error } = await createSubscription({
-          ...subscription,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        });
+        const subscriptionData = { ...subscription };
+        // Remove fields that shouldn't be in create request
+        delete (subscriptionData as any).createdAt;
+        delete (subscriptionData as any).updatedAt;
+        
+        const { data, error } = await createSubscription(subscriptionData);
         
         if (error) {
           console.error('Error creating subscription:', getErrorMessage(error));
@@ -137,13 +138,14 @@ export const storage = {
             }
             
             // Schedule new notification (will validate date internally)
-            notificationId = await scheduleRenewalNotification(result);
+            const scheduledId = await scheduleRenewalNotification(result);
+            notificationId = scheduledId || undefined;
             
             // Update subscription with notification ID if we got one
-            // If notificationId is null (date validation failed), clear it
+            // If notificationId is undefined (date validation failed), clear it
             if (notificationId !== result.notificationId) {
               await updateSubscription(result.id, {
-                notificationId: notificationId || undefined
+                notificationId
               });
             }
           }

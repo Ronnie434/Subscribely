@@ -51,8 +51,8 @@ export default function SkeletonLoader({
 
   const styles = StyleSheet.create({
     container: {
-      width,
-      height,
+      width: width as any,
+      height: height as any,
       borderRadius,
       backgroundColor: theme.isDark ? '#2C2C2E' : '#E1E1E1',
       overflow: 'hidden',

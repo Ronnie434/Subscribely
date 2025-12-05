@@ -286,7 +286,7 @@ export default function PaywallModal({
           <View style={styles.header}>
             <View style={styles.iconContainer}>
               <LinearGradient
-                colors={theme.gradients.error}
+                colors={theme.gradients.error as any}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.iconGradient}>
@@ -333,7 +333,7 @@ export default function PaywallModal({
                 <View style={styles.planCard}>
                   <View style={styles.recommendedBadge}>
                     <LinearGradient
-                      colors={theme.gradients.success}
+                      colors={theme.gradients.success as any}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 0 }}
                       style={styles.recommendedGradient}>

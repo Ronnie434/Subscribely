@@ -21,7 +21,6 @@ import { RecurringItem, Database } from '../types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SubscriptionLimitError } from '../utils/paywallErrors';
 import { convertToRepeatInterval, convertFromRepeatInterval } from '../utils/repeatInterval';
-import { convertToRepeatInterval, convertFromRepeatInterval } from '../utils/repeatInterval';
 
 type DbRecurringItem = Database['public']['Tables']['recurring_items']['Row'];
 type DbRecurringItemInsert = Database['public']['Tables']['recurring_items']['Insert'];
@@ -228,8 +227,8 @@ export async function createRecurringItem(
     }
 
     // CHECK RECURRING ITEM LIMIT BEFORE ADDING
-    const { recurringItemLimitService } = await import('./recurringItemLimitService');
-    const limitCheck = await recurringItemLimitService.checkCanAddRecurringItem();
+    const { recurringItemLimitService: limitService } = await import('./recurringItemLimitService');
+    const limitCheck = await limitService.checkCanAddRecurringItem();
     
     if (!limitCheck.canAdd) {
       // Track that user hit the limit
@@ -260,8 +259,8 @@ export async function createRecurringItem(
     }
 
     // Refresh limit status after successful creation
-    const { recurringItemLimitService } = await import('./recurringItemLimitService');
-    await recurringItemLimitService.refreshLimitStatus().catch(err => {
+    const { recurringItemLimitService: limitService2 } = await import('./recurringItemLimitService');
+    await limitService2.refreshLimitStatus().catch(err => {
       console.error('Failed to refresh limit status:', err);
     });
 

@@ -1,5 +1,5 @@
 import React, { ReactElement, ReactNode } from 'react';
-import { render, RenderOptions } from '@testing-library/react-native';
+import { render, RenderOptions, fireEvent, waitFor } from '@testing-library/react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -90,13 +90,13 @@ function AllTheProviders({
     content = <NavigationContainer>{content}</NavigationContainer>;
   }
 
-  if (withStripe) {
+  if (withStripe && content) {
     content = (
       <StripeProvider
         publishableKey={stripeConfig.publishableKey}
         merchantIdentifier={stripeConfig.merchantIdentifier}
         urlScheme={stripeConfig.urlScheme}>
-        {content}
+        {content as any}
       </StripeProvider>
     );
   }
@@ -141,7 +141,7 @@ const customRender = (
 export * from '@testing-library/react-native';
 
 // Override the default render with our custom one
-export { customRender as render };
+export { customRender as render, fireEvent, waitFor };
 
 // Utility function to create authenticated context
 export function createAuthenticatedContext(userOverrides = {}) {
@@ -185,7 +185,7 @@ export const createMockRoute = (name: string, params = {}) => ({
 });
 
 // Helper to test component with specific props
-export function renderWithProps<T>(
+export function renderWithProps<T extends Record<string, any>>(
   Component: React.ComponentType<T>,
   props: T,
   renderOptions?: CustomRenderOptions

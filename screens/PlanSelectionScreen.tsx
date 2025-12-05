@@ -82,7 +82,7 @@ export default function PlanSelectionScreen({
       // Track plan selection
       await usageTrackingService.trackPlanSelected(
         selectedPlan,
-        SUBSCRIPTION_PLANS[selectedPlan].amount
+        SUBSCRIPTION_PLANS[selectedPlan].amount.toString()
       );
 
       // Navigate to payment screen with origin parameter
@@ -336,7 +336,7 @@ export default function PlanSelectionScreen({
         <Animated.View entering={FadeInDown.delay(100)} style={styles.header}>
           <View style={styles.iconContainer}>
             <LinearGradient
-              colors={theme.gradients.primary}
+              colors={theme.gradients.primary as any}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.iconGradient}>
@@ -362,7 +362,7 @@ export default function PlanSelectionScreen({
               activeOpacity={0.7}>
               <View style={styles.recommendedBadge}>
                 <LinearGradient
-                  colors={theme.gradients.success}
+                  colors={theme.gradients.success as any}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.recommendedGradient}>

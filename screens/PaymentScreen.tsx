@@ -203,7 +203,7 @@ export default function PaymentScreen({
       console.log('Payment Intent Status:', paymentIntent?.status);
 
       // Step 3: Verify payment succeeded
-      if (paymentIntent?.status === 'succeeded' || paymentIntent?.status === 'Succeeded') {
+      if (paymentIntent?.status === 'Succeeded') {
         console.log('=== Payment Succeeded ===');
         console.log('Payment Intent ID:', paymentIntent.id);
         

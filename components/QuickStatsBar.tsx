@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useTheme } from '../contexts/ThemeContext';
-import { dateHelpers } from '../utils/dateHelpers';
+import { calculations } from '../utils/calculations';
 import { Subscription } from '../types';
 
 interface QuickStatsBarProps {
@@ -21,7 +21,7 @@ export default function QuickStatsBar({
     if (subscriptions.length === 0) return null;
 
     const upcomingRenewals = subscriptions
-      .map(sub => dateHelpers.getDaysUntilRenewal(sub.renewalDate))
+      .map(sub => calculations.getDaysUntilRenewal(sub.renewalDate))
       .filter(days => days >= 0)
       .sort((a, b) => a - b);
 
@@ -42,7 +42,7 @@ export default function QuickStatsBar({
       height: 72,
       borderRadius: 14,
       overflow: 'hidden',
-      backgroundColor: theme.gradients.accent,
+      backgroundColor: theme.colors.card,
     },
     blurContainer: {
       flex: 1,

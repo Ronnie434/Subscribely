@@ -54,8 +54,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const isHandlingDuplicateRef = useRef(false);
   const refreshTimerRef = useRef<NodeJS.Timeout | null>(null);
   const refreshFailureCountRef = useRef(0);
-  const performSessionRefreshRef = useRef<() => Promise<void>>();
-  const scheduleAccessTokenRefreshRef = useRef<(activeSession: Session | null) => void>();
+  const performSessionRefreshRef = useRef<(() => Promise<void>) | undefined>(undefined);
+  const scheduleAccessTokenRefreshRef = useRef<((activeSession: Session | null) => void) | undefined>(undefined);
   
   // State to track if we're handling a duplicate (for AppNavigator to show auth screens)
   const [isHandlingDuplicate, setIsHandlingDuplicate] = useState(false);
@@ -118,6 +118,147 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setSession(null);
     setUser(null);
   }, []);
+
+  /**
+   * Perform one-time migration of local subscriptions to Supabase
+   * Runs in the background without blocking the UI
+   */
+  const performMigration = useCallback(async () => {
+    try {
+      const result = await migrateLocalSubscriptions();
+      
+      if (result.success && result.migratedCount > 0) {
+        console.log(`Successfully migrated ${result.migratedCount} subscriptions to Supabase`);
+      } else if (result.error) {
+        console.error('Migration error:', result.error);
+      }
+    } catch (err) {
+      console.error('Error during migration:', err);
+      // Don't block user experience if migration fails
+    }
+  }, []);
+
+  const performSignOut = useCallback(
+    async ({ silent = false }: { silent?: boolean } = {}): Promise<void> => {
+      try {
+        if (!silent) {
+          setError(null);
+        }
+        setLoading(true);
+
+        clearRefreshTimer();
+        await clearSessionMetadata();
+
+        // Clear local subscription data
+        await AsyncStorage.removeItem('subscriptions');
+
+        // Sign out from Supabase - this should clear the session from SecureStore
+        const { error } = await supabase.auth.signOut();
+        
+        if (error) {
+          // Only set error if it's not a silent logout and not an expected auth error
+          // AuthSessionMissingError is expected during auto-logout when session is already expired
+          const isExpectedAuthError = error.message.includes('AuthSessionMissingError') ||
+                                       error.message.includes('session');
+          
+          if (!silent && !isExpectedAuthError) {
+            setError(error.message);
+          }
+          // Log expected errors at debug level, unexpected errors as warnings
+          if (isExpectedAuthError) {
+            if (__DEV__) {
+              console.log('Expected auth error during sign out (session already expired):', error.message);
+            }
+          } else {
+            console.warn('Error signing out:', error);
+          }
+        }
+
+        // Manually ensure session is cleared from SecureStore/AsyncStorage
+        // Supabase's signOut should handle this, but we ensure it's cleared even if signOut had errors
+        try {
+          // Get the project reference from URL
+          const url = (supabase as any).supabaseUrl as string;
+          const projectRef = url.split('.')[0].replace('https://', '').replace('http://', '');
+          
+          // List of all possible Supabase auth storage keys
+          const storageKeys = [
+            `sb-${projectRef}-auth-token`,
+            `sb-${projectRef}-auth-token-code-verifier`,
+          ];
+          
+          // Clear all possible keys from storage
+          if (Platform.OS !== 'web') {
+            // Clear from SecureStore (iOS/Android)
+            for (const key of storageKeys) {
+              try {
+                await SecureStore.deleteItemAsync(key);
+                if (__DEV__) {
+                  console.log(`[AuthContext] Cleared storage key: ${key}`);
+                }
+              } catch (e) {
+                // Ignore if key doesn't exist - this is expected
+              }
+            }
+          } else {
+            // Clear from AsyncStorage (Web)
+            for (const key of storageKeys) {
+              try {
+                await AsyncStorage.removeItem(key);
+                if (__DEV__) {
+                  console.log(`[AuthContext] Cleared storage key: ${key}`);
+                }
+              } catch (e) {
+                // Ignore if key doesn't exist - this is expected
+              }
+            }
+          }
+          
+          if (__DEV__) {
+            console.log('[AuthContext] Session cleared from storage, user logged out');
+          }
+        } catch (storageError) {
+          if (__DEV__) {
+            console.warn('[AuthContext] Error clearing session storage:', storageError);
+          }
+        }
+
+        // Reset state
+        setUser(null);
+        setSession(null);
+      } catch (err) {
+        // Only set error if it's not a silent logout
+        if (!silent) {
+          const message = err instanceof Error ? err.message : 'Failed to sign out';
+          setError(message);
+        }
+        console.error('Error signing out:', err);
+        
+        // Reset state even if there was an error
+        setUser(null);
+        setSession(null);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [clearRefreshTimer],
+  );
+
+  const signOut = useCallback(async (): Promise<void> => {
+    await performSignOut({ silent: false });
+    setError(null);
+  }, [performSignOut]);
+
+  const handleForcedLogout = useCallback(
+    async (reason: SessionEnforcementReason, message?: string) => {
+      if (__DEV__) {
+        console.log('[AuthContext] Forcing logout due to', reason);
+      }
+      setError(message ?? getDefaultReasonMessage(reason));
+      await performSignOut({ silent: true });
+    },
+    [performSignOut],
+  );
 
   const initializeAuth = useCallback(async () => {
     try {
@@ -221,25 +362,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
       subscription.unsubscribe();
     };
   }, [initializeAuth, performMigration, clearRefreshTimer, persistSessionState]);
-
-  /**
-   * Perform one-time migration of local subscriptions to Supabase
-   * Runs in the background without blocking the UI
-   */
-  const performMigration = useCallback(async () => {
-    try {
-      const result = await migrateLocalSubscriptions();
-      
-      if (result.success && result.migratedCount > 0) {
-        console.log(`Successfully migrated ${result.migratedCount} subscriptions to Supabase`);
-      } else if (result.error) {
-        console.error('Migration error:', result.error);
-      }
-    } catch (err) {
-      console.error('Error during migration:', err);
-      // Don't block user experience if migration fails
-    }
-  }, []);
 
   const signUp = async (
     email: string,
@@ -691,132 +813,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  const performSignOut = useCallback(
-    async ({ silent = false }: { silent?: boolean } = {}): Promise<void> => {
-      try {
-        if (!silent) {
-          setError(null);
-        }
-        setLoading(true);
-
-        clearRefreshTimer();
-        await clearSessionMetadata();
-
-        // Clear local subscription data
-        await AsyncStorage.removeItem('subscriptions');
-
-        // Sign out from Supabase - this should clear the session from SecureStore
-        const { error } = await supabase.auth.signOut();
-        
-        if (error) {
-          // Only set error if it's not a silent logout and not an expected auth error
-          // AuthSessionMissingError is expected during auto-logout when session is already expired
-          const isExpectedAuthError = error.message.includes('AuthSessionMissingError') || 
-                                       error.message.includes('session');
-          
-          if (!silent && !isExpectedAuthError) {
-            setError(error.message);
-          }
-          // Log expected errors at debug level, unexpected errors as warnings
-          if (isExpectedAuthError) {
-            if (__DEV__) {
-              console.log('Expected auth error during sign out (session already expired):', error.message);
-            }
-          } else {
-            console.warn('Error signing out:', error);
-          }
-        }
-
-        // Manually ensure session is cleared from SecureStore/AsyncStorage
-        // Supabase's signOut should handle this, but we ensure it's cleared even if signOut had errors
-        try {
-          // Supabase uses a specific key format based on the URL
-          // Format: sb-{project-ref}-auth-token and sb-{project-ref}-auth-token-code-verifier
-          const supabaseUrl = supabase.supabaseUrl.replace('https://', '').replace('http://', '');
-          const projectRef = supabaseUrl.split('.')[0];
-          
-          // List of all possible Supabase auth storage keys
-          const storageKeys = [
-            `sb-${projectRef}-auth-token`,
-            `sb-${projectRef}-auth-token-code-verifier`,
-            // Also try with full URL hash (Supabase might use this in some cases)
-            `sb-${supabaseUrl}-auth-token`,
-            `sb-${supabaseUrl}-auth-token-code-verifier`,
-          ];
-          
-          // Clear all possible keys from storage
-          if (Platform.OS !== 'web') {
-            // Clear from SecureStore (iOS/Android)
-            for (const key of storageKeys) {
-              try {
-                await SecureStore.deleteItemAsync(key);
-                if (__DEV__) {
-                  console.log(`[AuthContext] Cleared storage key: ${key}`);
-                }
-              } catch (e) {
-                // Ignore if key doesn't exist - this is expected
-              }
-            }
-          } else {
-            // Clear from AsyncStorage (Web)
-            for (const key of storageKeys) {
-              try {
-                await AsyncStorage.removeItem(key);
-                if (__DEV__) {
-                  console.log(`[AuthContext] Cleared storage key: ${key}`);
-                }
-              } catch (e) {
-                // Ignore if key doesn't exist - this is expected
-              }
-            }
-          }
-          
-          if (__DEV__) {
-            console.log('[AuthContext] Session cleared from storage, user logged out');
-          }
-        } catch (storageError) {
-          if (__DEV__) {
-            console.warn('[AuthContext] Error clearing session storage:', storageError);
-          }
-        }
-
-        // Reset state
-        setUser(null);
-        setSession(null);
-      } catch (err) {
-        // Only set error if it's not a silent logout
-        if (!silent) {
-          const message = err instanceof Error ? err.message : 'Failed to sign out';
-          setError(message);
-        }
-        console.error('Error signing out:', err);
-        
-        // Reset state even if there was an error
-        setUser(null);
-        setSession(null);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [clearRefreshTimer],
-  );
-
-  const signOut = useCallback(async (): Promise<void> => {
-    await performSignOut({ silent: false });
-    setError(null);
-  }, [performSignOut]);
-
-  const handleForcedLogout = useCallback(
-    async (reason: SessionEnforcementReason, message?: string) => {
-      if (__DEV__) {
-        console.log('[AuthContext] Forcing logout due to', reason);
-      }
-      setError(message ?? getDefaultReasonMessage(reason));
-      await performSignOut({ silent: true });
-    },
-    [performSignOut],
-  );
-
   const performSessionRefresh = useCallback(async () => {
     if (!session) {
       return;
@@ -851,8 +847,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, [session, handleForcedLogout, persistSessionState]);
 
   useEffect(() => {
-    performSessionRefreshRef.current = () => {
-      void performSessionRefresh();
+    performSessionRefreshRef.current = async () => {
+      await performSessionRefresh();
     };
   }, [performSessionRefresh]);
 
@@ -1115,18 +1111,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
         // Refresh profile data to get updated avatar_url from OAuth
         // This ensures the UI has the latest profile data immediately
         try {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('id, email, full_name, avatar_url')
-            .eq('id', sessionData.session.user.id)
-            .single();
+          if (sessionData.session) {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('id, email, full_name, avatar_url')
+              .eq('id', sessionData.session.user.id)
+              .single();
           
-          if (__DEV__ && profile) {
-            console.log('[OAuth] Profile refreshed:', {
-              hasAvatar: !!profile.avatar_url,
-              avatarUrl: profile.avatar_url,
-              fullName: profile.full_name
-            });
+            if (__DEV__ && profile) {
+              console.log('[OAuth] Profile refreshed:', {
+                hasAvatar: !!profile.avatar_url,
+                avatarUrl: profile.avatar_url,
+                fullName: profile.full_name
+              });
+            }
           }
         } catch (err) {
           // Non-critical - profile will be loaded on next screen anyway
@@ -1135,7 +1133,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
           }
         }
 
-        await persistSessionState(sessionData.session);
+        if (sessionData.session) {
+          await persistSessionState(sessionData.session);
+        }
 
         // Trigger migration after successful OAuth sign-in
         performMigration();
@@ -1283,28 +1283,30 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
         // Refresh profile data to get updated avatar_url from OAuth
         // This ensures the UI has the latest profile data immediately
-        try {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('id, email, full_name, avatar_url')
-            .eq('id', sessionData.session.user.id)
-            .single();
-          
-          if (__DEV__ && profile) {
-            console.log('[OAuth] Profile refreshed:', {
-              hasAvatar: !!profile.avatar_url,
-              avatarUrl: profile.avatar_url,
-              fullName: profile.full_name
-            });
+        if (sessionData.session) {
+          try {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('id, email, full_name, avatar_url')
+              .eq('id', sessionData.session.user.id)
+              .single();
+            
+            if (__DEV__ && profile) {
+              console.log('[OAuth] Profile refreshed:', {
+                hasAvatar: !!profile.avatar_url,
+                avatarUrl: profile.avatar_url,
+                fullName: profile.full_name
+              });
+            }
+          } catch (err) {
+            // Non-critical - profile will be loaded on next screen anyway
+            if (__DEV__) {
+              console.warn('[OAuth] Failed to refresh profile:', err);
+            }
           }
-        } catch (err) {
-          // Non-critical - profile will be loaded on next screen anyway
-          if (__DEV__) {
-            console.warn('[OAuth] Failed to refresh profile:', err);
-          }
-        }
 
-        await persistSessionState(sessionData.session);
+          await persistSessionState(sessionData.session);
+        }
 
         // Trigger migration after successful OAuth sign-in
         performMigration();

@@ -344,7 +344,7 @@ export default function StatsScreen() {
       paddingVertical: 12,
       paddingHorizontal: 20,
       borderRadius: 12,
-      backgroundColor: theme.colors.primaryLight || `${theme.colors.primary}15`,
+      backgroundColor: `${theme.colors.primary}15`,
       borderWidth: 1,
       borderColor: theme.colors.primary,
     },

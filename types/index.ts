@@ -618,6 +618,21 @@ export interface UserProfile {
 }
 
 /**
+ * User type for authentication
+ * @since v1.0.0
+ */
+export interface User {
+  id: string;
+  email: string;
+  created_at: string;
+  updated_at: string;
+  app_metadata?: Record<string, any>;
+  user_metadata?: Record<string, any>;
+  aud?: string;
+  email_confirmed_at?: string | null;
+}
+
+/**
  * Authentication state
  * @since v1.0.0
  */

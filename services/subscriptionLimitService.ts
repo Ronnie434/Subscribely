@@ -108,16 +108,17 @@ class SubscriptionLimitService {
         };
       }
 
-      // Cache the result
+      // Cache the result with proper type assertion
+      const responseData = data as any;
       const result: CheckSubscriptionLimitResponse = {
-        can_add: data.allowed,
-        current_count: data.current_count,
-        limit: data.limit_count,
-        is_premium: data.tier === 'premium_tier' || data.tier === 'premium',
-        tier_name: data.tier,
-        reason: data.allowed 
-          ? undefined 
-          : `You've reached your ${data.tier} plan limit of ${data.limit_count} subscriptions.`,
+        can_add: responseData.allowed,
+        current_count: responseData.current_count,
+        limit: responseData.limit_count,
+        is_premium: responseData.tier === 'premium_tier' || responseData.tier === 'premium',
+        tier_name: responseData.tier,
+        reason: responseData.allowed
+          ? undefined
+          : `You've reached your ${responseData.tier} plan limit of ${responseData.limit_count} subscriptions.`,
       };
 
       subscriptionCache.set(cacheKey, result, CacheTTL.MEDIUM);

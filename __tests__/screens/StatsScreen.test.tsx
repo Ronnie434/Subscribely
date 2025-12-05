@@ -193,7 +193,7 @@ const createMockSubscription = (
   id,
   name,
   cost: 9.99,
-  billingCycle: 'monthly',
+  repeat_interval: 'monthly',
   renewalDate,
   category: 'Entertainment',
   createdAt: '2025-01-01T00:00:00.000Z',
@@ -516,8 +516,8 @@ describe('StatsScreen - Date Display Integration', () => {
   describe('Statistics Display', () => {
     it('should display total monthly spending correctly', async () => {
       const mockSubscriptions: Subscription[] = [
-        createMockSubscription('1', 'Netflix', '2025-12-13', { cost: 15.99, billingCycle: 'monthly' }),
-        createMockSubscription('2', 'Spotify', '2025-12-15', { cost: 9.99, billingCycle: 'monthly' }),
+        createMockSubscription('1', 'Netflix', '2025-12-13', { cost: 15.99, repeat_interval: 'monthly' }),
+        createMockSubscription('2', 'Spotify', '2025-12-15', { cost: 9.99, repeat_interval: 'monthly' }),
       ];
 
       (storage.getAll as jest.Mock).mockResolvedValue(mockSubscriptions);
@@ -552,9 +552,9 @@ describe('StatsScreen - Date Display Integration', () => {
 
     it('should display billing cycle distribution', async () => {
       const mockSubscriptions: Subscription[] = [
-        createMockSubscription('1', 'Netflix', '2025-12-13', { billingCycle: 'monthly' }),
-        createMockSubscription('2', 'Spotify', '2025-12-15', { billingCycle: 'monthly' }),
-        createMockSubscription('3', 'Disney+', '2025-12-20', { billingCycle: 'yearly' }),
+        createMockSubscription('1', 'Netflix', '2025-12-13', { repeat_interval: 'monthly' }),
+        createMockSubscription('2', 'Spotify', '2025-12-15', { repeat_interval: 'monthly' }),
+        createMockSubscription('3', 'Disney+', '2025-12-20', { repeat_interval: 'yearly' }),
       ];
 
       (storage.getAll as jest.Mock).mockResolvedValue(mockSubscriptions);

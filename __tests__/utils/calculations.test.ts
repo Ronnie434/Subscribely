@@ -24,7 +24,7 @@ const createMockSubscription = (
   id,
   name,
   cost: 9.99,
-  billingCycle: 'monthly',
+  repeat_interval: 'monthly',
   renewalDate,
   category: 'Entertainment',
   createdAt: '2025-01-01T00:00:00.000Z',
@@ -479,7 +479,7 @@ describe('calculations cost functions', () => {
   it('should calculate monthly cost for monthly subscription', () => {
     const subscription = createMockSubscription('1', 'Monthly', '2025-12-13', {
       cost: 9.99,
-      billingCycle: 'monthly',
+      repeat_interval: 'monthly',
     });
 
     const monthlyCost = calculations.getMonthlyCost(subscription);
@@ -489,7 +489,7 @@ describe('calculations cost functions', () => {
   it('should calculate monthly cost for yearly subscription', () => {
     const subscription = createMockSubscription('1', 'Yearly', '2025-12-13', {
       cost: 120,
-      billingCycle: 'yearly',
+      repeat_interval: 'yearly',
     });
 
     const monthlyCost = calculations.getMonthlyCost(subscription);
@@ -498,8 +498,8 @@ describe('calculations cost functions', () => {
 
   it('should calculate total monthly cost', () => {
     const subscriptions = [
-      createMockSubscription('1', 'Monthly', '2025-12-13', { cost: 9.99, billingCycle: 'monthly' }),
-      createMockSubscription('2', 'Yearly', '2025-12-13', { cost: 120, billingCycle: 'yearly' }),
+      createMockSubscription('1', 'Monthly', '2025-12-13', { cost: 9.99, repeat_interval: 'monthly' }),
+      createMockSubscription('2', 'Yearly', '2025-12-13', { cost: 120, repeat_interval: 'yearly' }),
     ];
 
     const total = calculations.getTotalMonthlyCost(subscriptions);
@@ -508,8 +508,8 @@ describe('calculations cost functions', () => {
 
   it('should calculate total yearly cost', () => {
     const subscriptions = [
-      createMockSubscription('1', 'Monthly', '2025-12-13', { cost: 10, billingCycle: 'monthly' }),
-      createMockSubscription('2', 'Yearly', '2025-12-13', { cost: 120, billingCycle: 'yearly' }),
+      createMockSubscription('1', 'Monthly', '2025-12-13', { cost: 10, repeat_interval: 'monthly' }),
+      createMockSubscription('2', 'Yearly', '2025-12-13', { cost: 120, repeat_interval: 'yearly' }),
     ];
 
     const total = calculations.getTotalYearlyCost(subscriptions);
@@ -520,9 +520,9 @@ describe('calculations cost functions', () => {
 describe('calculations.getBillingCycleDistribution', () => {
   it('should count monthly and yearly subscriptions', () => {
     const subscriptions = [
-      createMockSubscription('1', 'Monthly 1', '2025-12-13', { billingCycle: 'monthly' }),
-      createMockSubscription('2', 'Monthly 2', '2025-12-13', { billingCycle: 'monthly' }),
-      createMockSubscription('3', 'Yearly 1', '2025-12-13', { billingCycle: 'yearly' }),
+      createMockSubscription('1', 'Monthly 1', '2025-12-13', { repeat_interval: 'monthly' }),
+      createMockSubscription('2', 'Monthly 2', '2025-12-13', { repeat_interval: 'monthly' }),
+      createMockSubscription('3', 'Yearly 1', '2025-12-13', { repeat_interval: 'yearly' }),
     ];
 
     const distribution = calculations.getBillingCycleDistribution(subscriptions);

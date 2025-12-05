@@ -145,7 +145,7 @@ export default function LimitReachedBanner({
       style={[styles.container, style]}>
       <TouchableOpacity onPress={handlePress} activeOpacity={0.9}>
         <LinearGradient
-          colors={theme.gradients.error}
+          colors={theme.gradients.error as any}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.gradient}>

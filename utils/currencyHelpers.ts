@@ -1,4 +1,5 @@
-import { getLocales } from 'expo-localization';
+// @ts-ignore - expo-localization may not have types
+import * as Localization from 'expo-localization';
 
 /**
  * Currency interface defining supported currencies
@@ -292,7 +293,7 @@ export const formatCurrency = (
  */
 export const detectDefaultCurrency = (): string => {
   try {
-    const locales = getLocales();
+    const locales = Localization.getLocales();
     if (locales && locales.length > 0) {
       const primaryLocale = locales[0];
 

@@ -283,11 +283,12 @@ class PaywallTestHelpers {
         .select('*', { count: 'exact', head: true })
         .eq('user_id', targetUserId);
 
+      const limitData = limitCheck as any;
       return {
         subscriptionCount: subscriptionCount || 0,
         isPremium,
         tierName: userSub?.tier_id || 'free',
-        canAddMore: limitCheck?.allowed || false,
+        canAddMore: limitData?.allowed || false,
         usageEvents: usageEvents || 0,
       };
     } catch (error) {
@@ -361,7 +362,7 @@ class PaywallTestHelpers {
     try {
       const targetUserId = await this.getUserId(userId);
 
-      const events = [
+      const events: any[] = [
         { event_type: 'limit_reached', event_context: 'test' },
         { event_type: 'paywall_shown', event_context: 'test' },
         { event_type: 'plan_selected', event_context: 'test', event_data: { plan: 'yearly' } },
