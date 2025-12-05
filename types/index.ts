@@ -104,6 +104,7 @@ export interface RecurringItem {
   icon?: string | null;
   domain?: string | null;
   reminders?: boolean;
+  reminder_days_before?: number; // Number of days before renewal to send notification (default: 1)
   description?: string | null;
   status: 'active' | 'paused' | 'cancelled';
   notes?: string | null;
@@ -147,6 +148,7 @@ export interface Subscription {
   icon?: string;
   domain?: string;
   reminders?: boolean;
+  reminderDaysBefore?: number; // Number of days before renewal to send notification (default: 1)
   description?: string;
   createdAt: string;
   updatedAt: string;
@@ -224,6 +226,7 @@ export interface Database {
           icon: string | null;
           domain: string | null;
           reminders: boolean;
+          reminder_days_before: number;
           description: string | null;
           status: 'active' | 'paused' | 'cancelled';
           notes: string | null;
@@ -247,6 +250,7 @@ export interface Database {
           icon?: string | null;
           domain?: string | null;
           reminders?: boolean;
+          reminder_days_before?: number;
           description?: string | null;
           status?: 'active' | 'paused' | 'cancelled';
           notes?: string | null;
@@ -270,6 +274,7 @@ export interface Database {
           icon?: string | null;
           domain?: string | null;
           reminders?: boolean;
+          reminder_days_before?: number;
           description?: string | null;
           status?: 'active' | 'paused' | 'cancelled';
           notes?: string | null;

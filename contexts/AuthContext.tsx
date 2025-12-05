@@ -121,13 +121,31 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const initializeAuth = useCallback(async () => {
     try {
+      // Clear any existing errors at the start of initialization
+      setError(null);
+      
       const {
         data: { session: existingSession },
         error,
       } = await supabase.auth.getSession();
       
       if (error) {
-        console.error('Error getting session:', error);
+        // "Refresh Token Not Found" is expected on first launch when there's no stored session
+        const isExpectedError = error.message.includes('Refresh Token Not Found') ||
+                               error.message.includes('Invalid Refresh Token') ||
+                               error.message.includes('session_not_found');
+        
+        if (isExpectedError) {
+          if (__DEV__) {
+            console.log('[AuthContext] No stored session found (expected on first launch)');
+          }
+          // Don't set error state for expected cases
+        } else {
+          // Only log and set error for unexpected errors
+          console.error('Error getting session:', error);
+          setError(error.message);
+        }
+        
         setSession(null);
         setUser(null);
         await clearSessionMetadata();

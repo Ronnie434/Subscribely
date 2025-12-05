@@ -46,8 +46,8 @@ export async function requestNotificationPermissions(): Promise<boolean> {
 
 /**
  * Schedules a renewal notification for a subscription.
- * The notification is scheduled for 9:00 AM local time, 24 hours before the renewal date.
- * 
+ * The notification is scheduled for 9:00 AM local time, X days before the renewal date.
+ *
  * @param {Subscription} subscription - The subscription to schedule a notification for
  * @returns {Promise<string | null>} The notification identifier if scheduled, null otherwise
  */
@@ -62,6 +62,10 @@ export async function scheduleRenewalNotification(
       console.log(`⚠️ Reminders disabled for ${subscription.name}, skipping notification`);
       return null;
     }
+
+    // Get the number of days before renewal to send notification (default to 1 day)
+    const daysBefore = subscription.reminderDaysBefore ?? 1;
+    console.log(`  Reminder set for ${daysBefore} day(s) before renewal`);
 
     // Parse the renewal date
     const renewalDate = new Date(subscription.renewalDate);
@@ -83,9 +87,9 @@ export async function scheduleRenewalNotification(
       return null;
     }
     
-    // Calculate trigger time: day before renewal at 9 AM local time
+    // Calculate trigger time: X days before renewal at 9 AM local time
     const triggerDate = new Date(renewalDateLocal);
-    triggerDate.setDate(triggerDate.getDate() - 1);
+    triggerDate.setDate(triggerDate.getDate() - daysBefore);
     triggerDate.setHours(9, 0, 0, 0);
 
     console.log(`  Calculated trigger time: ${triggerDate.toISOString()}`);
@@ -104,11 +108,19 @@ export async function scheduleRenewalNotification(
     // Format the renewal date for the notification message
     const formattedRenewalDate = dateHelpers.formatDate(renewalDate);
 
+    // Create notification title and body based on days before
+    const title = daysBefore === 1
+      ? 'Subscription Renews Tomorrow'
+      : `Subscription Renews in ${daysBefore} Days`;
+    
+    const daysText = daysBefore === 1 ? 'tomorrow' : `in ${daysBefore} days`;
+    const body = `Your ${subscription.name} subscription ($${subscription.cost.toFixed(2)}) renews ${daysText} on ${formattedRenewalDate}`;
+
     // Schedule the notification
     const notificationId = await Notifications.scheduleNotificationAsync({
       content: {
-        title: 'Subscription Renews Tomorrow',
-        body: `Your ${subscription.name} subscription ($${subscription.cost.toFixed(2)}) renews tomorrow on ${formattedRenewalDate}`,
+        title,
+        body,
         data: {
           subscriptionId: subscription.id,
           subscriptionName: subscription.name,

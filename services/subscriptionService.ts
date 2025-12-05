@@ -45,6 +45,7 @@ export function dbToApp(dbSub: DbSubscription): Subscription {
     icon: dbSub.icon || undefined,
     domain: dbSub.domain || undefined,
     reminders: dbSub.reminders,
+    reminderDaysBefore: dbSub.reminder_days_before ?? 1,
     description: dbSub.description || undefined,
     createdAt: dbSub.created_at,
     updatedAt: dbSub.updated_at,
@@ -86,6 +87,7 @@ export function appToDbInsert(
     icon: sub.icon ?? null,
     domain: sub.domain ?? null,
     reminders: sub.reminders ?? true,
+    reminder_days_before: sub.reminderDaysBefore ?? 1,
     description: sub.description ?? null,
   };
 }
@@ -125,6 +127,7 @@ export function appToDbUpdate(sub: Partial<Subscription>): DbSubscriptionUpdate 
   if (sub.icon !== undefined) update.icon = sub.icon ?? null;
   if (sub.domain !== undefined) update.domain = sub.domain ?? null;
   if (sub.reminders !== undefined) update.reminders = sub.reminders;
+  if (sub.reminderDaysBefore !== undefined) update.reminder_days_before = sub.reminderDaysBefore;
   if (sub.description !== undefined) update.description = sub.description ?? null;
   
   return update;

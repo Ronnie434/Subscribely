@@ -55,6 +55,7 @@ export function dbToApp(dbItem: DbRecurringItem): RecurringItem {
     icon: dbItem.icon || undefined,
     domain: dbItem.domain || undefined,
     reminders: dbItem.reminders,
+    reminder_days_before: dbItem.reminder_days_before ?? 1,
     description: dbItem.description || undefined,
     status: dbItem.status,
     notes: dbItem.notes || undefined,
@@ -101,6 +102,7 @@ export function appToDbInsert(
     icon: item.icon ?? null,
     domain: item.domain ?? null,
     reminders: item.reminders ?? true,
+    reminder_days_before: item.reminder_days_before ?? 1,
     description: item.description ?? null,
     status: item.status || 'active',
     notes: item.notes ?? null,
@@ -127,6 +129,7 @@ export function appToDbUpdate(item: Partial<RecurringItem>): DbRecurringItemUpda
   if (item.icon !== undefined) update.icon = item.icon ?? null;
   if (item.domain !== undefined) update.domain = item.domain ?? null;
   if (item.reminders !== undefined) update.reminders = item.reminders;
+  if (item.reminder_days_before !== undefined) update.reminder_days_before = item.reminder_days_before;
   if (item.description !== undefined) update.description = item.description ?? null;
   if (item.status !== undefined) update.status = item.status;
   if (item.notes !== undefined) update.notes = item.notes ?? null;

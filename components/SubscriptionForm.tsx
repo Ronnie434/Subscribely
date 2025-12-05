@@ -103,6 +103,7 @@ export default function SubscriptionForm({ subscription, onSubmit, onCancel, isS
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showIntervalPicker, setShowIntervalPicker] = useState(false);
   const [enableReminders, setEnableReminders] = useState(subscription?.reminders ?? true);
+  const [reminderDaysBefore, setReminderDaysBefore] = useState(subscription?.reminderDaysBefore ?? 1);
 
   // Get all company names for autocomplete
   const allCompanyNames = getCompanyNames();
@@ -221,6 +222,7 @@ export default function SubscriptionForm({ subscription, onSubmit, onCancel, isS
       description: description.trim() || undefined,
       isCustomRenewalDate: useCustomDate,
       reminders: repeatInterval !== 'never' ? enableReminders : false,
+      reminderDaysBefore: enableReminders ? reminderDaysBefore : 1,
       // Include legacy fields for backward compatibility
       billingCycle,
       chargeType,
@@ -718,6 +720,50 @@ export default function SubscriptionForm({ subscription, onSubmit, onCancel, isS
     buttonLoader: {
       marginRight: 8,
     },
+    reminderDaysContainer: {
+      marginTop: 16,
+      backgroundColor: theme.colors.card,
+      borderRadius: 16,
+      padding: 16,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+    },
+    reminderDaysLabel: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: theme.colors.text,
+      marginBottom: 12,
+    },
+    reminderDaysControl: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    reminderDaysButton: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: theme.colors.background,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 2,
+      borderColor: theme.colors.primary,
+    },
+    reminderDaysButtonDisabled: {
+      borderColor: theme.colors.border,
+      opacity: 0.4,
+    },
+    reminderDaysButtonPressed: {
+      opacity: 0.6,
+      transform: [{ scale: 0.95 }],
+    },
+    reminderDaysValue: {
+      fontSize: 32,
+      fontWeight: '700',
+      color: theme.colors.primary,
+      minWidth: 60,
+      textAlign: 'center',
+    },
   });
 
   return (
@@ -978,10 +1024,59 @@ export default function SubscriptionForm({ subscription, onSubmit, onCancel, isS
                 thumbColor="#FFFFFF"
               />
             </View>
+            
+            {/* Days Before Selector - Only show when reminders are enabled */}
             {enableReminders && (
-              <Text style={styles.helperText}>
-                Get notified 24 hours before your recurring item renews
-              </Text>
+              <View style={styles.reminderDaysContainer}>
+                <Text style={styles.reminderDaysLabel}>Days Before</Text>
+                <View style={styles.reminderDaysControl}>
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.reminderDaysButton,
+                      reminderDaysBefore <= 1 && styles.reminderDaysButtonDisabled,
+                      pressed && reminderDaysBefore > 1 && styles.reminderDaysButtonPressed,
+                    ]}
+                    onPress={() => {
+                      if (reminderDaysBefore > 1) {
+                        setReminderDaysBefore(reminderDaysBefore - 1);
+                        if (Platform.OS === 'ios') {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        }
+                      }
+                    }}
+                    disabled={reminderDaysBefore <= 1}>
+                    <Ionicons
+                      name="remove"
+                      size={24}
+                      color={reminderDaysBefore <= 1 ? theme.colors.textSecondary : theme.colors.primary}
+                    />
+                  </Pressable>
+                  
+                  <Text style={styles.reminderDaysValue}>{reminderDaysBefore}</Text>
+                  
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.reminderDaysButton,
+                      reminderDaysBefore >= 30 && styles.reminderDaysButtonDisabled,
+                      pressed && reminderDaysBefore < 30 && styles.reminderDaysButtonPressed,
+                    ]}
+                    onPress={() => {
+                      if (reminderDaysBefore < 30) {
+                        setReminderDaysBefore(reminderDaysBefore + 1);
+                        if (Platform.OS === 'ios') {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        }
+                      }
+                    }}
+                    disabled={reminderDaysBefore >= 30}>
+                    <Ionicons
+                      name="add"
+                      size={24}
+                      color={reminderDaysBefore >= 30 ? theme.colors.textSecondary : theme.colors.primary}
+                    />
+                  </Pressable>
+                </View>
+              </View>
             )}
           </View>
           )}
