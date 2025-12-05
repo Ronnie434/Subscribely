@@ -23,6 +23,7 @@ import { getIntervalLabel } from '../utils/repeatInterval';
 import * as Haptics from 'expo-haptics';
 import { LogoSource, getNextLogoSource, getLogoUrlForSource } from '../utils/logoHelpers';
 import { subscriptionLimitService } from '../services/subscriptionLimitService';
+import CalendarModal from '../components/CalendarModal';
 
 // Type definitions for navigation
 type SubscriptionsStackParamList = {
@@ -53,6 +54,7 @@ export default function EditSubscriptionScreen() {
   const [subscription, setSubscription] = useState(initialSubscription);
   const [loading, setLoading] = useState(false);
   const [logoSource, setLogoSource] = useState<LogoSource>('primary');
+  const [calendarModalVisible, setCalendarModalVisible] = useState(false);
 
   // Refresh subscription data when screen comes into focus
   useEffect(() => {
@@ -103,6 +105,18 @@ export default function EditSubscriptionScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
     navigation.navigate('AddSubscription', { subscription });
+  };
+
+  // Handle calendar modal
+  const handleOpenCalendar = () => {
+    if (Platform.OS === 'ios') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    setCalendarModalVisible(true);
+  };
+
+  const handleCloseCalendar = () => {
+    setCalendarModalVisible(false);
   };
 
   // Handle delete subscription
@@ -420,6 +434,25 @@ export default function EditSubscriptionScreen() {
       color: theme.colors.error,
       fontWeight: '600',
     },
+    calendarButton: {
+      backgroundColor: theme.isDark ? 'rgba(0, 122, 255, 0.15)' : 'rgba(0, 122, 255, 0.1)',
+      borderRadius: 16,
+      paddingVertical: 16,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.primary,
+    },
+    calendarButtonPressed: {
+      opacity: 0.7,
+    },
+    calendarButtonText: {
+      fontSize: 17,
+      color: theme.colors.primary,
+      fontWeight: '600',
+    },
     renewalBadge: {
       backgroundColor: daysUntilRenewal <= 7 
         ? theme.isDark ? 'rgba(255, 159, 10, 0.15)' : 'rgba(255, 149, 0, 0.1)'
@@ -528,6 +561,19 @@ export default function EditSubscriptionScreen() {
 
         {/* Action Buttons */}
         <View style={styles.actionsSection}>
+          {/* View Calendar Button (only for recurring items) */}
+          {subscription.chargeType !== 'one_time' && subscription.repeat_interval !== 'never' && (
+            <Pressable
+              style={({ pressed }) => [
+                styles.calendarButton,
+                pressed && styles.calendarButtonPressed,
+              ]}
+              onPress={handleOpenCalendar}>
+              <Ionicons name="calendar-outline" size={20} color={theme.colors.primary} />
+              <Text style={styles.calendarButtonText}>View Calendar</Text>
+            </Pressable>
+          )}
+
           <Pressable
             style={({ pressed }) => [
               styles.editButton,
@@ -555,6 +601,16 @@ export default function EditSubscriptionScreen() {
           </Pressable>
         </View>
       </ScrollView>
+
+      {/* Calendar Modal */}
+      <CalendarModal
+        visible={calendarModalVisible}
+        onClose={handleCloseCalendar}
+        subscriptionName={subscription.name}
+        renewalDate={subscription.renewalDate}
+        repeatInterval={subscription.repeat_interval}
+        subscriptionColor={subscription.color}
+      />
     </View>
   );
 }

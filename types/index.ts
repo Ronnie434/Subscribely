@@ -63,6 +63,66 @@ export const REPEAT_INTERVAL_CONFIG: Record<RepeatInterval, RepeatIntervalConfig
 } as const;
 
 // ============================================================================
+// PAYMENT HISTORY TYPES
+// ============================================================================
+
+/**
+ * Payment status for a recurring item renewal
+ * @since v3.1.0
+ */
+export type PaymentHistoryStatus = 'paid' | 'skipped' | 'pending';
+
+/**
+ * Payment history record
+ * Tracks whether user paid for a recurring item renewal
+ * @since v3.1.0
+ */
+export interface PaymentHistory {
+  id: string;
+  recurring_item_id: string;
+  user_id: string;
+  due_date: string; // ISO date string (YYYY-MM-DD)
+  payment_date?: string | null; // ISO date string (YYYY-MM-DD)
+  status: PaymentHistoryStatus;
+  amount: number;
+  notes?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Past due item with additional metadata
+ * @since v3.1.0
+ */
+export interface PastDueItem extends RecurringItem {
+  days_past_due: number;
+}
+
+/**
+ * Result from recording a payment
+ * @since v3.1.0
+ */
+export interface RecordPaymentResult {
+  payment_id: string | null;
+  new_renewal_date: string | null;
+  success: boolean;
+  error_message: string | null;
+}
+
+/**
+ * Payment statistics for a user
+ * @since v3.1.0
+ */
+export interface PaymentStats {
+  total_payments: number;
+  paid_count: number;
+  skipped_count: number;
+  pending_count: number;
+  total_amount_paid: number;
+  payment_rate: number; // Percentage
+}
+
+// ============================================================================
 // RECURRING ITEM TYPES (NEW TERMINOLOGY)
 // ============================================================================
 

@@ -32,6 +32,9 @@ import { subscriptionLimitService } from '../services/subscriptionLimitService';
 import { usageTrackingService } from '../services/usageTrackingService';
 import { useRealtimeSubscriptions } from '../hooks/useRealtimeSubscriptions';
 import { supabase } from '../config/supabase';
+import { pastDueService } from '../services/pastDueService';
+import PastDueModal from '../components/PastDueModal';
+import { PastDueItem } from '../types';
 
 type SubscriptionsStackParamList = {
   Home: undefined;
@@ -55,6 +58,9 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   const [paywallVisible, setPaywallVisible] = useState(false);
   const [limitStatus, setLimitStatus] = useState({ currentCount: 0, maxCount: 5, atLimit: false, isPremium: false });
   const [searchQuery, setSearchQuery] = useState('');
+  const [pastDueItems, setPastDueItems] = useState<PastDueItem[]>([]);
+  const [currentPastDueItem, setCurrentPastDueItem] = useState<PastDueItem | null>(null);
+  const [pastDueModalVisible, setPastDueModalVisible] = useState(false);
 
   // Helper function to refresh limit status from backend
   const refreshLimitStatusFromBackend = async () => {
@@ -163,7 +169,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     });
   }, [navigation]);
 
-  const loadSubscriptions = async (forceRefresh = false) => {
+  const loadSubscriptions = useCallback(async (forceRefresh = false) => {
     try {
       const data = forceRefresh ? await storage.refresh() : await storage.getAll();
       setSubscriptions(data);
@@ -183,7 +189,112 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, []);
+
+  // Check for past due items
+  const checkPastDueItems = useCallback(async () => {
+    try {
+      const { data, error } = await pastDueService.getPastDueItems();
+      
+      if (error) {
+        console.error('Error fetching past due items:', error);
+        return;
+      }
+      
+      if (data && data.length > 0) {
+        if (__DEV__) {
+          console.log(`Found ${data.length} past due items`);
+        }
+        setPastDueItems(data);
+        // Show modal for the first past due item
+        setCurrentPastDueItem(data[0]);
+        setPastDueModalVisible(true);
+      } else {
+        setPastDueItems([]);
+        setCurrentPastDueItem(null);
+      }
+    } catch (error) {
+      console.error('Error checking past due items:', error);
+    }
+  }, []);
+
+  // Handle payment confirmation
+  const handlePaymentPaid = useCallback(async (itemId: string) => {
+    try {
+      const { data, error } = await pastDueService.recordPayment(itemId, 'paid');
+      
+      if (error) {
+        throw new Error(error);
+      }
+      
+      if (__DEV__) {
+        console.log('Payment recorded successfully:', data);
+      }
+      
+      // Close current modal
+      setPastDueModalVisible(false);
+      
+      // Remove current item from past due list
+      const remainingItems = pastDueItems.filter(item => item.id !== itemId);
+      setPastDueItems(remainingItems);
+      
+      // Refresh subscriptions to show updated renewal date
+      await loadSubscriptions(true);
+      
+      // Check if there are more past due items
+      if (remainingItems.length > 0) {
+        // Show next past due item after a short delay
+        setTimeout(() => {
+          setCurrentPastDueItem(remainingItems[0]);
+          setPastDueModalVisible(true);
+        }, 500);
+      } else {
+        setCurrentPastDueItem(null);
+      }
+    } catch (error) {
+      console.error('Error recording payment:', error);
+      throw error;
+    }
+  }, [pastDueItems, loadSubscriptions]);
+
+  // Handle payment skipped
+  const handlePaymentSkipped = useCallback(async (itemId: string) => {
+    try {
+      const { data, error } = await pastDueService.recordPayment(itemId, 'skipped');
+      
+      if (error) {
+        throw new Error(error);
+      }
+      
+      if (__DEV__) {
+        console.log('Payment skip recorded successfully:', data);
+      }
+      
+      // Close current modal
+      setPastDueModalVisible(false);
+      
+      // Remove current item from past due list
+      const remainingItems = pastDueItems.filter(item => item.id !== itemId);
+      setPastDueItems(remainingItems);
+      
+      // Refresh subscriptions to show updated renewal date
+      await loadSubscriptions(true);
+      
+      // Check if there are more past due items
+      if (remainingItems.length > 0) {
+        // Show next past due item after a short delay
+        setTimeout(() => {
+          setCurrentPastDueItem(remainingItems[0]);
+          setPastDueModalVisible(true);
+        }, 500);
+      } else {
+        setCurrentPastDueItem(null);
+      }
+    } catch (error) {
+      console.error('Error recording skip:', error);
+      throw error;
+    }
+  }, [pastDueItems, loadSubscriptions]);
 
   // Update subscription count in real-time when subscriptions change
   // while preserving backend's maxCount and atLimit values
@@ -287,6 +398,9 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
           
           // Refresh subscriptions list
           await loadSubscriptions(true);
+          
+          // Check for past due items
+          await checkPastDueItems();
         } catch (error) {
           console.error('Error refreshing on focus:', error);
           // Still try to load subscriptions even if limit refresh fails
@@ -296,7 +410,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       
       refreshAll();
       return () => {};
-    }, [])
+    }, [loadSubscriptions, checkPastDueItems])
   );
 
   const handleRefresh = async () => {
@@ -638,6 +752,15 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
           onUpgradePress={handleUpgradePromptPress}
         />
       )}
+
+      {/* Past Due Modal */}
+      <PastDueModal
+        visible={pastDueModalVisible}
+        item={currentPastDueItem}
+        onPaid={handlePaymentPaid}
+        onSkipped={handlePaymentSkipped}
+        onClose={() => setPastDueModalVisible(false)}
+      />
     </View>
   );
 }

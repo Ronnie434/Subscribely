@@ -151,10 +151,9 @@ export default function SubscriptionForm({ subscription, onSubmit, onCancel, isS
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
 
-    // Use custom date if enabled, otherwise auto-generate (30 days from now)
-    const renewalDate = useCustomDate
-      ? customRenewalDate
-      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    // Always use the date from the date picker (it's now mandatory for all subscriptions)
+    // The date picker defaults to today, so users see and can change it
+    const renewalDate = customRenewalDate;
 
     // Format date as YYYY-MM-DD to avoid timezone issues
     const formatDateOnly = (date: Date): string => {
@@ -220,7 +219,7 @@ export default function SubscriptionForm({ subscription, onSubmit, onCancel, isS
       color: selectedCategory.color,
       domain: finalDomain,
       description: description.trim() || undefined,
-      isCustomRenewalDate: useCustomDate,
+      isCustomRenewalDate: true, // Always true since user always selects the date
       reminders: repeatInterval !== 'never' ? enableReminders : false,
       reminderDaysBefore: enableReminders ? reminderDaysBefore : 1,
       // Include legacy fields for backward compatibility
