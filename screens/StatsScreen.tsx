@@ -7,15 +7,19 @@ import {
   RefreshControl,
   Alert,
   Platform,
+  TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
 import { Subscription } from '../types';
 import { storage } from '../utils/storage';
 import { calculations } from '../utils/calculations';
 import { parseLocalDate } from '../utils/dateHelpers';
+import { exportSubscriptionsToExcel } from '../utils/excelExport';
 import CategoryBar from '../components/CategoryBar';
 import InsightCard from '../components/InsightCard';
 import RenewalItem from '../components/RenewalItem';
@@ -41,6 +45,7 @@ export default function StatsScreen() {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   // Calculate bottom padding to account for tab bar
   // Tab bar height: 60px base + safe area insets (matching AppNavigator.tsx line 333)
@@ -114,12 +119,34 @@ export default function StatsScreen() {
     navigation.navigate('EditSubscription', { subscription });
   };
 
+  const handleExportToExcel = async () => {
+    if (subscriptions.length === 0) {
+      Alert.alert('No Data', 'There are no subscriptions to export.');
+      return;
+    }
+
+    setExporting(true);
+    try {
+      await exportSubscriptionsToExcel(subscriptions);
+      Alert.alert('Success', 'Your subscriptions have been exported successfully!');
+    } catch (error) {
+      console.error('Export error:', error);
+      Alert.alert(
+        'Export Failed',
+        'Failed to export subscriptions. Please try again.'
+      );
+    } finally {
+      setExporting(false);
+    }
+  };
+
   // Calculate statistics
   const totalMonthly = calculations.getTotalMonthlyCost(subscriptions);
   const totalYearly = calculations.getTotalYearlyCost(subscriptions);
   const averageCost = calculations.getAverageMonthlyCost(subscriptions);
-  const billingDistribution = calculations.getBillingCycleDistribution(subscriptions);
+  const recurringVsOneTime = calculations.getRecurringVsOneTimeCount(subscriptions);
   const nextRenewal = calculations.getNextRenewalDate(subscriptions);
+  const nextRenewalCost = calculations.getNextRenewalCost(subscriptions);
   const categoryBreakdown = calculations.getCategorySorted(subscriptions);
   const renewalTimeline = calculations.getRenewalTimeline(subscriptions, 30);
   const insights = calculations.generateInsights(subscriptions);
@@ -264,25 +291,27 @@ export default function StatsScreen() {
     // Billing cycle specific
     billingRow: {
       flexDirection: 'row',
-      gap: 16,
+      gap: 12,
+      justifyContent: 'space-around',
     },
     billingItem: {
       flex: 1,
       alignItems: 'center',
     },
     billingValue: {
-      fontSize: 32,
+      fontSize: 28,
       fontWeight: '700',
       color: theme.colors.text,
       marginBottom: 4,
       letterSpacing: -0.5,
-      lineHeight: 38,
+      lineHeight: 34,
     },
     billingLabel: {
-      fontSize: 13,
+      fontSize: 12,
       fontWeight: '500',
       color: theme.colors.textSecondary,
-      lineHeight: 18,
+      lineHeight: 16,
+      textAlign: 'center',
     },
     
     // Renewal groups
@@ -304,6 +333,25 @@ export default function StatsScreen() {
       color: theme.colors.textSecondary,
       textAlign: 'center',
       lineHeight: 20,
+    },
+    
+    // Export button styles
+    exportButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      paddingVertical: 12,
+      paddingHorizontal: 20,
+      borderRadius: 12,
+      backgroundColor: theme.colors.primaryLight || `${theme.colors.primary}15`,
+      borderWidth: 1,
+      borderColor: theme.colors.primary,
+    },
+    exportButtonText: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: theme.colors.primary,
     },
   });
 
@@ -355,29 +403,52 @@ export default function StatsScreen() {
           <View style={styles.statCard}>
             <Text style={styles.statLabel}>Average</Text>
             <Text style={styles.statValue}>${averageCost.toFixed(2)}</Text>
-            <Text style={styles.statSubtext}>per month</Text>
+            <Text style={styles.statSubtext}>per item</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={styles.statLabel}>Total Subs</Text>
-            <Text style={styles.statValue}>{subscriptions.length}</Text>
+            <Text style={styles.statLabel}>Next Renewal</Text>
+            <Text style={styles.statValue}>${nextRenewalCost.toFixed(2)}</Text>
+            <Text style={styles.statSubtext}>{formatNextRenewal()}</Text>
           </View>
         </View>
 
-        {/* Billing Cycles Card */}
+        {/* Item Type Breakdown */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Billing Cycles</Text>
+          <Text style={styles.sectionTitle}>Item Breakdown</Text>
         </View>
         <View style={[styles.card, { marginBottom: 12 }]}>
           <View style={styles.billingRow}>
             <View style={styles.billingItem}>
-              <Text style={styles.billingValue}>{billingDistribution.monthly}</Text>
-              <Text style={styles.billingLabel}>Monthly</Text>
+              <Text style={styles.billingValue}>{recurringVsOneTime.recurring}</Text>
+              <Text style={styles.billingLabel}>Recurring</Text>
             </View>
             <View style={styles.billingItem}>
-              <Text style={styles.billingValue}>{billingDistribution.yearly}</Text>
-              <Text style={styles.billingLabel}>Yearly</Text>
+              <Text style={styles.billingValue}>{recurringVsOneTime.oneTime}</Text>
+              <Text style={styles.billingLabel}>One-Time</Text>
+            </View>
+            <View style={styles.billingItem}>
+              <Text style={styles.billingValue}>{subscriptions.length}</Text>
+              <Text style={styles.billingLabel}>Total</Text>
             </View>
           </View>
+        </View>
+
+        {/* Export Button */}
+        <View style={[styles.card, { marginBottom: 12 }]}>
+          <TouchableOpacity
+            style={styles.exportButton}
+            onPress={handleExportToExcel}
+            disabled={exporting}
+          >
+            {exporting ? (
+              <ActivityIndicator size="small" color={theme.colors.primary} />
+            ) : (
+              <Ionicons name="download-outline" size={20} color={theme.colors.primary} />
+            )}
+            <Text style={styles.exportButtonText}>
+              {exporting ? 'Exporting...' : 'Export to Excel'}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Category Breakdown */}

@@ -112,14 +112,46 @@ export const calculations = {
   getBillingCycleDistribution(subscriptions: Subscription[]): { monthly: number; yearly: number } {
     return subscriptions.reduce(
       (acc, sub) => {
-        if (sub.billingCycle === 'monthly') {
-          acc.monthly += 1;
-        } else {
+        // Use repeat_interval if available, otherwise fall back to legacy billingCycle
+        const interval = sub.repeat_interval || convertToRepeatInterval(sub.chargeType, sub.billingCycle);
+        
+        if (interval === 'yearly') {
           acc.yearly += 1;
+        } else if (interval !== 'never') {
+          acc.monthly += 1;
         }
         return acc;
       },
       { monthly: 0, yearly: 0 }
+    );
+  },
+
+  getRepeatIntervalDistribution(subscriptions: Subscription[]): Record<string, number> {
+    const distribution: Record<string, number> = {};
+    
+    subscriptions.forEach((sub) => {
+      // Use repeat_interval if available, otherwise fall back to legacy fields
+      const interval = sub.repeat_interval || convertToRepeatInterval(sub.chargeType, sub.billingCycle);
+      distribution[interval] = (distribution[interval] || 0) + 1;
+    });
+    
+    return distribution;
+  },
+
+  getRecurringVsOneTimeCount(subscriptions: Subscription[]): { recurring: number; oneTime: number } {
+    return subscriptions.reduce(
+      (acc, sub) => {
+        // Use repeat_interval if available, otherwise fall back to legacy chargeType
+        const interval = sub.repeat_interval || convertToRepeatInterval(sub.chargeType, sub.billingCycle);
+        
+        if (interval === 'never') {
+          acc.oneTime += 1;
+        } else {
+          acc.recurring += 1;
+        }
+        return acc;
+      },
+      { recurring: 0, oneTime: 0 }
     );
   },
 
@@ -187,14 +219,34 @@ export const calculations = {
   },
 
   calculatePotentialSavings(subscriptions: Subscription[]): number {
-    // Calculate potential savings by switching monthly to yearly (assuming 15% discount)
-    // Only calculate for recurring charges
-    const monthlySubs = subscriptions.filter((sub) =>
-      sub.billingCycle === 'monthly' && sub.chargeType !== 'one_time'
-    );
-    const yearlyCostOfMonthlySubs = monthlySubs.reduce((total, sub) => total + sub.cost * 12, 0);
-    const potentialYearlyCost = yearlyCostOfMonthlySubs * 0.85; // 15% discount
-    return yearlyCostOfMonthlySubs - potentialYearlyCost;
+    // Calculate potential savings by switching shorter intervals to yearly (assuming 15% discount)
+    const eligibleSubs = subscriptions.filter((sub) => {
+      const interval = sub.repeat_interval || convertToRepeatInterval(sub.chargeType, sub.billingCycle);
+      // Only include recurring items that aren't already yearly
+      return interval !== 'never' && interval !== 'yearly';
+    });
+    
+    const yearlyEquivalentCost = eligibleSubs.reduce((total, sub) => {
+      const interval = sub.repeat_interval || convertToRepeatInterval(sub.chargeType, sub.billingCycle);
+      return total + getYearlyFromInterval(sub.cost, interval);
+    }, 0);
+    
+    const potentialYearlyCost = yearlyEquivalentCost * 0.85; // 15% discount
+    return yearlyEquivalentCost - potentialYearlyCost;
+  },
+
+  getNextRenewalCost(subscriptions: Subscription[]): number {
+    if (subscriptions.length === 0) return 0;
+    
+    // Find the subscription with the nearest renewal date
+    const upcoming = subscriptions
+      .filter((sub) => {
+        const interval = sub.repeat_interval || convertToRepeatInterval(sub.chargeType, sub.billingCycle);
+        return this.getDaysUntilRenewal(sub.renewalDate) >= 0 && interval !== 'never';
+      })
+      .sort((a, b) => this.getDaysUntilRenewal(a.renewalDate) - this.getDaysUntilRenewal(b.renewalDate));
+    
+    return upcoming.length > 0 ? upcoming[0].cost : 0;
   },
 
   generateInsights(subscriptions: Subscription[]): Array<{ type: string; message: string; priority: 'high' | 'medium' | 'low' }> {
@@ -204,16 +256,18 @@ export const calculations = {
       return insights;
     }
 
-    // Check for potential yearly savings (only for recurring charges)
-    const monthlySubs = subscriptions.filter((sub) =>
-      sub.billingCycle === 'monthly' && sub.chargeType !== 'one_time'
-    );
-    if (monthlySubs.length > 0) {
+    // Check for potential yearly savings
+    const eligibleForYearlySavings = subscriptions.filter((sub) => {
+      const interval = sub.repeat_interval || convertToRepeatInterval(sub.chargeType, sub.billingCycle);
+      return interval !== 'never' && interval !== 'yearly';
+    });
+    
+    if (eligibleForYearlySavings.length > 0) {
       const savings = this.calculatePotentialSavings(subscriptions);
       if (savings > 10) {
         insights.push({
           type: 'savings',
-          message: `Switch ${monthlySubs.length} subscription${monthlySubs.length > 1 ? 's' : ''} to yearly billing and save up to $${savings.toFixed(2)}/year`,
+          message: `Switch ${eligibleForYearlySavings.length} item${eligibleForYearlySavings.length > 1 ? 's' : ''} to yearly billing and save up to $${savings.toFixed(2)}/year`,
           priority: 'high',
         });
       }
@@ -240,11 +294,23 @@ export const calculations = {
       });
     }
 
-    // Check for high number of subscriptions
-    if (subscriptions.length > 10) {
+    // Check for high number of recurring items
+    const recurringCount = this.getRecurringVsOneTimeCount(subscriptions).recurring;
+    if (recurringCount > 10) {
       insights.push({
         type: 'count',
-        message: `You have ${subscriptions.length} active subscriptions - consider reviewing for unused services`,
+        message: `You have ${recurringCount} recurring items - consider reviewing for unused services`,
+        priority: 'low',
+      });
+    }
+
+    // Check for frequent short-interval subscriptions
+    const intervalDist = this.getRepeatIntervalDistribution(subscriptions);
+    const shortIntervalCount = (intervalDist.weekly || 0) + (intervalDist.biweekly || 0);
+    if (shortIntervalCount >= 3) {
+      insights.push({
+        type: 'info',
+        message: `You have ${shortIntervalCount} weekly/biweekly items. Consider if consolidation could save time`,
         priority: 'low',
       });
     }
