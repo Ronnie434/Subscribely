@@ -113,33 +113,8 @@ export default function CalendarView({
     return isSameDay(date, today);
   };
 
-  // Make dots vibrant and visible in dark mode
-  const getDotColor = () => {
-    if (!theme.isDark) {
-      // Light mode: use original color
-      return subscriptionColor || theme.colors.primary;
-    }
-    
-    // Dark mode: make all dots bright and vibrant
-    // If subscription has a custom color, use bright version
-    // Otherwise use bright red
-    const baseColor = subscriptionColor || theme.colors.primary;
-    
-    // Color mapping for better dark mode visibility
-    const darkModeColors: Record<string, string> = {
-      '#8E8E93': '#FF3B30',  // Gray → Bright Red
-      '#007AFF': '#0A84FF',  // Blue → Brighter Blue
-      '#34C759': '#30D158',  // Green → Brighter Green
-      '#FF9500': '#FF9F0A',  // Orange → Brighter Orange
-      '#5856D6': '#5E5CE6',  // Purple → Brighter Purple
-      '#FF3B30': '#FF453A',  // Red → Brighter Red
-    };
-    
-    // Return bright version if mapped, otherwise use bright red as default
-    return darkModeColors[baseColor] || '#FF3B30';
-  };
-  
-  const dotColor = getDotColor();
+  // Use bright red for all renewal dots in both themes for consistency and visibility
+  const dotColor = '#FF3B30'; // Vibrant red that works great in both light and dark modes
 
   const styles = StyleSheet.create({
     container: {
