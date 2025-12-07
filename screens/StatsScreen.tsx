@@ -14,6 +14,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { useTheme } from '../contexts/ThemeContext';
 import { Subscription } from '../types';
 import { storage } from '../utils/storage';
@@ -25,17 +26,18 @@ import InsightCard from '../components/InsightCard';
 import RenewalItem from '../components/RenewalItem';
 import LoadingIndicator from '../components/LoadingIndicator';
 import EmptyState from '../components/EmptyState';
+import PaywallModal from '../components/PaywallModal';
 import { useAuth } from '../contexts/AuthContext';
 import { useRealtimeSubscriptions } from '../hooks/useRealtimeSubscriptions';
+import { subscriptionTierService } from '../services/subscriptionTierService';
+import { subscriptionLimitService } from '../services/subscriptionLimitService';
 
-type SubscriptionsStackParamList = {
-  Home: undefined;
-  AddSubscription: { subscription?: Subscription };
-  EditSubscription: { subscription: Subscription };
-  Stats: undefined;
+type StatsStackParamList = {
+  StatsHome: undefined;
+  PlanSelection: undefined;
 };
 
-type StatsScreenNavigationProp = StackNavigationProp<SubscriptionsStackParamList, 'Stats'>;
+type StatsScreenNavigationProp = StackNavigationProp<StatsStackParamList, 'StatsHome'>;
 
 export default function StatsScreen() {
   const { theme } = useTheme();
@@ -46,6 +48,9 @@ export default function StatsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [isPremium, setIsPremium] = useState<boolean>(false);
+  const [paywallVisible, setPaywallVisible] = useState(false);
+  const [limitStatus, setLimitStatus] = useState({ currentCount: 0, maxCount: 5, isPremium: false });
 
   // Calculate bottom padding to account for tab bar
   // Tab bar height: 60px base + safe area insets (matching AppNavigator.tsx line 333)
@@ -94,12 +99,32 @@ export default function StatsScreen() {
     }
   }, []);
 
+  const checkPremiumStatus = useCallback(async () => {
+    try {
+      const premiumStatus = await subscriptionTierService.isPremiumUser();
+      setIsPremium(premiumStatus);
+      
+      // Also get limit status for paywall modal
+      const status = await subscriptionLimitService.getSubscriptionLimitStatus();
+      setLimitStatus({
+        currentCount: status.currentCount,
+        maxCount: status.maxAllowed || 5,
+        isPremium: status.isPremium,
+      });
+    } catch (error) {
+      console.error('Error checking premium status:', error);
+      // Default to false on error
+      setIsPremium(false);
+    }
+  }, []);
+
   // Refresh data when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       loadSubscriptions(true);
+      checkPremiumStatus();
       return () => {};
-    }, [loadSubscriptions])
+    }, [loadSubscriptions, checkPremiumStatus])
   );
 
   const handleRefresh = async () => {
@@ -120,6 +145,19 @@ export default function StatsScreen() {
   };
 
   const handleExportToExcel = async () => {
+    // Check premium status first
+    const isUserPremium = await subscriptionTierService.isPremiumUser();
+    
+    if (!isUserPremium) {
+      // Show paywall for free users
+      if (Platform.OS === 'ios') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      }
+      setPaywallVisible(true);
+      return;
+    }
+    
+    // Premium users can export
     if (subscriptions.length === 0) {
       Alert.alert('No Data', 'There are no subscriptions to export.');
       return;
@@ -138,6 +176,12 @@ export default function StatsScreen() {
     } finally {
       setExporting(false);
     }
+  };
+
+  const handleUpgradePress = (plan: 'monthly' | 'yearly') => {
+    setPaywallVisible(false);
+    // Navigate to plan selection screen
+    navigation.navigate('PlanSelection');
   };
 
   // Calculate statistics
@@ -543,6 +587,19 @@ export default function StatsScreen() {
             </View>
           )}
       </ScrollView>
+
+      {/* Paywall Modal */}
+      <PaywallModal
+        visible={paywallVisible}
+        onClose={() => setPaywallVisible(false)}
+        onUpgradePress={handleUpgradePress}
+        currentCount={limitStatus.currentCount}
+        maxCount={limitStatus.maxCount}
+        onSuccess={async () => {
+          // Refresh premium status after successful upgrade
+          await checkPremiumStatus();
+        }}
+      />
     </View>
   );
 }
