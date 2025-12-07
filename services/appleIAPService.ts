@@ -82,6 +82,26 @@ class AppleIAPService {
    */
   private purchaseErrorSubscription: any = null;
 
+  /**
+   * Pending purchase completion callback
+   * @private
+   */
+  private pendingPurchaseCallback: ((success: boolean, purchase?: any) => void) | null = null;
+
+  /**
+   * Purchase cancellation callback
+   * @private
+   */
+  private purchaseCancellationCallback: (() => void) | null = null;
+
+  /**
+   * Set callback for purchase cancellation
+   * @param callback - Function to call when purchase is cancelled
+   */
+  setPurchaseCancellationCallback(callback: (() => void) | null): void {
+    this.purchaseCancellationCallback = callback;
+  }
+
   // ============================================================================
   // INITIALIZATION & CLEANUP
   // ============================================================================
@@ -124,6 +144,9 @@ class AppleIAPService {
 
       // Set up purchase listeners
       this.setupPurchaseListeners();
+      
+      // Clear any pending/unfinished transactions on app launch
+      await this.clearPendingTransactions();
     } catch (error) {
       console.error('[AppleIAP] ❌ Failed to initialize IAP:', error);
       this.handleError(error);
@@ -341,23 +364,47 @@ class AppleIAPService {
       console.log('[AppleIAP] ✅ IAP initialized, product verified, requesting purchase...');
 
       // Request subscription purchase
-      // Use the standard structure for react-native-iap v14+
-      await requestPurchase({
-        request: {
-          ios: {
-            sku: productId,
+      // Note: requestPurchase() doesn't return the purchase result directly
+      // The actual purchase result comes through the purchase listener
+      // This just initiates the purchase flow
+      try {
+        await requestPurchase({
+          request: {
+            ios: {
+              sku: productId,
+            },
           },
-        },
-        type: 'subs', // Explicitly specify subscription type
-      });
-      
-      console.log('[AppleIAP] ✅ Purchase request sent, waiting for listener...');
-      
-      // Return pending status - actual result comes through listener
-      return {
-        success: true,
-        purchase: undefined, // Will be set by listener
-      };
+          type: 'subs', // Explicitly specify subscription type
+        });
+        
+        console.log('[AppleIAP] ✅ Purchase request sent, waiting for listener...');
+        
+        // Return success - the actual purchase completion will be handled by listener
+        // The PaywallModal should wait for the listener to fire before showing success
+        return {
+          success: true,
+          purchase: undefined, // Will be set by listener
+        };
+      } catch (requestError: any) {
+        // Handle errors from requestPurchase itself (not from listener)
+        console.error('[AppleIAP] ❌ Purchase request failed:', requestError);
+        
+        // Check if user cancelled during the request
+        if (requestError.code === 'E_USER_CANCELLED' || 
+            requestError.code === 'user-cancelled' ||
+            requestError.message?.toLowerCase().includes('cancel')) {
+          console.log('[AppleIAP] ℹ️ User cancelled purchase during request');
+          return {
+            success: false,
+            error: {
+              code: IAPErrorCode.USER_CANCELLED,
+              message: 'Purchase cancelled by user',
+            },
+          };
+        }
+        
+        throw requestError; // Re-throw to be handled by outer catch
+      }
     } catch (error: any) {
       console.error('[AppleIAP] ❌ Purchase failed:', error);
       console.error('[AppleIAP] ❌ Error details:', {
@@ -368,7 +415,10 @@ class AppleIAPService {
       });
       
       // Check if user cancelled
-      if (error.code === 'E_USER_CANCELLED' || error.message?.includes('cancelled')) {
+      if (error.code === 'E_USER_CANCELLED' || 
+          error.code === 'user-cancelled' ||
+          error.message?.toLowerCase().includes('cancel')) {
+        console.log('[AppleIAP] ℹ️ User cancelled purchase');
         return {
           success: false,
           error: {
@@ -570,6 +620,45 @@ class AppleIAPService {
   }
 
   /**
+   * Clear pending/unfinished transactions on app launch
+   * 
+   * Finishes any old transactions that are stuck in the purchase queue.
+   * This prevents old transactions from re-triggering on every app launch.
+   * @private
+   */
+  private async clearPendingTransactions(): Promise<void> {
+    try {
+      console.log('[AppleIAP] 🔍 Checking for pending transactions...');
+      
+      const availablePurchases = await getAvailablePurchases();
+      
+      if (availablePurchases.length === 0) {
+        console.log('[AppleIAP] ✅ No pending transactions');
+        return;
+      }
+      
+      console.log(`[AppleIAP] 📦 Found ${availablePurchases.length} pending transaction(s)`);
+      
+      for (const purchase of availablePurchases) {
+        console.log(`[AppleIAP] 🧹 Finishing old transaction: ${purchase.transactionId}`);
+        
+        try {
+          await finishTransaction({ purchase, isConsumable: false });
+          console.log(`[AppleIAP] ✅ Finished transaction: ${purchase.transactionId}`);
+        } catch (finishError) {
+          console.error(`[AppleIAP] ⚠️ Failed to finish transaction ${purchase.transactionId}:`, finishError);
+          // Continue with other transactions even if one fails
+        }
+      }
+      
+      console.log('[AppleIAP] ✅ All pending transactions cleared');
+    } catch (error) {
+      console.error('[AppleIAP] ❌ Error clearing pending transactions:', error);
+      // Don't throw - this is a cleanup operation and shouldn't block initialization
+    }
+  }
+
+  /**
    * Handle purchase update event
    * 
    * Processes successful purchases, validates receipts, and finishes transactions.
@@ -606,34 +695,30 @@ class AppleIAPService {
       if (Platform.OS === 'ios' && !isLocalTransaction) {
         // 1. Try transactionReceipt from purchase object (base64 format - SK1 legacy or hybrid)
         receiptData = purchase.transactionReceipt || purchase.receipt || '';
+        console.log('[AppleIAP] 📄 Transaction receipt from purchase:', receiptData ? 'present' : 'missing');
         
-        // 2. If missing, try to get JWS token (StoreKit 2 modern format)
-        if (!receiptData && purchase.transactionId) {
-          try {
-            // getTransactionJwsIOS is available in newer react-native-iap versions for SK2
-            // We use 'as any' because types might not be fully updated in all versions
-            if (typeof getTransactionJwsIOS === 'function') {
-              receiptData = await getTransactionJwsIOS(purchase.transactionId);
-              if (receiptData) {
-                console.log('[AppleIAP] ✅ Retrieved JWS token for validation');
-              }
-            }
-          } catch (jwsError) {
-            // Just log info, not error - this is expected if not using SK2 or not available
-            console.log('[AppleIAP] ℹ️ Could not get JWS token:', (jwsError as Error).message);
-          }
-        }
-
-        // 3. Last resort: try to get legacy app receipt
+        // 2. If missing, try to get the full app receipt (legacy base64 format)
+        // This is compatible with our current validate-apple-receipt Edge Function
         if (!receiptData) {
           try {
+            console.log('[AppleIAP] 🔍 Attempting to get legacy app receipt...');
             receiptData = await getReceiptDataIOS();
+            if (receiptData) {
+              console.log('[AppleIAP] ✅ Retrieved legacy receipt for validation');
+            }
           } catch (receiptError) {
             // Receipt might not be available immediately in sandbox or local testing
             // This is common/expected in Xcode StoreKit testing
             console.log('[AppleIAP] ℹ️ Legacy receipt not available (expected in local testing)');
           }
         }
+
+        // 3. FUTURE: StoreKit 2 JWS token support (currently incompatible with our validator)
+        // Our current validate-apple-receipt uses /verifyReceipt API which expects base64 receipt
+        // JWS tokens require the new App Store Server API - will implement in future update
+        // if (!receiptData && purchase.productId && typeof getTransactionJwsIOS === 'function') {
+        //   receiptData = await getTransactionJwsIOS(purchase.productId);
+        // }
       } else if (!isLocalTransaction) {
         // Android uses purchase token
         receiptData = purchase.purchaseToken || purchase.transactionReceipt || '';
@@ -698,6 +783,19 @@ class AppleIAPService {
    * @param {any} error - Error object from react-native-iap
    */
   private async handlePurchaseError(error: any): Promise<void> {
+    // Check if user cancelled
+    if (error.code === 'E_USER_CANCELLED' || error.code === 'user-cancelled' || error.message?.toLowerCase().includes('cancel')) {
+      console.log('[AppleIAP] ℹ️ User cancelled purchase');
+      
+      // Notify cancellation callback if set
+      if (this.purchaseCancellationCallback) {
+        console.log('[AppleIAP] 📢 Notifying cancellation callback');
+        this.purchaseCancellationCallback();
+      }
+      
+      return; // Don't process cancellation as an error
+    }
+    
     // Ignore local/simulator SKU errors
     if (error.code === 'sku-not-found' || error.message?.includes('sku 0') || error.message?.includes('sku 1')) {
       console.log('[AppleIAP] 🧪 Ignoring SKU error in local/simulator environment');
@@ -774,6 +872,11 @@ class AppleIAPService {
    */
   private async validateReceiptServer(receiptData: string, userId: string): Promise<boolean> {
     try {
+      console.log('[AppleIAP] 🔍 Validating receipt with server...');
+      console.log('[AppleIAP] 🔍 Receipt data length:', receiptData.length);
+      console.log('[AppleIAP] 🔍 Receipt first 50 chars:', receiptData.substring(0, 50));
+      console.log('[AppleIAP] 🔍 Receipt type:', receiptData.startsWith('eyJ') ? 'JWS token' : 'base64 receipt');
+      
       const { data, error } = await supabase.functions.invoke(
         'validate-apple-receipt',
         {
@@ -791,16 +894,20 @@ class AppleIAPService {
           console.error('[AppleIAP] ❌ Status:', error.context.status);
         }
         if (error.context?.data) {
-          console.error('[AppleIAP] ❌ Error details:', error.context.data);
+          console.error('[AppleIAP] ❌ Error details:', JSON.stringify(error.context.data));
         }
         return false;
       }
 
       if (!data?.success) {
         console.error('[AppleIAP] ❌ Validation failed:', data?.error || 'Unknown error');
+        if (data?.status) {
+          console.error('[AppleIAP] ❌ Apple status code:', data.status);
+        }
         return false;
       }
 
+      console.log('[AppleIAP] ✅ Receipt validation successful');
       return true;
     } catch (error) {
       console.error('[AppleIAP] ❌ Validation exception:', error);
@@ -879,6 +986,27 @@ class AppleIAPService {
                                    purchase.transactionId || 
                                    '';
 
+      // IMPORTANT: Check if user has an existing canceled subscription
+      // We should NOT automatically reactivate a canceled subscription
+      console.log('[AppleIAP] 🔍 Checking for existing subscription...');
+      const { data: existingSub, error: fetchError } = await supabase
+        .from('user_subscriptions')
+        .select('status, canceled_at, cancel_at_period_end')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (fetchError) {
+        console.error('[AppleIAP] ⚠️ Error checking existing subscription:', fetchError);
+        // Continue anyway - will upsert
+      }
+
+      // If subscription is canceled and not yet expired, don't overwrite it
+      if (existingSub?.status === 'canceled' && existingSub?.cancel_at_period_end) {
+        console.log('[AppleIAP] ⚠️ User has canceled subscription, skipping client-side update');
+        console.log('[AppleIAP] ℹ️ Webhook will handle any legitimate renewal after cancellation');
+        return; // Let the webhook handle it - it has authoritative info from Apple
+      }
+
       // Update user_subscriptions table
       const { error: updateError } = await supabase
         .from('user_subscriptions')
@@ -889,6 +1017,8 @@ class AppleIAPService {
           status: 'active',
           current_period_start: now.toISOString(),
           current_period_end: expirationDate.toISOString(),
+          cancel_at_period_end: false, // Reset cancellation flag for new/renewed subscriptions
+          canceled_at: null, // Clear canceled timestamp
           updated_at: now.toISOString(),
         }, {
           onConflict: 'user_id'
@@ -898,6 +1028,8 @@ class AppleIAPService {
         console.error('[AppleIAP] ❌ Failed to update subscription:', updateError);
         throw updateError;
       }
+
+      console.log('[AppleIAP] ✅ Subscription updated: tier=premium_tier, status=active, cycle=' + billingCycle);
 
       // Update profiles table with Apple-specific fields
       const { error: profileError } = await supabase

@@ -51,7 +51,7 @@ enum NotificationType {
  * - com.ronnie39.renvo.pro.yearly (Pro Yearly)
  */
 const PRODUCT_TIER_MAP: Record<string, string> = {
-  // Active Premium tier products
+  // Active Premium tier products - must match tier_id in subscription_tiers table
   'com.ronnie39.renvo.premium.monthly.v1': 'premium_tier',
   'com.ronnie39.renvo.premium.yearly.v1': 'premium_tier',
   // Future Pro tier products (when implemented)
@@ -242,22 +242,22 @@ async function handleSubscriptionEvent(
   switch (notificationType) {
     case NotificationType.SUBSCRIBED:
     case NotificationType.DID_RENEW:
-      // Activate or renew subscription
+      // Activate or renew subscription using helper function
       console.log('[apple-webhook] ✅ Activating/renewing subscription...');
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({
-          subscription_tier: tier,
-          subscription_status: 'active',
-          payment_provider: 'apple',
-          apple_original_transaction_id: originalTransactionId,
-          apple_receipt_expiration_date: expiresDateStr,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', userId);
+      const { data: updateResult, error: updateError } = await supabase.rpc(
+        'update_apple_iap_subscription',
+        {
+          p_user_id: userId,
+          p_tier_id: tier,
+          p_status: 'active',
+          p_original_transaction_id: originalTransactionId,
+          p_expiration_date: expiresDateStr,
+          p_product_id: productId,
+        }
+      );
       
       if (updateError) {
-        console.error('[apple-webhook] ❌ Failed to update profile:', updateError);
+        console.error('[apple-webhook] ❌ Failed to update subscription:', updateError);
       } else {
         console.log(`[apple-webhook] ✅ Subscription ${notificationType} for user ${userId}`);
       }
@@ -267,15 +267,15 @@ async function handleSubscriptionEvent(
       // Mark subscription as payment failed
       console.log('[apple-webhook] ⚠️ Payment failed for user:', userId);
       const { error: failError } = await supabase
-        .from('profiles')
+        .from('user_subscriptions')
         .update({
-          subscription_status: 'past_due',
+          status: 'past_due',
           updated_at: new Date().toISOString(),
         })
-        .eq('id', userId);
+        .eq('user_id', userId);
       
       if (failError) {
-        console.error('[apple-webhook] ❌ Failed to update profile (payment failed):', failError);
+        console.error('[apple-webhook] ❌ Failed to update subscription (payment failed):', failError);
       } else {
         console.log(`[apple-webhook] ✅ Payment failed status updated for user ${userId}`);
       }
@@ -292,15 +292,17 @@ async function handleSubscriptionEvent(
           // User disabled auto-renew, mark as canceled but still active until expiration
           console.log('[apple-webhook] 🚫 User disabled auto-renew, marking as canceled...');
           const { error: cancelError } = await supabase
-            .from('profiles')
+            .from('user_subscriptions')
             .update({
-              subscription_status: 'canceled',
+              status: 'canceled',
+              cancel_at_period_end: true,
+              canceled_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
             })
-            .eq('id', userId);
+            .eq('user_id', userId);
           
           if (cancelError) {
-            console.error('[apple-webhook] ❌ Failed to update profile (canceled):', cancelError);
+            console.error('[apple-webhook] ❌ Failed to update subscription (canceled):', cancelError);
           } else {
             console.log(`[apple-webhook] ✅ Subscription canceled for user ${userId}`);
           }
@@ -315,34 +317,46 @@ async function handleSubscriptionEvent(
       // Subscription expired, downgrade to free
       console.log('[apple-webhook] ⏰ Subscription expired for user:', userId);
       const { error: expireError } = await supabase
-        .from('profiles')
+        .from('user_subscriptions')
         .update({
-          subscription_tier: 'free',
-          subscription_status: 'expired',
-          apple_receipt_expiration_date: null,
+          tier_id: 'free',
+          status: 'canceled',
+          billing_cycle: 'none',
+          current_period_end: null,
           updated_at: new Date().toISOString(),
         })
-        .eq('id', userId);
+        .eq('user_id', userId);
       
       if (expireError) {
-        console.error('[apple-webhook] ❌ Failed to update profile (expired):', expireError);
+        console.error('[apple-webhook] ❌ Failed to update subscription (expired):', expireError);
       } else {
-        console.log(`[apple-webhook] ✅ Subscription expired and downgraded for user ${userId}`);
+        console.log(`[apple-webhook] ✅ Subscription expired and downgraded to free for user ${userId}`);
       }
       break;
 
     case NotificationType.REFUND:
     case NotificationType.REVOKED:
-      // Handle refunds and revocations
+      // Handle refunds and revocations - revert to free tier
       console.log('[apple-webhook] 💰 Refund/revocation for user:', userId);
-      const status = notificationType === NotificationType.REFUND ? 'refunded' : 'revoked';
-      console.log('[apple-webhook] 📝 Status:', status);
+      const refund_status = notificationType === NotificationType.REFUND ? 'canceled' : 'canceled';
+      console.log('[apple-webhook] 📝 Setting status:', refund_status);
       
       const { error: refundError } = await supabase
+        .from('user_subscriptions')
+        .update({
+          tier_id: 'free',
+          status: refund_status,
+          billing_cycle: 'none',
+          current_period_end: null,
+          canceled_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_id', userId);
+      
+      // Also clear Apple tracking fields in profiles
+      await supabase
         .from('profiles')
         .update({
-          subscription_tier: 'free',
-          subscription_status: status,
           apple_receipt_expiration_date: null,
           apple_original_transaction_id: null,
           updated_at: new Date().toISOString(),
@@ -350,9 +364,9 @@ async function handleSubscriptionEvent(
         .eq('id', userId);
       
       if (refundError) {
-        console.error('[apple-webhook] ❌ Failed to update profile (refund/revoked):', refundError);
+        console.error('[apple-webhook] ❌ Failed to update subscription (refund/revoked):', refundError);
       } else {
-        console.log(`[apple-webhook] ✅ Subscription ${notificationType.toLowerCase()} for user ${userId}`);
+        console.log(`[apple-webhook] ✅ Subscription ${notificationType.toLowerCase()}, reverted to free tier for user ${userId}`);
       }
       break;
 

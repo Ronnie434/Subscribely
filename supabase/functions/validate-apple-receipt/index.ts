@@ -32,11 +32,22 @@ const corsHeaders = {
 
 /**
  * Apple receipt validation statuses
+ * @see https://developer.apple.com/documentation/appstorereceipts/status
  */
 const RECEIPT_STATUS = {
   VALID: 0,
+  // Client-side errors
+  MALFORMED_RECEIPT: 21002,
+  RECEIPT_NOT_AUTHENTICATED: 21003,
+  SHARED_SECRET_MISMATCH: 21004,
+  RECEIPT_SERVER_UNAVAILABLE: 21005,
+  SUBSCRIPTION_EXPIRED: 21006,
+  // Environment mismatches
   SANDBOX_RECEIPT_IN_PROD: 21007,
   PROD_RECEIPT_IN_SANDBOX: 21008,
+  // Other errors
+  INTERNAL_ERROR: 21009,
+  ACCOUNT_NOT_FOUND: 21010,
 };
 
 /**
@@ -167,6 +178,42 @@ serve(async (req) => {
       );
     }
 
+    // Validate receipt format - should be base64 encoded string
+    console.log('[validate-apple-receipt] 🔍 Validating receipt format...');
+    console.log('[validate-apple-receipt] 🔍 Receipt first 50 chars:', receiptData.substring(0, 50));
+    
+    // Check if it looks like a JWS token (starts with "eyJ") instead of base64 receipt
+    if (receiptData.startsWith('eyJ')) {
+      console.error('[validate-apple-receipt] ❌ Receipt appears to be a JWS token, not base64 receipt!');
+      console.error('[validate-apple-receipt] ❌ This function only accepts legacy base64 receipt format');
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Invalid receipt format: JWS tokens are not supported. Please send base64 encoded receipt.',
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+    
+    // Basic base64 validation
+    const base64Regex = /^[A-Za-z0-9+/]+={0,2}$/;
+    if (!base64Regex.test(receiptData)) {
+      console.error('[validate-apple-receipt] ❌ Receipt data is not valid base64 format');
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Invalid receipt format: not valid base64 encoded data',
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
     console.log('[validate-apple-receipt] ✅ Request validated');
     console.log('[validate-apple-receipt] 🔐 Initializing Supabase client...');
     
@@ -213,10 +260,53 @@ serve(async (req) => {
     // Check validation status
     if (appleResponse.status !== RECEIPT_STATUS.VALID) {
       console.error('[validate-apple-receipt] ❌ Invalid receipt status:', appleResponse.status);
+      
+      // Provide detailed error messages based on status code
+      let errorMessage = `Invalid receipt (status: ${appleResponse.status})`;
+      let shouldRetry = false;
+      
+      switch (appleResponse.status) {
+        case RECEIPT_STATUS.MALFORMED_RECEIPT:
+          errorMessage = 'Receipt data is malformed or corrupted (21002). This usually means the receipt data is not valid base64 or is incomplete.';
+          console.error('[validate-apple-receipt] 💡 Suggestion: Check if receipt data is valid base64 encoded string');
+          console.error('[validate-apple-receipt] 💡 Receipt sample:', receiptData.substring(0, 100));
+          break;
+        case RECEIPT_STATUS.RECEIPT_NOT_AUTHENTICATED:
+          errorMessage = 'Receipt could not be authenticated (21003)';
+          break;
+        case RECEIPT_STATUS.SHARED_SECRET_MISMATCH:
+          errorMessage = 'Shared secret does not match (21004)';
+          console.error('[validate-apple-receipt] ⚠️ Check APPLE_SHARED_SECRET environment variable');
+          break;
+        case RECEIPT_STATUS.RECEIPT_SERVER_UNAVAILABLE:
+          errorMessage = 'Apple receipt server is temporarily unavailable (21005)';
+          shouldRetry = true;
+          break;
+        case RECEIPT_STATUS.SUBSCRIPTION_EXPIRED:
+          errorMessage = 'Subscription has expired (21006)';
+          break;
+        case RECEIPT_STATUS.INTERNAL_ERROR:
+          errorMessage = 'Apple internal error (21009)';
+          shouldRetry = true;
+          break;
+        case RECEIPT_STATUS.ACCOUNT_NOT_FOUND:
+          errorMessage = 'Account not found (21010)';
+          break;
+        default:
+          errorMessage = `Unknown receipt validation error (status: ${appleResponse.status})`;
+      }
+      
+      console.error('[validate-apple-receipt] ❌ Error:', errorMessage);
+      if (shouldRetry) {
+        console.error('[validate-apple-receipt] 💡 This error may be temporary, consider retrying');
+      }
+      
       return new Response(
         JSON.stringify({
           success: false,
-          error: `Invalid receipt (status: ${appleResponse.status})`,
+          error: errorMessage,
+          status: appleResponse.status,
+          shouldRetry,
         }),
         {
           status: 400,
@@ -376,16 +466,17 @@ serve(async (req) => {
       console.log('[validate-apple-receipt] ✅ Transaction recorded');
     }
 
-    // Update user profile with subscription details
+    // Update user subscription using helper function
     console.log('[validate-apple-receipt] 👤 Updating user subscription...');
     const { error: profileError } = await supabase.rpc(
-      'update_user_apple_subscription',
+      'update_apple_iap_subscription',  // Use the new helper function we created
       {
         p_user_id: userId,
+        p_tier_id: tier,
+        p_status: 'active',
         p_original_transaction_id: original_transaction_id,
-        p_product_id: product_id,
         p_expiration_date: expirationDate?.toISOString() || null,
-        p_latest_receipt: receiptData,
+        p_product_id: product_id,
       }
     );
 
