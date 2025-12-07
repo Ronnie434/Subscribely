@@ -13,6 +13,8 @@ import { requestNotificationPermissions } from './utils/notificationService';
 import { checkAndHandleTimezoneChange } from './utils/timezoneService';
 import { stripeConfig } from './config/stripe';
 import { initializeDomainDiscovery } from './utils/domainHelpers';
+import { Platform } from 'react-native';
+import { appleIAPService } from './services/appleIAPService';
 // Import dev tools (only loads in development)
 import './utils/devTools';
 
@@ -60,6 +62,17 @@ export default function App() {
         console.log('[App] Domain discovery service initialized');
       } catch (error) {
         console.error('[App] Error initializing domain discovery:', error);
+      }
+
+      // Initialize Apple IAP service on iOS (must be done early for TestFlight)
+      if (Platform.OS === 'ios') {
+        try {
+          await appleIAPService.initialize();
+          console.log('[App] ✅ Apple IAP service initialized');
+        } catch (error) {
+          console.error('[App] ❌ Failed to initialize Apple IAP:', error);
+          // Don't block app startup if IAP fails - it will retry when modal opens
+        }
       }
 
       // Request notification permissions on app start

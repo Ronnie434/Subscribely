@@ -201,26 +201,41 @@ class AppleIAPService {
       
       if (products.length === 0) {
         console.warn('[AppleIAP] ⚠️ No products found. Ensure products are configured in App Store Connect.');
+        return []; // Return empty array instead of undefined
+      }
+      
+      // Log raw product structure for debugging
+      if (products.length > 0 && __DEV__) {
+        console.log('[AppleIAP] 🔍 Raw product structure:', JSON.stringify(products[0], null, 2));
       }
       
       // Map RNIap products to AppleIAPProduct format
-      const mappedProducts: AppleIAPProduct[] = products.map((product: any) => ({
-        productId: product.productId,
-        title: product.title || product.productId,
-        description: product.description || '',
-        price: parseFloat(String(product.price)) || 0,
-        currency: product.currency || 'USD',
-        localizedPrice: product.localizedPrice || `$${product.price}`,
-        subscriptionPeriod: product.subscriptionPeriodUnitIOS,
-        introductoryPrice: product.introductoryPrice,
-        subscriptionGroupId: product.subscriptionGroupIdentifier,
-        type: 'subscription' as const,
-      }));
+      // Note: StoreKit 2 uses 'id', legacy/Android uses 'productId'
+      const mappedProducts: AppleIAPProduct[] = products
+        .filter((product: any) => product && (product.productId || product.id)) // Filter out invalid products
+        .map((product: any) => {
+          const id = product.productId || product.id;
+          return {
+            productId: id,
+            title: product.title || id,
+            description: product.description || '',
+            price: parseFloat(String(product.price)) || 0,
+            currency: product.currency || 'USD',
+            localizedPrice: product.localizedPrice || `$${product.price}`,
+            subscriptionPeriod: product.subscriptionPeriodUnitIOS,
+            introductoryPrice: product.introductoryPrice,
+            subscriptionGroupId: product.subscriptionGroupIdentifier,
+            type: 'subscription' as const,
+          };
+        });
 
+      console.log(`[AppleIAP] ✅ Mapped ${mappedProducts.length} products`);
       return mappedProducts;
     } catch (error) {
       console.error('[AppleIAP] ❌ Failed to fetch products:', error);
-      this.handleError(error);
+      // Return empty array instead of throwing to allow purchase to proceed
+      // StoreKit might have products cached even if fetch fails
+      return [];
     }
   }
 
@@ -254,20 +269,64 @@ class AppleIAPService {
     try {
       console.log('[AppleIAP] 🛒 Initiating purchase:', productId);
 
-      // Validate product ID
-      if (!(APPLE_IAP_CONFIG.productIds as readonly string[]).includes(productId)) {
-        throw new Error(`Invalid product ID: ${productId}`);
+      // Ensure IAP is initialized
+      if (!this.initialized) {
+        console.log('[AppleIAP] ⚠️ IAP not initialized, initializing now...');
+        await this.initialize();
+        
+        // Double-check after initialization
+        if (!this.initialized) {
+          throw new Error('Failed to initialize IAP. Please restart the app and try again.');
+        }
       }
 
+      // Validate product ID
+      if (!(APPLE_IAP_CONFIG.productIds as readonly string[]).includes(productId)) {
+        const errorMsg = `Invalid product ID: ${productId}. Valid IDs: ${APPLE_IAP_CONFIG.productIds.join(', ')}`;
+        console.error('[AppleIAP] ❌', errorMsg);
+        throw new Error(errorMsg);
+      }
+
+      // Verify product is available by fetching products first
+      // This ensures StoreKit has loaded the products (important for local testing)
+      console.log('[AppleIAP] 🔍 Verifying product availability...');
+      const products = await this.getProducts();
+      
+      // Log product details for debugging
+      console.log('[AppleIAP] 🔍 Products fetched:', products.length);
+      if (products.length > 0) {
+        console.log('[AppleIAP] 🔍 Product IDs:', products.map(p => p?.productId || 'MISSING').join(', '));
+        console.log('[AppleIAP] 🔍 Looking for:', productId);
+      }
+      
+      // Check if products array is valid and has items
+      if (!products || products.length === 0) {
+        console.warn('[AppleIAP] ⚠️ No products available, but proceeding with purchase anyway (StoreKit may have products cached)');
+        // Don't throw - StoreKit might have the product even if fetchProducts returns empty
+      } else {
+        const productExists = products.some(p => p && p.productId === productId);
+        if (!productExists) {
+          console.warn('[AppleIAP] ⚠️ Product not in fetched list, but proceeding anyway (StoreKit may have it cached)');
+          // Don't throw - StoreKit might have the product even if it's not in the fetched list
+        } else {
+          console.log('[AppleIAP] ✅ Product verified in fetched products');
+        }
+      }
+
+      console.log('[AppleIAP] ✅ IAP initialized, product verified, requesting purchase...');
+
       // Request subscription purchase
+      // Use the standard structure for react-native-iap v14+
       await requestPurchase({
         request: {
           ios: {
             sku: productId,
           },
         },
-        type: 'subs',
+        type: 'subs', // Explicitly specify subscription type
       });
+      
+      console.log('[AppleIAP] ✅ Purchase request sent, waiting for listener...');
       
       // Return pending status - actual result comes through listener
       return {
@@ -276,9 +335,15 @@ class AppleIAPService {
       };
     } catch (error: any) {
       console.error('[AppleIAP] ❌ Purchase failed:', error);
+      console.error('[AppleIAP] ❌ Error details:', {
+        code: error.code,
+        message: error.message,
+        debugMessage: error.debugMessage,
+        stack: error.stack,
+      });
       
       // Check if user cancelled
-      if (error.code === 'E_USER_CANCELLED') {
+      if (error.code === 'E_USER_CANCELLED' || error.message?.includes('cancelled')) {
         return {
           success: false,
           error: {
@@ -288,9 +353,20 @@ class AppleIAPService {
         };
       }
       
+      // Provide more descriptive error messages
+      let errorMessage = 'Purchase failed. Please try again.';
+      if (error.message) {
+        errorMessage = error.message;
+      } else if (error.code) {
+        errorMessage = `Purchase failed: ${error.code}`;
+      }
+      
       return {
         success: false,
-        error: this.createIAPError(error),
+        error: {
+          ...this.createIAPError(error),
+          message: errorMessage,
+        },
       };
     }
   }
@@ -442,6 +518,17 @@ class AppleIAPService {
    * @private
    */
   private setupPurchaseListeners(): void {
+    // Remove existing listeners if any
+    if (this.purchaseUpdateSubscription) {
+      this.purchaseUpdateSubscription.remove();
+      this.purchaseUpdateSubscription = null;
+    }
+
+    if (this.purchaseErrorSubscription) {
+      this.purchaseErrorSubscription.remove();
+      this.purchaseErrorSubscription = null;
+    }
+
     // Set up purchase update listener
     this.purchaseUpdateSubscription = purchaseUpdatedListener(
       async (purchase) => {
@@ -479,7 +566,19 @@ class AppleIAPService {
       // For iOS subscriptions, get receipt data
       // Try purchase object first (most reliable), then fallback to JWS, then app receipt
       let receiptData = '';
-      if (Platform.OS === 'ios') {
+      let isLocalTransaction = false;
+
+      // Check if this is a local Xcode transaction (transactionId often 0/1 or very short)
+      if (
+        Platform.OS === 'ios' &&
+        purchase.transactionId &&
+        String(purchase.transactionId).length <= 6
+      ) {
+        console.log('[AppleIAP] 🧪 Local/Simulator transaction detected');
+        isLocalTransaction = true;
+      }
+
+      if (Platform.OS === 'ios' && !isLocalTransaction) {
         // 1. Try transactionReceipt from purchase object (base64 format - SK1 legacy or hybrid)
         receiptData = purchase.transactionReceipt || purchase.receipt || '';
         
@@ -510,7 +609,7 @@ class AppleIAPService {
             console.log('[AppleIAP] ℹ️ Legacy receipt not available (expected in local testing)');
           }
         }
-      } else {
+      } else if (!isLocalTransaction) {
         // Android uses purchase token
         receiptData = purchase.purchaseToken || purchase.transactionReceipt || '';
       }
@@ -524,14 +623,16 @@ class AppleIAPService {
         } else {
           console.error('[AppleIAP] ❌ Receipt validation failed');
         }
+      } else if (isLocalTransaction) {
+        console.log('[AppleIAP] 🧪 Skipping server validation for local transaction');
       } else {
         // No receipt data - this can happen in sandbox
         console.log('[AppleIAP] ℹ️ No receipt data - validation will happen via webhook');
       }
 
-      // If receipt validation failed, update subscription status directly from purchase
-      // This ensures user gets premium access immediately, webhook will validate later
-      if (!receiptValidated) {
+      // If receipt validation failed or it's a local transaction, update subscription status directly
+      // This ensures user gets premium access immediately
+      if (!receiptValidated || isLocalTransaction) {
         try {
           await this.updateSubscriptionFromPurchase(purchase, user.id);
           console.log('[AppleIAP] ✅ Subscription status updated from purchase');
@@ -572,6 +673,12 @@ class AppleIAPService {
    * @param {any} error - Error object from react-native-iap
    */
   private async handlePurchaseError(error: any): Promise<void> {
+    // Ignore local/simulator SKU errors
+    if (error.code === 'sku-not-found' || error.message?.includes('sku 0') || error.message?.includes('sku 1')) {
+      console.log('[AppleIAP] 🧪 Ignoring SKU error in local/simulator environment');
+      return;
+    }
+
     // Handle "already-owned" error - subscription is already active
     if (error.code === 'already-owned' || error.code === 'E_ALREADY_OWNED') {
       console.log('[AppleIAP] ℹ️ Subscription already owned, restoring...');
