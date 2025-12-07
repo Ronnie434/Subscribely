@@ -244,20 +244,22 @@ export default function SubscriptionManagementScreen({
     }
   };
 
-  const handleCancelSuccess = () => {
+  const handleCancelSuccess = async () => {
     setShowCancelModal(false);
     
+    console.log('[SubscriptionManagement] 🔄 Refreshing subscription status after cancel...');
+    
     // Reload subscription status to get the real status from database
-    loadSubscriptionStatus();
+    await loadSubscriptionStatus();
     
     if (Platform.OS === 'ios') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
     
-    // Navigate back to Settings after brief delay to show updated status
-    setTimeout(() => {
-      navigation.goBack();
-    }, 1000);
+    console.log('[SubscriptionManagement] ⬅️ Navigating back to Settings...');
+    
+    // Navigate back to Settings immediately after refresh
+    navigation.goBack();
   };
 
   const handleUpgrade = () => {

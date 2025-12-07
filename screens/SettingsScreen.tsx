@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -12,6 +12,8 @@ import {
   Image,
   Switch,
   Linking,
+  AppState,
+  AppStateStatus,
 } from "react-native";
 import {
   SafeAreaView,
@@ -82,6 +84,9 @@ export default function SettingsScreen() {
   const [imageLoadError, setImageLoadError] = useState(false);
   const [isImageLoading, setIsImageLoading] = useState(false);
   const [useProfilePhoto, setUseProfilePhoto] = useState(true);
+  
+  // AppState ref for detecting foreground/background transitions
+  const appState = useRef(AppState.currentState);
 
   const insets = useSafeAreaInsets();
   const TAB_BAR_HEIGHT = 60;
@@ -104,6 +109,34 @@ export default function SettingsScreen() {
   // Load subscription status
   useEffect(() => {
     loadSubscriptionStatus();
+  }, []);
+  
+  // Listen for app state changes to refresh subscription when returning from Settings
+  useEffect(() => {
+    const handleAppStateChange = async (nextAppState: AppStateStatus) => {
+      console.log('[SettingsScreen] App state changed:', appState.current, '→', nextAppState);
+      
+      // When app comes back to foreground after being in background
+      if (
+        appState.current.match(/inactive|background/) &&
+        nextAppState === 'active'
+      ) {
+        console.log('[SettingsScreen] 🔄 App returned to foreground, refreshing subscription status...');
+        
+        // Refresh subscription status
+        await refreshLimitStatusFromBackend();
+        
+        console.log('[SettingsScreen] ✅ Subscription status refreshed');
+      }
+
+      appState.current = nextAppState;
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+    return () => {
+      subscription.remove();
+    };
   }, []);
 
   const loadSubscriptionStatus = async () => {
