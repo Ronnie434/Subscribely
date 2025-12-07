@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,15 +7,24 @@ import {
   TouchableOpacity,
   Pressable,
   Platform,
+  ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
 import { useTheme } from '../contexts/ThemeContext';
+import { useToast } from '../contexts/ToastContext';
 import { SUBSCRIPTION_PLANS, calculateYearlySavingsPercentage } from '../config/stripe';
+import { getProductIdByBillingCycle } from '../config/appleIAP';
 import { usageTrackingService } from '../services/usageTrackingService';
+import appleIAPService from '../services/appleIAPService';
+import { subscriptionLimitService } from '../services/subscriptionLimitService';
+import { subscriptionTierService } from '../services/subscriptionTierService';
 import * as Haptics from 'expo-haptics';
+import type { AppleIAPProduct } from '../types';
+import { PurchaseState } from '../types';
 
 interface PaywallModalProps {
   visible: boolean;
@@ -23,6 +32,7 @@ interface PaywallModalProps {
   onUpgradePress: (plan: 'monthly' | 'yearly') => void;
   currentCount: number;
   maxCount: number;
+  onSuccess?: () => void;
 }
 
 export default function PaywallModal({
@@ -31,22 +41,175 @@ export default function PaywallModal({
   onUpgradePress,
   currentCount,
   maxCount,
+  onSuccess,
 }: PaywallModalProps) {
   const { theme } = useTheme();
+  const { showToast } = useToast();
   const savingsPercentage = calculateYearlySavingsPercentage();
 
+  // State management
+  const [iapProducts, setIapProducts] = useState<AppleIAPProduct[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+  const [purchaseState, setPurchaseState] = useState<PurchaseState>(PurchaseState.IDLE);
+  const [restoringPurchases, setRestoringPurchases] = useState(false);
+
+  // Check if we're on iOS
+  const isIOS = Platform.OS === 'ios';
+
+  // Initialize IAP and fetch products on iOS
+  useEffect(() => {
+    let mounted = true;
+
+    const initializeIAP = async () => {
+      if (!isIOS || !visible) return;
+
+      try {
+        setLoadingProducts(true);
+        
+        // Initialize IAP service
+        await appleIAPService.initialize();
+        
+        // Fetch products from App Store
+        const products = await appleIAPService.getProducts();
+        
+        if (mounted) {
+          setIapProducts(products);
+        }
+      } catch (error) {
+        console.error('[PaywallModal] ❌ Failed to initialize IAP:', error);
+      } finally {
+        if (mounted) {
+          setLoadingProducts(false);
+        }
+      }
+    };
+
+    initializeIAP();
+
+    return () => {
+      mounted = false;
+    };
+  }, [visible, isIOS, showToast]);
+
+  // Retry fetching products after purchase attempt (in case sandbox sign-in made them available)
+  const retryFetchProducts = async () => {
+    if (!isIOS) return;
+    
+    try {
+      const products = await appleIAPService.getProducts();
+      setIapProducts(products);
+    } catch (error) {
+      console.error('[PaywallModal] ❌ Retry fetch failed:', error);
+    }
+  };
+
   // Track paywall shown event when modal becomes visible
-  React.useEffect(() => {
+  useEffect(() => {
     if (visible) {
       usageTrackingService.trackPaywallShown().catch(console.error);
     }
   }, [visible]);
 
-  const handleUpgrade = (plan: 'monthly' | 'yearly') => {
+  const handleUpgrade = async (plan: 'monthly' | 'yearly') => {
     if (Platform.OS === 'ios') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
-    onUpgradePress(plan);
+    
+    // iOS: Use Apple IAP
+    if (isIOS) {
+      try {
+        // Set purchasing state
+        setPurchaseState(PurchaseState.PURCHASING);
+        
+        // Map plan to product ID
+        const productId = getProductIdByBillingCycle(plan);
+        
+        // Initiate purchase through Apple IAP
+        const result = await appleIAPService.purchaseSubscription(productId);
+        
+        if (result.success) {
+          setPurchaseState(PurchaseState.PURCHASED);
+          showToast('Processing your purchase...', 'success');
+          
+          // Retry fetching products in case sandbox sign-in made them available
+          setTimeout(() => {
+            retryFetchProducts();
+          }, 2000);
+          
+          // Close modal after short delay
+          setTimeout(() => {
+            onClose();
+            setPurchaseState(PurchaseState.IDLE);
+            // Trigger success callback
+            if (onSuccess) {
+              onSuccess();
+            }
+          }, 1500);
+        } else {
+          setPurchaseState(PurchaseState.FAILED);
+          
+          // Retry fetching products
+          setTimeout(() => {
+            retryFetchProducts();
+          }, 1000);
+          
+          // Don't show error for user cancellation or already-owned
+          if (result.error?.code !== 'E_USER_CANCELLED' && 
+              result.error?.code !== 'already-owned' &&
+              result.error?.code !== 'E_ALREADY_OWNED') {
+            if (iapProducts.length === 0) {
+              showToast(
+                'Signing in with sandbox account may make products available. Please try again.',
+                'info'
+              );
+            } else {
+              showToast(
+                result.error?.message || 'Purchase failed. Please try again.',
+                'error'
+              );
+            }
+          } else if (result.error?.code === 'already-owned' || result.error?.code === 'E_ALREADY_OWNED') {
+            // Subscription already owned - restore it
+            showToast('Subscription already active. Restoring...', 'info');
+            
+            // Restore purchases and refresh status
+            setTimeout(async () => {
+              try {
+                await appleIAPService.restorePurchases();
+                await Promise.all([
+                  subscriptionLimitService.refreshLimitStatus(),
+                  subscriptionTierService.refreshTierInfo(),
+                ]);
+                showToast('Subscription restored successfully!', 'success');
+                onClose();
+                // Trigger success callback
+                if (onSuccess) {
+                  onSuccess();
+                }
+              } catch (restoreError) {
+                console.error('[PaywallModal] Failed to restore:', restoreError);
+              }
+            }, 1000);
+          }
+          
+          // Reset state after short delay
+          setTimeout(() => {
+            setPurchaseState(PurchaseState.IDLE);
+          }, 2000);
+        }
+      } catch (error) {
+        console.error('[PaywallModal] ❌ Purchase exception:', error);
+        setPurchaseState(PurchaseState.FAILED);
+        showToast('An error occurred. Please try again.', 'error');
+        
+        setTimeout(() => {
+          setPurchaseState(PurchaseState.IDLE);
+        }, 2000);
+      }
+    } else {
+      // Android/Web: Use Stripe flow
+      onUpgradePress(plan);
+    }
   };
 
   const handleClose = () => {
@@ -68,8 +231,9 @@ export default function PaywallModal({
       backgroundColor: theme.colors.surface,
       borderTopLeftRadius: 24,
       borderTopRightRadius: 24,
-      paddingBottom: Platform.OS === 'ios' ? 34 : 24,
+      height: '90%',
       maxHeight: '90%',
+      overflow: 'hidden',
     },
     header: {
       alignItems: 'center',
@@ -282,8 +446,13 @@ export default function PaywallModal({
             <Ionicons name="close" size={20} color={theme.colors.text} />
           </TouchableOpacity>
 
-          {/* Header */}
-          <View style={styles.header}>
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{ paddingBottom: Platform.OS === 'ios' ? 34 : 24 }}
+            showsVerticalScrollIndicator={true}
+            bounces={true}>
+            {/* Header */}
+            <View style={styles.header}>
             <View style={styles.iconContainer}>
               <LinearGradient
                 colors={theme.gradients.error as any}
@@ -365,8 +534,13 @@ export default function PaywallModal({
                   <TouchableOpacity
                     style={styles.selectButton}
                     onPress={() => handleUpgrade('yearly')}
-                    activeOpacity={0.8}>
-                    <Text style={styles.selectButtonText}>Choose Yearly</Text>
+                    activeOpacity={0.8}
+                    disabled={purchaseState === PurchaseState.PURCHASING}>
+                    {purchaseState === PurchaseState.PURCHASING ? (
+                      <ActivityIndicator color="#FFFFFF" />
+                    ) : (
+                      <Text style={styles.selectButtonText}>Choose Yearly</Text>
+                    )}
                   </TouchableOpacity>
                 </View>
               </Animated.View>
@@ -393,8 +567,13 @@ export default function PaywallModal({
                       { backgroundColor: theme.colors.secondary },
                     ]}
                     onPress={() => handleUpgrade('monthly')}
-                    activeOpacity={0.8}>
-                    <Text style={styles.selectButtonText}>Choose Monthly</Text>
+                    activeOpacity={0.8}
+                    disabled={purchaseState === PurchaseState.PURCHASING}>
+                    {purchaseState === PurchaseState.PURCHASING ? (
+                      <ActivityIndicator color="#FFFFFF" />
+                    ) : (
+                      <Text style={styles.selectButtonText}>Choose Monthly</Text>
+                    )}
                   </TouchableOpacity>
                 </View>
               </Animated.View>
@@ -408,6 +587,7 @@ export default function PaywallModal({
               <Text style={styles.maybeLaterText}>Maybe Later</Text>
             </TouchableOpacity>
           </View>
+          </ScrollView>
         </Animated.View>
       </View>
     </Modal>

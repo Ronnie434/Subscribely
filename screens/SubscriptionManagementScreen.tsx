@@ -64,6 +64,16 @@ export default function SubscriptionManagementScreen({
   const [actualBillingAmount, setActualBillingAmount] = useState<number | null>(null);
   const [nextBillingDate, setNextBillingDate] = useState<Date | null>(null);
   const [billingDataLoading, setBillingDataLoading] = useState<boolean>(false);
+  const [paymentProvider, setPaymentProvider] = useState<'stripe' | 'apple' | null>(null);
+
+  // Reload status when screen comes into focus
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadSubscriptionStatus();
+    });
+
+    return unsubscribe;
+  }, [navigation]);
 
   useEffect(() => {
     loadSubscriptionStatus();
@@ -83,6 +93,17 @@ export default function SubscriptionManagementScreen({
           const { data: { user } } = await supabase.auth.getUser();
           
           if (user) {
+            // Fetch user profile to check payment provider
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('payment_provider')
+              .eq('id', user.id)
+              .single();
+
+            if (profile) {
+              setPaymentProvider(profile.payment_provider as 'stripe' | 'apple' | null);
+            }
+
             // Fetch user subscription details from database
             const { data: subscription, error: subError } = await supabase
               .from('user_subscriptions')
@@ -96,6 +117,7 @@ export default function SubscriptionManagementScreen({
             if (!subError && subscription) {
               // Set subscription status
               setSubscriptionStatus(subscription.status as 'active' | 'paused' | 'cancelled');
+              // Payment provider is now set from profile
               
               // Set billing cycle from database with validation
               // Note: Database may store 'annual' which needs to map to 'yearly'
@@ -134,7 +156,7 @@ export default function SubscriptionManagementScreen({
                 } else {
                   // Emergency fallback if plan lookup fails
                   console.error('Invalid billing cycle for plan lookup:', cycle);
-                  billingAmount = cycle === 'yearly' ? 39.00 : 4.99;
+                  billingAmount = cycle === 'yearly' ? 39.99 : 4.99;
                 }
               }
               
@@ -167,6 +189,14 @@ export default function SubscriptionManagementScreen({
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
 
+    if (paymentProvider === 'apple') {
+      Alert.alert(
+        'Managed by Apple',
+        'Your payment method is managed through your Apple ID settings. Please check your iPhone Settings > Apple ID > Payment & Shipping.'
+      );
+      return;
+    }
+
     setUpdatingPayment(true);
 
     try {
@@ -188,10 +218,12 @@ export default function SubscriptionManagementScreen({
     }
   };
 
-  const handleCancelSubscription = () => {
+  const handleCancelSubscription = async () => {
     if (Platform.OS === 'ios') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
+    // For both Stripe and Apple, show the cancel modal first
+    // The modal will handle the specific logic (API call vs deep link)
     setShowCancelModal(true);
   };
 
@@ -573,26 +605,34 @@ export default function SubscriptionManagementScreen({
         {status.isPremium ? (
           <>
             {/* Payment Method */}
-            {paymentMethod && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Payment Method</Text>
-                <View style={styles.paymentMethodCard}>
-                  <View style={styles.paymentMethodIcon}>
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Payment Method</Text>
+              <View style={styles.paymentMethodCard}>
+                <View style={styles.paymentMethodIcon}>
+                  {paymentProvider === 'apple' ? (
+                    <Ionicons name="logo-apple" size={24} color={theme.colors.text} />
+                  ) : (
                     <Ionicons
                       name="card"
                       size={24}
                       color={theme.colors.primary}
                     />
-                  </View>
-                  <View style={styles.paymentMethodInfo}>
-                    <Text style={styles.paymentMethodLabel}>Card</Text>
-                    <Text style={styles.paymentMethodDetails}>
-                      {paymentMethod.brand} •••• {paymentMethod.last4}
-                    </Text>
-                  </View>
+                  )}
+                </View>
+                <View style={styles.paymentMethodInfo}>
+                  <Text style={styles.paymentMethodLabel}>
+                    {paymentProvider === 'apple' ? 'Apple ID' : 'Card'}
+                  </Text>
+                  <Text style={styles.paymentMethodDetails}>
+                    {paymentProvider === 'apple' 
+                      ? 'Managed by Apple' 
+                      : paymentMethod 
+                        ? `${paymentMethod.brand} •••• ${paymentMethod.last4}`
+                        : 'Loading...'}
+                  </Text>
                 </View>
               </View>
-            )}
+            </View>
 
             {/* Billing Information */}
             <View style={styles.section}>
@@ -638,8 +678,8 @@ export default function SubscriptionManagementScreen({
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Manage Plan</Text>
 
-              {/* Switch Billing Cycle - Only show for monthly subscribers */}
-              {billingCycle === 'monthly' && (
+              {/* Switch Billing Cycle - Only show for monthly subscribers via Stripe */}
+              {billingCycle === 'monthly' && paymentProvider !== 'apple' && (
                 <TouchableOpacity
                   style={styles.actionButton}
                   onPress={() => {
@@ -844,6 +884,7 @@ export default function SubscriptionManagementScreen({
         visible={showCancelModal}
         onClose={() => setShowCancelModal(false)}
         onSuccess={handleCancelSuccess}
+        paymentProvider={paymentProvider}
       />
 
       {/* Switch Billing Cycle Modal */}

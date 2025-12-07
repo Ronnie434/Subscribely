@@ -361,17 +361,54 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   };
 
   const handleUpgradePress = (plan: 'monthly' | 'yearly') => {
+    console.log('🐛 [DEBUG] handleUpgradePress called with plan:', plan, 'Platform:', Platform.OS);
     setPaywallVisible(false);
     // Navigate to plan selection screen
     navigation.navigate('PlanSelection' as any);
   };
 
   const handleUpgradePromptPress = () => {
+    console.log('🐛 [DEBUG] handleUpgradePromptPress called - Platform:', Platform.OS);
+    
     if (Platform.OS === 'ios') {
+      // iOS: Show PaywallModal which uses Apple IAP
+      console.log('🐛 [DEBUG] iOS detected - showing PaywallModal with Apple IAP');
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      setPaywallVisible(true);
+    } else {
+      // Android/Web: Navigate to Stripe payment flow
+      console.log('🐛 [DEBUG] Non-iOS platform - navigating to Stripe payment flow');
+      navigation.navigate('PlanSelection' as any);
     }
-    navigation.navigate('PlanSelection' as any);
   };
+
+  // Refresh subscriptions and subscription status
+  const refreshAllData = useCallback(async () => {
+    try {
+      // Refresh subscription limit status (clears cache and re-fetches)
+      await subscriptionLimitService.refreshLimitStatus();
+      
+      // Get fresh status
+      const status = await subscriptionLimitService.getSubscriptionLimitStatus();
+      
+      setLimitStatus({
+        currentCount: status.currentCount,
+        maxCount: status.maxAllowed || 5,
+        atLimit: !status.canAddMore,
+        isPremium: status.isPremium,
+      });
+      
+      // Refresh subscriptions list
+      await loadSubscriptions(true);
+      
+      // Check for past due items
+      await checkPastDueItems();
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+      // Still try to load subscriptions even if limit refresh fails
+      await loadSubscriptions(true);
+    }
+  }, [loadSubscriptions, checkPastDueItems]);
 
   // Refresh data when screen comes into focus
   useFocusEffect(
@@ -380,37 +417,9 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         console.log('HomeScreen focused - force refreshing from Supabase...');
       }
       
-      // Refresh subscriptions and subscription status
-      const refreshAll = async () => {
-        try {
-          // Refresh subscription limit status (clears cache and re-fetches)
-          await subscriptionLimitService.refreshLimitStatus();
-          
-          // Get fresh status
-          const status = await subscriptionLimitService.getSubscriptionLimitStatus();
-          
-          setLimitStatus({
-            currentCount: status.currentCount,
-            maxCount: status.maxAllowed || 5,
-            atLimit: !status.canAddMore,
-            isPremium: status.isPremium,
-          });
-          
-          // Refresh subscriptions list
-          await loadSubscriptions(true);
-          
-          // Check for past due items
-          await checkPastDueItems();
-        } catch (error) {
-          console.error('Error refreshing on focus:', error);
-          // Still try to load subscriptions even if limit refresh fails
-          await loadSubscriptions(true);
-        }
-      };
-      
-      refreshAll();
+      refreshAllData();
       return () => {};
-    }, [loadSubscriptions, checkPastDueItems])
+    }, [refreshAllData])
   );
 
   const handleRefresh = async () => {
@@ -737,6 +746,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         onUpgradePress={handleUpgradePress}
         currentCount={limitStatus.currentCount}
         maxCount={limitStatus.maxCount}
+        onSuccess={refreshAllData}
       />
 
       {/* Upgrade Prompt for Free Users (shown when not at limit) */}

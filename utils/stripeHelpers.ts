@@ -16,7 +16,7 @@ import { REFUND_POLICY } from '../config/stripe';
  * 
  * @example
  * formatAmount(499) // Returns "$4.99"
- * formatAmount(3900) // Returns "$39.00"
+ * formatAmount(3999) // Returns "$39.99"
  */
 export function formatAmount(cents: number, currency: string = 'USD'): string {
   const dollars = cents / 100;

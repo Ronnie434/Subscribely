@@ -65,7 +65,7 @@ export function calculateFutureRenewals(
         break;
       default:
         // Fallback to fixed days for unknown intervals
-        const intervalDays = REPEAT_INTERVAL_CONFIG[repeatInterval]?.days || 30;
+        const intervalDays = REPEAT_INTERVAL_CONFIG[repeatInterval as RepeatInterval]?.days || 30;
         nextDate.setDate(nextDate.getDate() + intervalDays);
     }
     

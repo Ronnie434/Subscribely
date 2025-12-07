@@ -31,6 +31,7 @@ import { SubscriptionLimitStatus, UserProfile } from "../types";
 import { useAuth } from "../contexts/AuthContext";
 import { useRealtimeSubscriptions } from "../hooks/useRealtimeSubscriptions";
 import { supabase } from "../config/supabase";
+import PaywallModal from "../components/PaywallModal";
 
 // Navigation types
 type SettingsStackParamList = {
@@ -73,6 +74,7 @@ export default function SettingsScreen() {
   const [showThemePicker, setShowThemePicker] = useState(false);
   const [subscriptionStatus, setSubscriptionStatus] =
     useState<SubscriptionLimitStatus | null>(null);
+  const [showPaywallModal, setShowPaywallModal] = useState(false);
 
   // Profile photo states
   const [profileData, setProfileData] = useState<UserProfile | null>(null);
@@ -1016,8 +1018,15 @@ export default function SettingsScreen() {
                     // @ts-ignore - Navigation will work, types are simplified
                     navigation.navigate("SubscriptionManagement");
                   } else {
-                    // @ts-ignore - Navigation will work, types are simplified
-                    navigation.navigate("PlanSelection");
+                    // For non-premium users
+                    if (Platform.OS === "ios") {
+                      // iOS: Show PaywallModal which uses Apple IAP
+                      setShowPaywallModal(true);
+                    } else {
+                      // Android/Web: Navigate to Stripe payment flow
+                      // @ts-ignore - Navigation will work, types are simplified
+                      navigation.navigate("PlanSelection");
+                    }
                   }
                 }}
                 activeOpacity={0.7}
@@ -1524,6 +1533,19 @@ export default function SettingsScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Paywall Modal */}
+      <PaywallModal
+        visible={showPaywallModal}
+        onClose={() => setShowPaywallModal(false)}
+        onUpgradePress={() => {
+          setShowPaywallModal(false);
+          // @ts-ignore - Navigation will work, types are simplified
+          navigation.navigate("PlanSelection");
+        }}
+        currentCount={subscriptionStatus?.currentCount || 0}
+        maxCount={subscriptionStatus?.maxAllowed || 3}
+      />
     </SafeAreaView>
   );
 }

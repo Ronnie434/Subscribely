@@ -10,6 +10,7 @@ import {
   Platform,
   Alert,
   ScrollView,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
@@ -22,12 +23,14 @@ interface CancelSubscriptionModalProps {
   visible: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  paymentProvider?: 'stripe' | 'apple' | null;
 }
 
 export default function CancelSubscriptionModal({
   visible,
   onClose,
   onSuccess,
+  paymentProvider,
 }: CancelSubscriptionModalProps) {
   const { theme } = useTheme();
   const [loading, setLoading] = useState(false);
@@ -35,9 +38,40 @@ export default function CancelSubscriptionModal({
     'end_of_period'
   );
 
+  // Apple subscriptions are always managed externally
+  const isApple = paymentProvider === 'apple';
+
   const handleCancel = async () => {
     if (Platform.OS === 'ios') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+
+    // For Apple, just open the settings
+    if (isApple) {
+      try {
+        setLoading(true);
+        // Use deep link to open App Store subscriptions directly
+        const url = 'https://apps.apple.com/account/subscriptions';
+        const canOpen = await Linking.canOpenURL(url);
+        if (canOpen) {
+          await Linking.openURL(url);
+          onClose(); // Close modal after redirect
+        } else {
+          Alert.alert(
+            'Manage Subscription',
+            'Please go to your iPhone Settings > Apple ID > Subscriptions to manage your subscription.'
+          );
+        }
+      } catch (error) {
+        console.error('Error opening subscription settings:', error);
+        Alert.alert(
+          'Manage Subscription',
+          'Please go to your iPhone Settings > Apple ID > Subscriptions to manage your subscription.'
+        );
+      } finally {
+        setLoading(false);
+      }
+      return;
     }
 
     Alert.alert(
@@ -362,48 +396,52 @@ export default function CancelSubscriptionModal({
               </Text>
             </View>
 
-            {/* Options */}
-            <Text style={styles.optionsTitle}>Cancellation Options</Text>
+            {/* Options - Hide for Apple as it's managed externally */}
+            {!isApple && (
+              <>
+                <Text style={styles.optionsTitle}>Cancellation Options</Text>
 
-            <TouchableOpacity
-              style={[
-                styles.optionCard,
-                cancelOption === 'end_of_period' && styles.optionCardSelected,
-              ]}
-              onPress={() => setCancelOption('end_of_period')}
-              activeOpacity={0.7}>
-              <View style={styles.optionHeader}>
-                <Text style={styles.optionTitle}>At End of Period</Text>
-                {cancelOption === 'end_of_period' && (
-                  <View style={styles.checkmark}>
-                    <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                <TouchableOpacity
+                  style={[
+                    styles.optionCard,
+                    cancelOption === 'end_of_period' && styles.optionCardSelected,
+                  ]}
+                  onPress={() => setCancelOption('end_of_period')}
+                  activeOpacity={0.7}>
+                  <View style={styles.optionHeader}>
+                    <Text style={styles.optionTitle}>At End of Period</Text>
+                    {cancelOption === 'end_of_period' && (
+                      <View style={styles.checkmark}>
+                        <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                      </View>
+                    )}
                   </View>
-                )}
-              </View>
-              <Text style={styles.optionDescription}>
-                Keep access to premium features until your billing period ends
-              </Text>
-            </TouchableOpacity>
+                  <Text style={styles.optionDescription}>
+                    Keep access to premium features until your billing period ends
+                  </Text>
+                </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[
-                styles.optionCard,
-                cancelOption === 'immediately' && styles.optionCardSelected,
-              ]}
-              onPress={() => setCancelOption('immediately')}
-              activeOpacity={0.7}>
-              <View style={styles.optionHeader}>
-                <Text style={styles.optionTitle}>Cancel Immediately</Text>
-                {cancelOption === 'immediately' && (
-                  <View style={styles.checkmark}>
-                    <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                <TouchableOpacity
+                  style={[
+                    styles.optionCard,
+                    cancelOption === 'immediately' && styles.optionCardSelected,
+                  ]}
+                  onPress={() => setCancelOption('immediately')}
+                  activeOpacity={0.7}>
+                  <View style={styles.optionHeader}>
+                    <Text style={styles.optionTitle}>Cancel Immediately</Text>
+                    {cancelOption === 'immediately' && (
+                      <View style={styles.checkmark}>
+                        <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                      </View>
+                    )}
                   </View>
-                )}
-              </View>
-              <Text style={styles.optionDescription}>
-                Lose access to premium features right away
-              </Text>
-            </TouchableOpacity>
+                  <Text style={styles.optionDescription}>
+                    Lose access to premium features right away
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
 
             {/* What Happens */}
             <View style={styles.whatHappensSection}>
@@ -450,7 +488,7 @@ export default function CancelSubscriptionModal({
                   <ActivityIndicator color="#FFFFFF" />
                 ) : (
                   <Text style={styles.cancelButtonText}>
-                    Confirm Cancellation
+                    {isApple ? 'Cancel Subscription' : 'Confirm Cancellation'}
                   </Text>
                 )}
               </TouchableOpacity>

@@ -242,11 +242,11 @@ INSERT INTO public.subscription_tiers (
     1
   ),
   (
-    'premium',
+    'premium_tier',
     'Premium',
     'Unlimited subscription tracking with advanced features',
     4.99,
-    39.00,
+    39.99,
     -1,
     '["cloud_sync", "renewal_reminders", "basic_stats", "advanced_analytics", "priority_support", "unlimited_subscriptions"]'::jsonb,
     2

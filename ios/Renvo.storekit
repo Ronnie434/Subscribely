@@ -1,0 +1,107 @@
+{
+  "appPolicies" : {
+    "eula" : "",
+    "policies" : [
+      {
+        "locale" : "en_US",
+        "policyText" : "",
+        "policyURL" : ""
+      }
+    ]
+  },
+  "identifier" : "AFB345F1",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+
+  ],
+  "settings" : {
+    "_applicationInternalID" : "6755703605",
+    "_askToBuyEnabled" : false,
+    "_billingGracePeriodEnabled" : false,
+    "_billingIssuesEnabled" : false,
+    "_developerTeamID" : "JRBD76VZ75",
+    "_disableDialogs" : false,
+    "_failTransactionsEnabled" : false,
+    "_lastSynchronizedDate" : 786745603.39185297,
+    "_locale" : "en_US",
+    "_renewalBillingIssuesEnabled" : false,
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+
+    ],
+    "_timeRate" : 0
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "21851789",
+      "localizations" : [
+
+      ],
+      "name" : "premium_subscriptions",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "4.99",
+          "familyShareable" : false,
+          "groupNumber" : 3,
+          "internalID" : "6756219687",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Track unlimited and recurring items with Renvo Premium.",
+              "displayName" : "The Renvo Premium Monthly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.ronnie39.renvo.premium.monthly.v1",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "The Renvo Premium Monthly",
+          "subscriptionGroupID" : "21851789",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "39.99",
+          "familyShareable" : false,
+          "groupNumber" : 4,
+          "internalID" : "6756218982",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Track unlimited and recurring items with Renvo Premium.",
+              "displayName" : "The Renvo Premium Yearly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.ronnie39.renvo.premium.yearly.v1",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "The Renvo Premium Yearly",
+          "subscriptionGroupID" : "21851789",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

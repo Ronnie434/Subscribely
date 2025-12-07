@@ -992,4 +992,219 @@ export interface BillingInfo {
   nextBillingDate: Date;
 }
 
+// ============================================================================
+// APPLE IN-APP PURCHASE (IAP) TYPES
+// ============================================================================
+
+/**
+ * Payment provider type
+ * Distinguishes between Stripe and Apple IAP payment methods
+ * @since v3.2.0 (Phase 2)
+ */
+export type PaymentProvider = 'stripe' | 'apple';
+
+/**
+ * Purchase state for IAP transactions
+ * Tracks the current state of a purchase flow
+ * @since v3.2.0 (Phase 2)
+ */
+export enum PurchaseState {
+  /** No active purchase */
+  IDLE = 'idle',
+  /** Purchase in progress */
+  PURCHASING = 'purchasing',
+  /** Purchase completed successfully */
+  PURCHASED = 'purchased',
+  /** Purchase failed */
+  FAILED = 'failed',
+  /** Purchase restored from previous transaction */
+  RESTORED = 'restored',
+}
+
+/**
+ * Apple IAP Product information from App Store
+ * Represents a product fetched from the App Store
+ * @since v3.2.0 (Phase 2)
+ */
+export interface AppleIAPProduct {
+  /** Product identifier from App Store Connect */
+  productId: string;
+  /** Product title */
+  title?: string;
+  /** Product description */
+  description?: string;
+  /** Price in local currency as number */
+  price: number;
+  /** Currency code (e.g., 'USD', 'EUR') */
+  currency: string;
+  /** Localized price string (e.g., '$4.99') */
+  localizedPrice: string;
+  /** Subscription period (for subscriptions) */
+  subscriptionPeriod?: string;
+  /** Introductory price (if available) */
+  introductoryPrice?: string;
+  /** Subscription group identifier */
+  subscriptionGroupId?: string;
+  /** Product type */
+  type?: 'subscription' | 'consumable' | 'non-consumable';
+}
+
+/**
+ * Apple IAP Purchase transaction
+ * Represents a completed or pending purchase transaction
+ * @since v3.2.0 (Phase 2)
+ */
+export interface AppleIAPPurchase {
+  /** Unique transaction identifier */
+  transactionId: string;
+  /** Product identifier that was purchased */
+  productId: string;
+  /** Transaction receipt (base64 encoded for iOS) */
+  transactionReceipt: string;
+  /** Date of purchase (ISO 8601 string) */
+  purchaseDate: string;
+  /** Original transaction ID (for subscription renewals) */
+  originalTransactionId?: string;
+  /** Quantity purchased */
+  quantity?: number;
+  /** Whether the purchase has been acknowledged */
+  isAcknowledged?: boolean;
+  /** Purchase state */
+  purchaseState?: PurchaseState;
+  /** Purchase token (Android) */
+  purchaseToken?: string;
+}
+
+/**
+ * Apple IAP Subscription status
+ * Represents the current state of a user's subscription
+ * @since v3.2.0 (Phase 2)
+ */
+export interface AppleIAPSubscription {
+  /** Original transaction ID (unique per subscription) */
+  originalTransactionId: string;
+  /** Latest transaction ID */
+  transactionId: string;
+  /** Product ID of the subscription */
+  productId: string;
+  /** Whether the subscription is currently active */
+  isActive: boolean;
+  /** Subscription expiration date (ISO 8601 string) */
+  expirationDate: string;
+  /** Auto-renew status */
+  willRenew: boolean;
+  /** Subscription start date (ISO 8601 string) */
+  startDate?: string;
+  /** Whether subscription is in trial period */
+  isTrialPeriod?: boolean;
+  /** Whether subscription is in intro offer period */
+  isIntroOfferPeriod?: boolean;
+  /** Grace period expiration date (if in grace period) */
+  gracePeriodExpirationDate?: string;
+  /** Cancellation date (if cancelled) */
+  cancellationDate?: string;
+}
+
+/**
+ * IAP Error types
+ * Common error scenarios in IAP flows
+ * @since v3.2.0 (Phase 2)
+ */
+export enum IAPErrorCode {
+  /** User cancelled the purchase */
+  USER_CANCELLED = 'E_USER_CANCELLED',
+  /** Network connection error */
+  NETWORK_ERROR = 'E_NETWORK_ERROR',
+  /** Product not available */
+  PRODUCT_NOT_AVAILABLE = 'E_PRODUCT_NOT_AVAILABLE',
+  /** Receipt validation failed */
+  RECEIPT_VALIDATION_FAILED = 'E_RECEIPT_VALIDATION_FAILED',
+  /** Purchase already owned */
+  ALREADY_OWNED = 'E_ALREADY_OWNED',
+  /** Service unavailable */
+  SERVICE_UNAVAILABLE = 'E_SERVICE_UNAVAILABLE',
+  /** Unknown error */
+  UNKNOWN = 'E_UNKNOWN',
+}
+
+/**
+ * IAP Error object
+ * @since v3.2.0 (Phase 2)
+ */
+export interface IAPError {
+  /** Error code */
+  code: IAPErrorCode | string;
+  /** Error message */
+  message: string;
+  /** Debug message (additional details) */
+  debugMessage?: string;
+  /** Original error object */
+  originalError?: any;
+}
+
+/**
+ * Purchase result from IAP service
+ * @since v3.2.0 (Phase 2)
+ */
+export interface PurchaseResult {
+  /** Whether the purchase was successful */
+  success: boolean;
+  /** Purchase transaction (if successful) */
+  purchase?: AppleIAPPurchase;
+  /** Error (if failed) */
+  error?: IAPError;
+}
+
+/**
+ * Restore purchases result
+ * @since v3.2.0 (Phase 2)
+ */
+export interface RestorePurchasesResult {
+  /** Whether restore was successful */
+  success: boolean;
+  /** Array of restored purchases */
+  purchases: AppleIAPPurchase[];
+  /** Error (if failed) */
+  error?: IAPError;
+}
+
+/**
+ * IAP initialization options
+ * @since v3.2.0 (Phase 2)
+ */
+export interface IAPInitOptions {
+  /** Whether to automatically finish transactions */
+  autoFinishTransactions?: boolean;
+  /** Whether to enable debug logging */
+  debugLogging?: boolean;
+}
+
+/**
+ * Receipt validation request
+ * @since v3.2.0 (Phase 2)
+ */
+export interface ReceiptValidationRequest {
+  /** Transaction ID */
+  transactionId: string;
+  /** Product ID */
+  productId: string;
+  /** Transaction receipt */
+  transactionReceipt: string;
+  /** Platform (ios or android) */
+  platform?: string;
+}
+
+/**
+ * Receipt validation response
+ * @since v3.2.0 (Phase 2)
+ */
+export interface ReceiptValidationResponse {
+  /** Whether the receipt is valid */
+  isValid: boolean;
+  /** Subscription information (if valid) */
+  subscription?: AppleIAPSubscription;
+  /** Error message (if invalid) */
+  error?: string;
+}
+
 

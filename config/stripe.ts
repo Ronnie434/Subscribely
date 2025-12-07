@@ -34,7 +34,7 @@ export const SUBSCRIPTION_PLANS = {
   },
   yearly: {
     priceId: 'price_1SUXJY2MEnHaTSaAmQrK7lbY', // Replace with actual Stripe Price ID
-    amount: 39.00,
+    amount: 39.99,
     interval: 'year' as const,
     displayName: 'Yearly Premium',
     description: 'Unlimited recurring items, billed annually',

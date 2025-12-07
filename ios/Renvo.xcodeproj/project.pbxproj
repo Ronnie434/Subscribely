@@ -10,6 +10,8 @@
 		0EA6BCD5DC5E6CD20CD687ED /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D14738B0C123DAB18D7F189 /* ExpoModulesProvider.swift */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
+		A778316C2EE4BF6200D71270 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A778316B2EE4BF6200D71270 /* StoreKit.framework */; };
+		A778316E2EE4E14D00D71270 /* Renvo.storekit in Resources */ = {isa = PBXBuildFile; fileRef = A778316D2EE4C90000D71270 /* Renvo.storekit */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
 		DF982A097AF74FA8A805A782 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 6BA554FE141D4A368CAB7F24 /* PrivacyInfo.xcprivacy */; };
 		EE43979BF455D453890AF7BE /* libPods-Renvo.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 3C61806F386B0B7CECEF341E /* libPods-Renvo.a */; };
@@ -25,6 +27,8 @@
 		7D14738B0C123DAB18D7F189 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-Renvo/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
 		853F04C59F5DDFEA52971924 /* Pods-Renvo.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Renvo.release.xcconfig"; path = "Target Support Files/Pods-Renvo/Pods-Renvo.release.xcconfig"; sourceTree = "<group>"; };
 		8CB3098E152931328D74F44D /* Pods-Renvo.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Renvo.debug.xcconfig"; path = "Target Support Files/Pods-Renvo/Pods-Renvo.debug.xcconfig"; sourceTree = "<group>"; };
+		A778316B2EE4BF6200D71270 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
+		A778316D2EE4C90000D71270 /* Renvo.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = Renvo.storekit; sourceTree = "<group>"; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = Renvo/SplashScreen.storyboard; sourceTree = "<group>"; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
@@ -38,6 +42,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				EE43979BF455D453890AF7BE /* libPods-Renvo.a in Frameworks */,
+				A778316C2EE4BF6200D71270 /* StoreKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -61,6 +66,7 @@
 		2D16E6871FA4F8E400B85C8A /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				A778316B2EE4BF6200D71270 /* StoreKit.framework */,
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
 				3C61806F386B0B7CECEF341E /* libPods-Renvo.a */,
 			);
@@ -86,6 +92,7 @@
 		83CBB9F61A601CBA00E9B192 = {
 			isa = PBXGroup;
 			children = (
+				A778316D2EE4C90000D71270 /* Renvo.storekit */,
 				13B07FAE1A68108700A75B9A /* Renvo */,
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
 				83CBBA001A601CBA00E9B192 /* Products */,
@@ -195,6 +202,7 @@
 				BB2F792D24A3F905000567C9 /* Expo.plist in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */,
+				A778316E2EE4E14D00D71270 /* Renvo.storekit in Resources */,
 				DF982A097AF74FA8A805A782 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -392,7 +400,7 @@
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
 				PRODUCT_BUNDLE_IDENTIFIER = com.ronnie39.renvo;
-				PRODUCT_NAME = Renvo;
+				PRODUCT_NAME = "Renvo";
 				SWIFT_OBJC_BRIDGING_HEADER = "Renvo/Renvo-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
@@ -426,7 +434,7 @@
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_RELEASE";
 				PRODUCT_BUNDLE_IDENTIFIER = com.ronnie39.renvo;
-				PRODUCT_NAME = Renvo;
+				PRODUCT_NAME = "Renvo";
 				SWIFT_OBJC_BRIDGING_HEADER = "Renvo/Renvo-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";

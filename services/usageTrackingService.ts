@@ -161,7 +161,7 @@ class UsageTrackingService {
    * 
    * @example
    * ```typescript
-   * await usageTrackingService.trackPaymentInitiated('yearly', 39.00);
+   * await usageTrackingService.trackPaymentInitiated('yearly', 39.99);
    * ```
    */
   async trackPaymentInitiated(
@@ -196,8 +196,8 @@ class UsageTrackingService {
    * @example
    * ```typescript
    * await usageTrackingService.trackPaymentCompleted(
-   *   'yearly', 
-   *   39.00, 
+   *   'yearly',
+   *   39.99,
    *   'txn_123abc'
    * );
    * ```

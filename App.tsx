@@ -6,6 +6,7 @@ import { StripeProvider } from '@stripe/stripe-react-native';
 import AppNavigator from './navigation/AppNavigator';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { ToastProvider } from './contexts/ToastContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import * as Notifications from 'expo-notifications';
 import { requestNotificationPermissions } from './utils/notificationService';
@@ -141,9 +142,11 @@ export default function App() {
         <GestureHandlerRootView style={styles.container}>
           <SafeAreaProvider>
             <ThemeProvider>
-              <AuthProvider>
-                <AppNavigator />
-              </AuthProvider>
+              <ToastProvider>
+                <AuthProvider>
+                  <AppNavigator />
+                </AuthProvider>
+              </ToastProvider>
             </ThemeProvider>
           </SafeAreaProvider>
         </GestureHandlerRootView>
