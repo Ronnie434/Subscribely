@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,13 +11,23 @@ import {
   Alert,
   ScrollView,
   Linking,
+  AppState,
+  AppStateStatus,
 } from 'react-native';
+import { showManageSubscriptionsIOS } from 'react-native-iap';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../contexts/ThemeContext';
 import { paymentService } from '../services/paymentService';
+import {
+  isTestFlightEnvironment,
+  getSubscriptionManagementInstructions,
+} from '../utils/environment';
+import { appleIAPService } from '../services/appleIAPService';
+import { subscriptionTierService } from '../services/subscriptionTierService';
+import { subscriptionLimitService } from '../services/subscriptionLimitService';
 
 interface CancelSubscriptionModalProps {
   visible: boolean;
@@ -37,36 +47,147 @@ export default function CancelSubscriptionModal({
   const [cancelOption, setCancelOption] = useState<'end_of_period' | 'immediately'>(
     'end_of_period'
   );
+  const appState = useRef(AppState.currentState);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Apple subscriptions are always managed externally
   const isApple = paymentProvider === 'apple';
+
+  // Listen for app state changes (when user returns from Settings)
+  useEffect(() => {
+    if (!visible || !isApple) return;
+
+    const handleAppStateChange = async (nextAppState: AppStateStatus) => {
+      console.log('[CancelSubscriptionModal] App state changed:', appState.current, '→', nextAppState);
+      
+      // When app comes back to foreground after being in background
+      if (
+        appState.current.match(/inactive|background/) &&
+        nextAppState === 'active'
+      ) {
+        console.log('[CancelSubscriptionModal] 🔄 App returned to foreground, refreshing subscription status...');
+        
+        // User returned from Settings, refresh subscription status
+        setIsRefreshing(true);
+        try {
+          // Sync subscription status with Apple
+          await appleIAPService.syncSubscriptionStatus();
+          
+          // Refresh tier and limit info
+          await Promise.all([
+            subscriptionTierService.refreshTierInfo(),
+            subscriptionLimitService.refreshLimitStatus(),
+          ]);
+          
+          console.log('[CancelSubscriptionModal] ✅ Subscription status refreshed');
+          
+          // Close modal first
+          onClose();
+          
+          // Wait a bit for modal animation, then trigger parent navigation
+          setTimeout(() => {
+            console.log('[CancelSubscriptionModal] 📱 Calling onSuccess to navigate back...');
+            onSuccess();
+          }, 300);
+        } catch (error) {
+          console.error('[CancelSubscriptionModal] ❌ Error refreshing subscription status:', error);
+          // Still close modal and navigate even if refresh fails
+          onClose();
+          setTimeout(() => {
+            onSuccess();
+          }, 300);
+        } finally {
+          setIsRefreshing(false);
+        }
+      }
+
+      appState.current = nextAppState;
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+    return () => {
+      subscription.remove();
+    };
+  }, [visible, isApple, onClose, onSuccess]);
 
   const handleCancel = async () => {
     if (Platform.OS === 'ios') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
 
-    // For Apple, just open the settings
+    // For Apple, use native subscription management
     if (isApple) {
       try {
         setLoading(true);
-        // Use deep link to open App Store subscriptions directly
-        const url = 'https://apps.apple.com/account/subscriptions';
-        const canOpen = await Linking.canOpenURL(url);
-        if (canOpen) {
-          await Linking.openURL(url);
+        
+        console.log('[CancelSubscriptionModal] Opening native subscription management...');
+        
+        // Use react-native-iap's native method to open subscription management
+        // This automatically handles both sandbox and production environments
+        const result = await showManageSubscriptionsIOS();
+        
+        console.log('[CancelSubscriptionModal] Manage subscriptions result:', result);
+        
+        if (result) {
+          // Successfully opened the subscription management screen
           onClose(); // Close modal after redirect
         } else {
+          // If native method fails, fall back to manual instructions
+          console.warn('[CancelSubscriptionModal] Native method failed, showing manual instructions');
+          
+          const isTestFlight = isTestFlightEnvironment();
+          
           Alert.alert(
-            'Manage Subscription',
-            'Please go to your iPhone Settings > Apple ID > Subscriptions to manage your subscription.'
+            isTestFlight ? 'Manage Test Subscription' : 'Manage Subscription',
+            isTestFlight 
+              ? getSubscriptionManagementInstructions()
+              : 'To manage your subscription:\n\n1. Open Settings\n2. Tap your name at the top\n3. Tap "Subscriptions"\n4. Select your Renvo subscription',
+            [
+              {
+                text: 'Open Settings',
+                onPress: () => {
+                  Linking.openURL('app-settings:').catch((err) => {
+                    console.error('Failed to open settings:', err);
+                  });
+                  onClose();
+                },
+              },
+              {
+                text: 'OK',
+                style: 'cancel',
+                onPress: () => onClose(),
+              },
+            ]
           );
         }
-      } catch (error) {
-        console.error('Error opening subscription settings:', error);
+      } catch (error: any) {
+        console.error('[CancelSubscriptionModal] Error opening subscription management:', error);
+        
+        // Fallback: Show manual instructions
+        const isTestFlight = isTestFlightEnvironment();
+        
         Alert.alert(
           'Manage Subscription',
-          'Please go to your iPhone Settings > Apple ID > Subscriptions to manage your subscription.'
+          isTestFlight 
+            ? getSubscriptionManagementInstructions()
+            : 'To manage your subscription:\n\n1. Open Settings\n2. Tap your name at the top\n3. Tap "Subscriptions"\n4. Select your Renvo subscription',
+          [
+            {
+              text: 'Open Settings',
+              onPress: () => {
+                Linking.openURL('app-settings:').catch((err) => {
+                  console.error('Failed to open settings:', err);
+                });
+                onClose();
+              },
+            },
+            {
+              text: 'OK',
+              style: 'cancel',
+              onPress: () => onClose(),
+            },
+          ]
         );
       } finally {
         setLoading(false);
