@@ -77,8 +77,7 @@ export default function PaywallModal({
         if (!appleIAPService.isInitialized()) {
           console.error('[PaywallModal] ❌ IAP initialization failed - service not initialized');
           if (mounted) {
-            // Only show toast if explicitly failed, don't loop
-             console.log('[PaywallModal] Failed to initialize purchase system');
+             showToast('Failed to initialize purchase system. Please restart the app.', 'error');
           }
           return;
         }
@@ -95,8 +94,13 @@ export default function PaywallModal({
           
           if (products.length === 0) {
             console.warn('[PaywallModal] ⚠️ No products available');
-            // Reducing toast noise
-            // showToast('Products not available. Please check your connection and try again.', 'info');
+            // Show user-visible message in TestFlight
+            showToast(
+              'Subscription products unavailable. Please ensure you are signed in with a Sandbox test account in Settings > App Store.',
+              'error'
+            );
+          } else {
+            console.log('[PaywallModal] ✅ Products loaded successfully');
           }
         }
       } catch (error: any) {

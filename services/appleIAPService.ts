@@ -191,6 +191,10 @@ class AppleIAPService {
    */
   async getProducts(): Promise<AppleIAPProduct[]> {
     try {
+      console.log('[AppleIAP] 🔍 Requesting products...');
+      console.log('[AppleIAP] 🔍 Product IDs:', APPLE_IAP_CONFIG.productIds);
+      console.log('[AppleIAP] 🔍 Environment:', APPLE_IAP_CONFIG.environment);
+      
       // Fetch products from App Store using fetchProducts API
       const products = await fetchProducts({ 
         skus: APPLE_IAP_CONFIG.productIds as string[],
@@ -200,13 +204,28 @@ class AppleIAPService {
       console.log(`[AppleIAP] ✅ Fetched ${products.length} products`);
       
       if (products.length === 0) {
-        console.warn('[AppleIAP] ⚠️ No products found. Ensure products are configured in App Store Connect.');
+        console.error('[AppleIAP] ❌ No products found!');
+        console.error('[AppleIAP] ❌ Possible reasons:');
+        console.error('[AppleIAP] ❌ 1. Products not created in App Store Connect');
+        console.error('[AppleIAP] ❌ 2. Products not in "Ready to Submit" status');
+        console.error('[AppleIAP] ❌ 3. Bundle ID mismatch');
+        console.error('[AppleIAP] ❌ 4. Not signed in with Sandbox account');
+        console.error('[AppleIAP] ❌ 5. Agreements not signed in App Store Connect');
         return []; // Return empty array instead of undefined
       }
       
       // Log raw product structure for debugging
-      if (products.length > 0 && __DEV__) {
-        console.log('[AppleIAP] 🔍 Raw product structure:', JSON.stringify(products[0], null, 2));
+      if (products.length > 0) {
+        console.log('[AppleIAP] 🔍 First product details:', {
+          id: products[0].id || products[0].productId,
+          title: products[0].title,
+          price: products[0].price,
+          currency: products[0].currency,
+        });
+        
+        if (__DEV__) {
+          console.log('[AppleIAP] 🔍 Raw product structure:', JSON.stringify(products[0], null, 2));
+        }
       }
       
       // Map RNIap products to AppleIAPProduct format
@@ -218,18 +237,24 @@ class AppleIAPService {
           return {
             productId: id,
             title: product.title || id,
-            description: product.description || '',
-            price: parseFloat(String(product.price)) || 0,
-            currency: product.currency || 'USD',
-            localizedPrice: product.localizedPrice || `$${product.price}`,
-            subscriptionPeriod: product.subscriptionPeriodUnitIOS,
-            introductoryPrice: product.introductoryPrice,
-            subscriptionGroupId: product.subscriptionGroupIdentifier,
-            type: 'subscription' as const,
+        description: product.description || '',
+        price: parseFloat(String(product.price)) || 0,
+        currency: product.currency || 'USD',
+            localizedPrice: product.localizedPrice || product.displayPrice || `$${product.price}`,
+        subscriptionPeriod: product.subscriptionPeriodUnitIOS,
+        introductoryPrice: product.introductoryPrice,
+        subscriptionGroupId: product.subscriptionGroupIdentifier,
+        type: 'subscription' as const,
           };
         });
 
       console.log(`[AppleIAP] ✅ Mapped ${mappedProducts.length} products`);
+      
+      if (mappedProducts.length === 0 && products.length > 0) {
+        console.error('[AppleIAP] ❌ Products fetched but mapping failed!');
+        console.error('[AppleIAP] ❌ This indicates a product structure mismatch');
+      }
+
       return mappedProducts;
     } catch (error) {
       console.error('[AppleIAP] ❌ Failed to fetch products:', error);
@@ -823,7 +848,7 @@ class AppleIAPService {
       return isValid;
     } catch (error) {
       console.error('[AppleIAP] ❌ Sync failed:', error);
-      return false;
+        return false;
     }
   }
 
