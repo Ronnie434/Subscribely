@@ -19,6 +19,7 @@ import EmailLoginScreen from '../screens/EmailLoginScreen';
 import SignUpScreen from '../screens/SignUpScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import ResetPasswordScreen from '../screens/ResetPasswordScreen';
+import AccountRecoveryScreen from '../screens/AccountRecoveryScreen';
 import HomeScreen from '../screens/HomeScreen';
 import AddSubscriptionScreen from '../screens/AddSubscriptionScreen';
 import EditSubscriptionScreen from '../screens/EditSubscriptionScreen';
@@ -35,6 +36,7 @@ type AuthStackParamList = {
   SignUp: undefined;
   ForgotPassword: undefined;
   ResetPassword: { token?: string; access_token?: string };
+  AccountRecovery: { deletedAt: string; userEmail: string };
 };
 
 type SubscriptionsStackParamList = {
@@ -180,6 +182,13 @@ function AuthNavigator({ initialRoute = 'Login' }: { initialRoute?: 'Login' | 'S
       />
       <AuthStack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
       <AuthStack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+      <AuthStack.Screen
+        name="AccountRecovery"
+        component={AccountRecoveryScreen}
+        options={{
+          headerShown: false,
+        }}
+      />
     </AuthStack.Navigator>
   );
 }
@@ -488,7 +497,16 @@ function MainNavigator() {
 
 export default function AppNavigator() {
   const { theme } = useTheme();
-  const { user, session, loading: authLoading, error, clearError, isHandlingDuplicate } = useAuth();
+  const {
+    user,
+    session,
+    loading: authLoading,
+    error,
+    clearError,
+    isHandlingDuplicate,
+    deletedAccountInfo,
+    clearDeletedAccountInfo
+  } = useAuth();
   const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [justCompletedOnboarding, setJustCompletedOnboarding] = useState(false);
@@ -533,6 +551,41 @@ export default function AppNavigator() {
       return () => clearTimeout(timer);
     }
   }, [justCompletedOnboarding, showOnboarding]);
+
+  // Navigate to AccountRecoveryScreen when deleted account is detected
+  useEffect(() => {
+    if (deletedAccountInfo && navigationRef.current?.isReady()) {
+      if (__DEV__) {
+        console.log('[AppNavigator] Deleted account detected, navigating to AccountRecovery');
+        console.log('[AppNavigator.DEBUG] Current auth state:', {
+          hasUser: !!user,
+          hasSession: !!session,
+          isHandlingDuplicate,
+          deletedAccountInfo: !!deletedAccountInfo
+        });
+        
+        // Check which navigator is currently active
+        const state = navigationRef.current?.getRootState();
+        console.log('[AppNavigator.DEBUG] Navigation state:', {
+          routes: state?.routes.map(r => r.name),
+          currentRoute: state?.routes[state?.index || 0]?.name
+        });
+      }
+      
+      // Navigate to AccountRecovery screen with deleted account info
+      // Use setTimeout to ensure navigation completes before any state changes
+      setTimeout(() => {
+        navigationRef.current?.navigate('AccountRecovery', {
+          deletedAt: deletedAccountInfo.deletedAt,
+          userEmail: deletedAccountInfo.email,
+        });
+      }, 100);
+      
+      // DON'T clear deleted account info here - it causes the app to switch back to MainNavigator
+      // before navigation completes. The AccountRecoveryScreen will clear it after successful
+      // recovery or when user signs out. This keeps the app in AuthNavigator context.
+    }
+  }, [deletedAccountInfo, user, session, isHandlingDuplicate]);
 
   // Show loading indicator while checking auth or onboarding status
   if (isCheckingOnboarding || authLoading) {
@@ -618,19 +671,37 @@ export default function AppNavigator() {
       }}>
       {showOnboarding ? (
         <OnboardingScreen onComplete={handleOnboardingComplete} />
-      ) : (!user || !session || isHandlingDuplicate) ? (
-        // Show auth screens if user is not authenticated OR if there's no session
-        // OR if we're handling a duplicate email (to prevent navigation reset)
+      ) : (!user || !session || isHandlingDuplicate || deletedAccountInfo) ? (
+        // Show auth screens if:
+        // - User is not authenticated OR
+        // - There's no session OR
+        // - We're handling a duplicate email (to prevent navigation reset) OR
+        // - Account is marked for deletion (need to show recovery screen in AuthStack)
         // This handles the case where a duplicate user is created but has no valid session
+        // AND ensures deleted accounts stay in AuthStack where AccountRecovery screen exists
         // Use a stable key to prevent remounting when isHandlingDuplicate changes
         // Navigate to Login if user just completed onboarding
-        <AuthNavigator
-          key="auth-navigator"
-          initialRoute={justCompletedOnboarding ? 'Login' : 'Login'}
-        />
+        (() => {
+          if (__DEV__) {
+            console.log('[AppNavigator.DEBUG] Rendering AuthNavigator', {
+              reason: !user ? 'no user' : !session ? 'no session' : isHandlingDuplicate ? 'handling duplicate' : deletedAccountInfo ? 'deleted account' : 'unknown'
+            });
+          }
+          return (
+            <AuthNavigator
+              key="auth-navigator"
+              initialRoute={justCompletedOnboarding ? 'Login' : 'Login'}
+            />
+          );
+        })()
       ) : (
-        // Show main app if user is authenticated AND has a valid session
-        <MainNavigator />
+        // Show main app if user is authenticated AND has a valid session AND account is not deleted
+        (() => {
+          if (__DEV__) {
+            console.log('[AppNavigator.DEBUG] Rendering MainNavigator');
+          }
+          return <MainNavigator />;
+        })()
       )}
     </NavigationContainer>
   );

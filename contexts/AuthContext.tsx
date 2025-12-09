@@ -21,12 +21,18 @@ WebBrowser.maybeCompleteAuthSession();
 const ACCESS_TOKEN_REFRESH_BUFFER_MS = 2 * 60 * 1000; // 2 minutes
 const MIN_REFRESH_DELAY_MS = 5 * 1000; // 5 seconds fallback
 
+interface DeletedAccountInfo {
+  deletedAt: string;
+  email: string;
+}
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
   error: string | null;
   isHandlingDuplicate: boolean;
+  deletedAccountInfo: DeletedAccountInfo | null;
   signUp: (email: string, password: string, name?: string) => Promise<{ success: boolean; message?: string }>;
   signIn: (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
   signInWithGoogle: () => Promise<{ success: boolean; message?: string }>;
@@ -36,6 +42,7 @@ interface AuthContextType {
   updatePassword: (newPassword: string) => Promise<{ success: boolean; message?: string }>;
   clearError: () => void;
   clearDuplicateFlag: () => void;
+  clearDeletedAccountInfo: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -59,6 +66,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
   
   // State to track if we're handling a duplicate (for AppNavigator to show auth screens)
   const [isHandlingDuplicate, setIsHandlingDuplicate] = useState(false);
+  
+  // State to track deleted account info (for recovery flow)
+  const [deletedAccountInfo, setDeletedAccountInfo] = useState<DeletedAccountInfo | null>(null);
   
   const clearRefreshTimer = useCallback(() => {
     if (refreshTimerRef.current) {
@@ -117,6 +127,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // Also clear user/session since we're done handling the duplicate
     setSession(null);
     setUser(null);
+  }, []);
+
+  // Clear deleted account info after recovery or sign out
+  const clearDeletedAccountInfo = useCallback(() => {
+    if (__DEV__) {
+      console.log('[AuthContext] Clearing deleted account info');
+    }
+    setDeletedAccountInfo(null);
   }, []);
 
   /**
@@ -226,6 +244,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         // Reset state
         setUser(null);
         setSession(null);
+        setDeletedAccountInfo(null);
       } catch (err) {
         // Only set error if it's not a silent logout
         if (!silent) {
@@ -237,6 +256,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         // Reset state even if there was an error
         setUser(null);
         setSession(null);
+        setDeletedAccountInfo(null);
       } finally {
         setLoading(false);
       }
@@ -798,6 +818,67 @@ export function AuthProvider({ children }: AuthProviderProps) {
         };
       }
 
+      // Check if user's account is marked for deletion using Edge Function
+      // We must use Edge Function because RLS policies block reading deleted accounts
+      if (data.user && data.session) {
+        try {
+          if (__DEV__) {
+            console.log('[AuthContext.signIn] Checking account deletion status via Edge Function');
+          }
+
+          // Call check-account-status Edge Function with service role access
+          const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
+          const functionUrl = `${supabaseUrl}/functions/v1/check-account-status`;
+          const response = await fetch(functionUrl, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${data.session.access_token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            if (__DEV__) {
+              console.warn('[AuthContext.signIn] Edge Function error:', errorText);
+            }
+            // Continue with login if check fails (non-blocking)
+          } else {
+            const accountStatus = await response.json();
+            
+            if (__DEV__) {
+              console.log('[AuthContext.signIn] Account status:', accountStatus);
+            }
+
+            // If account is marked for deletion, store info for recovery flow
+            if (accountStatus.deleted && accountStatus.deletedAt) {
+              if (__DEV__) {
+                console.log('[AuthContext.signIn] ✅ Deleted account detected, setting info for recovery');
+              }
+              
+              setDeletedAccountInfo({
+                deletedAt: accountStatus.deletedAt,
+                email: accountStatus.email || data.user.email || email,
+              });
+              
+              // Don't clear the session yet - let AppNavigator handle the redirect
+              await persistSessionState(data.session);
+              
+              return { success: true };
+            } else {
+              if (__DEV__) {
+                console.log('[AuthContext.signIn] Account is active (not deleted)');
+              }
+            }
+          }
+        } catch (checkError) {
+          if (__DEV__) {
+            console.warn('[AuthContext.signIn] Error checking account status:', checkError);
+          }
+          // Continue with login if check fails (non-blocking)
+        }
+      }
+
       await persistSessionState(data.session);
 
       // Trigger migration after successful sign in
@@ -1351,6 +1432,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     loading,
     error,
     isHandlingDuplicate,
+    deletedAccountInfo,
     signUp,
     signIn,
     signInWithGoogle,
@@ -1360,6 +1442,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     updatePassword,
     clearError,
     clearDuplicateFlag,
+    clearDeletedAccountInfo,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

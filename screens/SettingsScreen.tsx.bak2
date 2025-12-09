@@ -36,6 +36,10 @@ import { supabase } from "../config/supabase";
 import PaywallModal from "../components/PaywallModal";
 import DeleteAccountModal from "../components/DeleteAccountModal";
 import { useToast } from "../contexts/ToastContext";
+import DeleteAccountModal from "../components/DeleteAccountModal";
+import { useToast } from "../contexts/ToastContext";
+import DeleteAccountModal from "../components/DeleteAccountModal";
+import { useToast } from "../contexts/ToastContext";
 
 // Navigation types
 type SettingsStackParamList = {

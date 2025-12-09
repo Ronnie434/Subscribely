@@ -36,6 +36,10 @@ import { supabase } from "../config/supabase";
 import PaywallModal from "../components/PaywallModal";
 import DeleteAccountModal from "../components/DeleteAccountModal";
 import { useToast } from "../contexts/ToastContext";
+import DeleteAccountModal from "../components/DeleteAccountModal";
+import { useToast } from "../contexts/ToastContext";
+import DeleteAccountModal from "../components/DeleteAccountModal";
+import { useToast } from "../contexts/ToastContext";
 
 // Navigation types
 type SettingsStackParamList = {
@@ -72,6 +76,7 @@ export default function SettingsScreen() {
   const navigation = useNavigation<SettingsScreenNavigationProp>();
   const { user, signOut, session } = useAuth();
   const { theme, themeMode, setThemeMode } = useTheme();
+  const { showToast } = useToast();
   const { showToast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [selectedIcon, setSelectedIcon] = useState<string>("person");
