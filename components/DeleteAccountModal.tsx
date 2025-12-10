@@ -10,6 +10,7 @@ import {
   Platform,
   TextInput,
   ScrollView,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
@@ -89,16 +90,16 @@ export default function DeleteAccountModal({
       backgroundColor: theme.colors.surface,
       borderTopLeftRadius: 24,
       borderTopRightRadius: 24,
-      paddingBottom: Platform.OS === 'ios' ? 34 : 24,
-      maxHeight: '85%',
+      height: '90%',
+      maxHeight: '90%',
+      overflow: 'hidden',
+      position: 'relative',
     },
     header: {
       alignItems: 'center',
       paddingTop: 24,
       paddingHorizontal: 24,
       paddingBottom: 16,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: theme.colors.border,
     },
     closeButton: {
       position: 'absolute',
@@ -129,10 +130,6 @@ export default function DeleteAccountModal({
       color: theme.colors.text,
       textAlign: 'center',
       marginBottom: 8,
-    },
-    content: {
-      paddingHorizontal: 24,
-      paddingVertical: 24,
     },
     warningHeading: {
       fontSize: 20,
@@ -260,141 +257,152 @@ export default function DeleteAccountModal({
         <Animated.View
           entering={SlideInDown.springify().damping(20)}
           style={styles.modalContent}>
-          {/* Close Button */}
+          {/* Close Button - Must be above ScrollView */}
           <TouchableOpacity
             style={styles.closeButton}
             onPress={handleClose}
             disabled={loading}
-            activeOpacity={0.7}>
+            activeOpacity={0.7}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            pointerEvents="box-only">
             <Ionicons name="close" size={20} color={theme.colors.text} />
           </TouchableOpacity>
 
-          {/* Header */}
-          <View style={styles.header} pointerEvents="box-none">
+          {/* Header - OUTSIDE ScrollView */}
+          <View style={styles.header}>
             <View style={styles.iconContainer}>
               <Ionicons name="warning" size={36} color={theme.colors.error} />
             </View>
             <Text style={styles.title}>Delete Account</Text>
           </View>
 
-          {/* Content */}
-          <ScrollView
-            contentContainerStyle={styles.content}
-            showsVerticalScrollIndicator={true}
-            pointerEvents="auto">
-            {/* Warning Heading */}
-            <Text style={styles.warningHeading}>
-              This action cannot be undone
-            </Text>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={{ flex: 1 }}>
+            <ScrollView
+              style={{ flex: 1 }}
+              contentContainerStyle={{
+                paddingHorizontal: 24,
+                paddingBottom: Platform.OS === 'ios' ? 34 : 24
+              }}
+              showsVerticalScrollIndicator={true}
+              bounces={true}
+              scrollEnabled={true}
+              keyboardShouldPersistTaps="handled">
+              {/* Warning Heading */}
+              <Text style={styles.warningHeading}>
+                This action cannot be undone
+              </Text>
 
-            {/* Warning Subtext */}
-            <Text style={styles.warningSubtext}>
-              Deleting your account will permanently remove:
-            </Text>
+              {/* Warning Subtext */}
+              <Text style={styles.warningSubtext}>
+                Deleting your account will permanently remove:
+              </Text>
 
-            {/* List of what will be deleted */}
-            <View style={styles.listContainer}>
-              <View style={styles.listItem}>
-                <Ionicons
-                  name="close-circle"
-                  size={20}
-                  color={theme.colors.error}
-                  style={styles.bulletIcon}
-                />
-                <Text style={styles.listItemText}>
-                  All your tracked subscriptions and recurring expenses
-                </Text>
+              {/* List of what will be deleted */}
+              <View style={styles.listContainer}>
+                <View style={styles.listItem}>
+                  <Ionicons
+                    name="close-circle"
+                    size={20}
+                    color={theme.colors.error}
+                    style={styles.bulletIcon}
+                  />
+                  <Text style={styles.listItemText}>
+                    All your tracked subscriptions and recurring expenses
+                  </Text>
+                </View>
+
+                <View style={styles.listItem}>
+                  <Ionicons
+                    name="close-circle"
+                    size={20}
+                    color={theme.colors.error}
+                    style={styles.bulletIcon}
+                  />
+                  <Text style={styles.listItemText}>Payment history and transaction records</Text>
+                </View>
+
+                <View style={styles.listItem}>
+                  <Ionicons
+                    name="close-circle"
+                    size={20}
+                    color={theme.colors.error}
+                    style={styles.bulletIcon}
+                  />
+                  <Text style={styles.listItemText}>
+                    App settings and preferences
+                  </Text>
+                </View>
+
+                <View style={[styles.listItem, styles.listItemLast]}>
+                  <Ionicons
+                    name="close-circle"
+                    size={20}
+                    color={theme.colors.error}
+                    style={styles.bulletIcon}
+                  />
+                  <Text style={styles.listItemText}>
+                    Your premium membership and account data
+                  </Text>
+                </View>
               </View>
 
-              <View style={styles.listItem}>
-                <Ionicons
-                  name="close-circle"
-                  size={20}
-                  color={theme.colors.error}
-                  style={styles.bulletIcon}
-                />
-                <Text style={styles.listItemText}>Payment history and transaction records</Text>
-              </View>
+              {/* Grace Period Info */}
+              <Text style={styles.gracePeriodText}>
+                You will have 30 days to recover your account before it is
+                permanently deleted.
+              </Text>
 
-              <View style={styles.listItem}>
-                <Ionicons
-                  name="close-circle"
-                  size={20}
-                  color={theme.colors.error}
-                  style={styles.bulletIcon}
-                />
-                <Text style={styles.listItemText}>
-                  App settings and preferences
-                </Text>
-              </View>
-
-              <View style={[styles.listItem, styles.listItemLast]}>
-                <Ionicons
-                  name="close-circle"
-                  size={20}
-                  color={theme.colors.error}
-                  style={styles.bulletIcon}
-                />
-                <Text style={styles.listItemText}>
-                  Your premium membership and account data
-                </Text>
-              </View>
-            </View>
-
-            {/* Grace Period Info */}
-            <Text style={styles.gracePeriodText}>
-              You will have 30 days to recover your account before it is
-              permanently deleted.
-            </Text>
-
-            {/* Confirmation Input */}
-            <Text style={styles.inputLabel}>Type DELETE to confirm</Text>
-            <TextInput
-              style={[
-                styles.input,
-                confirmationText.length > 0 && styles.inputFocused,
-              ]}
-              value={confirmationText}
-              onChangeText={(text) => setConfirmationText(text.toUpperCase())}
-              placeholder="DELETE"
-              placeholderTextColor={theme.colors.textSecondary + '80'}
-              autoCapitalize="characters"
-              autoCorrect={false}
-              editable={!loading}
-              maxLength={6}
-            />
-
-            {/* Buttons */}
-            <View style={styles.buttonContainer}>
-              <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={handleClose}
-                disabled={loading}
-                activeOpacity={0.8}>
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
+              {/* Confirmation Input */}
+              <Text style={styles.inputLabel}>Type DELETE to confirm</Text>
+              <TextInput
                 style={[
-                  styles.deleteButton,
-                  (!isConfirmed || loading) && styles.deleteButtonDisabled,
+                  styles.input,
+                  confirmationText.length > 0 && styles.inputFocused,
                 ]}
-                onPress={handleConfirm}
-                disabled={!isConfirmed || loading}
-                activeOpacity={0.8}>
-                {loading ? (
-                  <ActivityIndicator color="#FFFFFF" />
-                ) : (
-                  <>
-                    <Ionicons name="trash" size={20} color="#FFFFFF" />
-                    <Text style={styles.deleteButtonText}>
-                      Delete My Account
-                    </Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            </View>
-          </ScrollView>
+                value={confirmationText}
+                onChangeText={(text) => setConfirmationText(text.toUpperCase())}
+                placeholder="DELETE"
+                placeholderTextColor={theme.colors.textSecondary + '80'}
+                autoCapitalize="characters"
+                autoCorrect={false}
+                editable={!loading}
+                maxLength={6}
+              />
+
+              {/* Buttons */}
+              <View style={styles.buttonContainer}>
+                <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={handleClose}
+                  disabled={loading}
+                  activeOpacity={0.8}>
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.deleteButton,
+                    (!isConfirmed || loading) && styles.deleteButtonDisabled,
+                  ]}
+                  onPress={handleConfirm}
+                  disabled={!isConfirmed || loading}
+                  activeOpacity={0.8}>
+                  {loading ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <>
+                      <Ionicons name="trash" size={20} color="#FFFFFF" />
+                      <Text style={styles.deleteButtonText}>
+                        Delete My Account
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </KeyboardAvoidingView>
         </Animated.View>
       </View>
     </Modal>
