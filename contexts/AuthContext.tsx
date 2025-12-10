@@ -1217,17 +1217,31 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if (sessionData.session) {
           await persistSessionState(sessionData.session);
           
-          // Send welcome email for OAuth users (they don't get Supabase confirmation email)
+          // Send welcome email for NEW OAuth users only (not returning users)
           try {
             const userEmail = sessionData.session.user.email;
-            const userName = sessionData.session.user.user_metadata?.name ||
-                           sessionData.session.user.user_metadata?.full_name ||
-                           'there';
-            const firstName = userName.split(' ')[0];
+            const userCreatedAt = new Date(sessionData.session.user.created_at);
+            const now = new Date();
+            const secondsSinceCreation = (now.getTime() - userCreatedAt.getTime()) / 1000;
             
-            if (userEmail) {
+            // Only send welcome email if user was created very recently (within 30 seconds)
+            // This means it's a NEW signup, not a returning user logging in
+            const isNewUser = secondsSinceCreation < 30;
+            
+            if (__DEV__) {
+              console.log('[OAuth] User created:', sessionData.session.user.created_at);
+              console.log('[OAuth] Seconds since creation:', secondsSinceCreation.toFixed(2));
+              console.log('[OAuth] Is new user?', isNewUser);
+            }
+            
+            if (userEmail && isNewUser) {
+              const userName = sessionData.session.user.user_metadata?.name ||
+                             sessionData.session.user.user_metadata?.full_name ||
+                             'there';
+              const firstName = userName.split(' ')[0];
+              
               if (__DEV__) {
-                console.log('[OAuth] Sending welcome email to:', userEmail);
+                console.log('[OAuth] NEW USER - Sending welcome email to:', userEmail);
               }
               
               const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
@@ -1253,6 +1267,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
                   console.warn('[OAuth] Failed to send welcome email (non-blocking)');
                 }
               }
+            } else if (__DEV__ && userEmail && !isNewUser) {
+              console.log('[OAuth] RETURNING USER - Skipping welcome email');
             }
           } catch (emailError) {
             if (__DEV__) {
@@ -1432,17 +1448,31 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
           await persistSessionState(sessionData.session);
           
-          // Send welcome email for OAuth users (they don't get Supabase confirmation email)
+          // Send welcome email for NEW OAuth users only (not returning users)
           try {
             const userEmail = sessionData.session.user.email;
-            const userName = sessionData.session.user.user_metadata?.name ||
-                           sessionData.session.user.user_metadata?.full_name ||
-                           'there';
-            const firstName = userName.split(' ')[0];
+            const userCreatedAt = new Date(sessionData.session.user.created_at);
+            const now = new Date();
+            const secondsSinceCreation = (now.getTime() - userCreatedAt.getTime()) / 1000;
             
-            if (userEmail) {
+            // Only send welcome email if user was created very recently (within 30 seconds)
+            // This means it's a NEW signup, not a returning user logging in
+            const isNewUser = secondsSinceCreation < 30;
+            
+            if (__DEV__) {
+              console.log('[OAuth] User created:', sessionData.session.user.created_at);
+              console.log('[OAuth] Seconds since creation:', secondsSinceCreation.toFixed(2));
+              console.log('[OAuth] Is new user?', isNewUser);
+            }
+            
+            if (userEmail && isNewUser) {
+              const userName = sessionData.session.user.user_metadata?.name ||
+                             sessionData.session.user.user_metadata?.full_name ||
+                             'there';
+              const firstName = userName.split(' ')[0];
+              
               if (__DEV__) {
-                console.log('[OAuth] Sending welcome email to:', userEmail);
+                console.log('[OAuth] NEW USER - Sending welcome email to:', userEmail);
               }
               
               const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
@@ -1468,6 +1498,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
                   console.warn('[OAuth] Failed to send welcome email (non-blocking)');
                 }
               }
+            } else if (__DEV__ && userEmail && !isNewUser) {
+              console.log('[OAuth] RETURNING USER - Skipping welcome email');
             }
           } catch (emailError) {
             if (__DEV__) {
