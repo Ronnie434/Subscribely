@@ -229,7 +229,7 @@ export function generateDeletionEmail(firstName: string, deletedAt: string, grac
                 </tr>
 
                 <tr>
-                  <td style="font-size:16px; line-height:1.6; color:#444; padding-top:10px;">
+                  <td style="font-size:16px; line-height:1.6; color:#444; padding:10px 0px;">
                     We've processed your account deletion request. Your Renvo account has been marked for deletion.
                   </td>
                 </tr>
