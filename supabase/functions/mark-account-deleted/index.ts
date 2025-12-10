@@ -164,7 +164,56 @@ serve(async (req) => {
     console.log(`⏳ Grace period ends: ${gracePeriodEndsISO}`);
 
     // ========================================================================
-    // STEP 7: RETURN SUCCESS RESPONSE
+    // STEP 7: SEND ACCOUNT DELETION EMAIL
+    // ========================================================================
+    try {
+      // Get user's name from profile or user metadata
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name, email')
+        .eq('id', user.id)
+        .single();
+
+      const firstName = profile?.full_name?.split(' ')[0] || 'there';
+      const userEmail = profile?.email || user.email || '';
+
+      if (userEmail) {
+        console.log(`📧 Sending deletion confirmation email to: ${userEmail}`);
+
+        // Call send-deletion-email Edge Function
+        const emailUrl = `${Deno.env.get('PROJECT_URL')}/functions/v1/send-deletion-email`;
+        const emailResponse = await fetch(emailUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': authHeader,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: userEmail,
+            firstName: firstName,
+            deletedAt: deletedAt,
+            gracePeriodEnds: gracePeriodEndsISO,
+          }),
+        });
+
+        if (emailResponse.ok) {
+          const emailData = await emailResponse.json();
+          console.log(`✅ Deletion email sent successfully:`, emailData);
+        } else {
+          const emailError = await emailResponse.text();
+          console.warn(`⚠️ Failed to send deletion email (non-blocking):`, emailError);
+          // Don't fail the deletion if email fails
+        }
+      } else {
+        console.warn('⚠️ No email address found for user, skipping deletion email');
+      }
+    } catch (emailError) {
+      console.warn('⚠️ Error sending deletion email (non-blocking):', emailError);
+      // Don't fail the deletion if email sending fails
+    }
+
+    // ========================================================================
+    // STEP 8: RETURN SUCCESS RESPONSE
     // ========================================================================
     return new Response(
       JSON.stringify({

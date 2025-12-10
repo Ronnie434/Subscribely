@@ -1216,6 +1216,50 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
         if (sessionData.session) {
           await persistSessionState(sessionData.session);
+          
+          // Send welcome email for OAuth users (they don't get Supabase confirmation email)
+          try {
+            const userEmail = sessionData.session.user.email;
+            const userName = sessionData.session.user.user_metadata?.name ||
+                           sessionData.session.user.user_metadata?.full_name ||
+                           'there';
+            const firstName = userName.split(' ')[0];
+            
+            if (userEmail) {
+              if (__DEV__) {
+                console.log('[OAuth] Sending welcome email to:', userEmail);
+              }
+              
+              const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
+              const welcomeUrl = `${supabaseUrl}/functions/v1/send-welcome-email`;
+              const welcomeResponse = await fetch(welcomeUrl, {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${sessionData.session.access_token}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  email: userEmail,
+                  firstName: firstName,
+                }),
+              });
+              
+              if (welcomeResponse.ok) {
+                if (__DEV__) {
+                  console.log('[OAuth] Welcome email sent successfully');
+                }
+              } else {
+                if (__DEV__) {
+                  console.warn('[OAuth] Failed to send welcome email (non-blocking)');
+                }
+              }
+            }
+          } catch (emailError) {
+            if (__DEV__) {
+              console.warn('[OAuth] Error sending welcome email (non-blocking):', emailError);
+            }
+            // Don't fail OAuth if email fails
+          }
         }
 
         // Trigger migration after successful OAuth sign-in
@@ -1387,6 +1431,50 @@ export function AuthProvider({ children }: AuthProviderProps) {
           }
 
           await persistSessionState(sessionData.session);
+          
+          // Send welcome email for OAuth users (they don't get Supabase confirmation email)
+          try {
+            const userEmail = sessionData.session.user.email;
+            const userName = sessionData.session.user.user_metadata?.name ||
+                           sessionData.session.user.user_metadata?.full_name ||
+                           'there';
+            const firstName = userName.split(' ')[0];
+            
+            if (userEmail) {
+              if (__DEV__) {
+                console.log('[OAuth] Sending welcome email to:', userEmail);
+              }
+              
+              const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
+              const welcomeUrl = `${supabaseUrl}/functions/v1/send-welcome-email`;
+              const welcomeResponse = await fetch(welcomeUrl, {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${sessionData.session.access_token}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  email: userEmail,
+                  firstName: firstName,
+                }),
+              });
+              
+              if (welcomeResponse.ok) {
+                if (__DEV__) {
+                  console.log('[OAuth] Welcome email sent successfully');
+                }
+              } else {
+                if (__DEV__) {
+                  console.warn('[OAuth] Failed to send welcome email (non-blocking)');
+                }
+              }
+            }
+          } catch (emailError) {
+            if (__DEV__) {
+              console.warn('[OAuth] Error sending welcome email (non-blocking):', emailError);
+            }
+            // Don't fail OAuth if email fails
+          }
         }
 
         // Trigger migration after successful OAuth sign-in
