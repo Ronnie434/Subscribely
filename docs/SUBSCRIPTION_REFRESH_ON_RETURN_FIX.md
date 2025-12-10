@@ -317,3 +317,4 @@ onSuccess(); // Trigger parent refresh
 
 The app now intelligently detects when users return from subscription management and automatically refreshes everything! 🚀
 
+

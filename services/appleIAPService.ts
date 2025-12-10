@@ -806,6 +806,11 @@ class AppleIAPService {
     if (error.code === 'already-owned' || error.code === 'E_ALREADY_OWNED') {
       console.log('[AppleIAP] ℹ️ Subscription already owned, restoring...');
       
+      // Set a flag to notify the purchase completion callback
+      if (this.pendingPurchaseCallback) {
+        this.pendingPurchaseCallback(true, { restored: true });
+      }
+      
       try {
         // Restore existing purchases and validate them
         const { data: { user } } = await supabase.auth.getUser();
@@ -818,17 +823,30 @@ class AppleIAPService {
 
           if (activePurchase) {
             // Try to get app receipt for validation
+            let receiptValidated = false;
             try {
               const receiptData = await getReceiptDataIOS();
               if (receiptData) {
-                await this.validateReceiptServer(receiptData, user.id);
+                const isValid = await this.validateReceiptServer(receiptData, user.id);
+                receiptValidated = isValid;
               }
             } catch (receiptError) {
               // Receipt might not be available - that's okay
               console.log('[AppleIAP] ℹ️ Receipt not available for validation');
             }
             
-            // Always refresh subscription status from available purchases
+            // If receipt validation failed, update subscription from purchase
+            // This ensures the database is updated even without receipt validation
+            if (!receiptValidated) {
+              try {
+                await this.updateSubscriptionFromPurchase(activePurchase, user.id);
+                console.log('[AppleIAP] ✅ Subscription status updated from existing purchase');
+              } catch (updateError) {
+                console.error('[AppleIAP] ⚠️ Failed to update subscription from purchase:', updateError);
+              }
+            }
+            
+            // Always refresh subscription status
             await Promise.all([
               subscriptionLimitService.refreshLimitStatus(),
               subscriptionTierService.refreshTierInfo(),

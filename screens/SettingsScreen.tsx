@@ -146,11 +146,21 @@ export default function SettingsScreen() {
 
   const loadSubscriptionStatus = async () => {
     try {
+      console.log('[SettingsScreen] 🔄 loadSubscriptionStatus called');
+      
       const status =
         await subscriptionLimitService.getSubscriptionLimitStatus();
+      
+      console.log('[SettingsScreen] 📊 Status received:', {
+        isPremium: status.isPremium,
+        currentCount: status.currentCount,
+        maxAllowed: status.maxAllowed,
+        tierName: status.tierName
+      });
+      
       setSubscriptionStatus(status);
     } catch (error) {
-      console.error("Error loading subscription status:", error);
+      console.error("[SettingsScreen] ❌ Error loading subscription status:", error);
     }
   };
 
@@ -1077,14 +1087,19 @@ export default function SettingsScreen() {
               <TouchableOpacity
                 style={[styles.infoRow, { paddingVertical: 0 }]}
                 onPress={() => {
+                  console.log('[SettingsScreen] 🖱️ Manage Plan button pressed');
+                  console.log('[SettingsScreen] 📋 Current subscriptionStatus.isPremium:', subscriptionStatus.isPremium);
+                  
                   if (Platform.OS === "ios") {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   }
                   // Navigate to appropriate screen based on user status
                   if (subscriptionStatus.isPremium) {
+                    console.log('[SettingsScreen] ➡️ Navigating to SubscriptionManagement (Premium user)');
                     // @ts-ignore - Navigation will work, types are simplified
                     navigation.navigate("SubscriptionManagement");
                   } else {
+                    console.log('[SettingsScreen] ➡️ Showing paywall/upgrade flow (Free user)');
                     // For non-premium users
                     if (Platform.OS === "ios") {
                       // iOS: Show PaywallModal which uses Apple IAP
@@ -1612,6 +1627,7 @@ export default function SettingsScreen() {
         }}
         currentCount={subscriptionStatus?.currentCount || 0}
         maxCount={subscriptionStatus?.maxAllowed || 3}
+        onSuccess={refreshLimitStatusFromBackend}
       />
 
       {/* Delete Account Modal */}

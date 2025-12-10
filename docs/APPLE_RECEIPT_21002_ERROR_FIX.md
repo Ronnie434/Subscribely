@@ -262,3 +262,4 @@ Your receipt validation is now much more robust:
 
 The 21002 error will still occur in simulators (expected), but now you'll know exactly why and have confirmation it's working correctly! 🎉
 
+

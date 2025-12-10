@@ -181,7 +181,7 @@ Reset Your Renvo Password
             </tr>
 
             <tr>
-              <td align="center" style="padding-top: 35px;">
+              <td align="center" style="padding: 35px 0px;">
                 <a href="{{ .ConfirmationURL }}" 
                    style="background:#007AFF; color:#fff; padding:14px 28px; text-decoration:none; 
                           border-radius:8px; font-size:16px; font-weight:600; display:inline-block;">
@@ -191,7 +191,7 @@ Reset Your Renvo Password
             </tr>
 
             <tr>
-              <td style="padding-top: 30px; padding: 20px; background:#fff3cd; border-radius:8px; margin-top:20px;">
+              <td style="padding: 20px; background:#fff3cd; border-radius:8px;">
                 <p style="font-size:14px; font-weight:600; color:#856404; margin:0 0 8px 0;">🔒 Security Notice</p>
                 <p style="font-size:14px; color:#856404; margin:0; line-height:1.5;">
                   This link will expire in <strong>1 hour</strong>. If you didn't request this password reset, you can safely ignore this email.
