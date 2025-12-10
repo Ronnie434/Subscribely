@@ -54,8 +54,7 @@ Welcome to Renvo — Let's Keep Your Money Safe
 
             <tr>
               <td style="padding-top: 20px; font-size:16px; color:#444; line-height:1.6;">
-                Your dashboard is ready whenever you are.
-                Connect your accounts to unlock the full power of Renvo.
+                Your dashboard is ready whenever you are. Start adding your subscriptions to take control of your recurring expenses.
               </td>
             </tr>
 

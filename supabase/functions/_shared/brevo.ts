@@ -128,8 +128,7 @@ export function generateWelcomeEmail(firstName: string): { html: string; text: s
 
                 <tr>
                   <td style="padding-top: 20px; font-size:16px; color:#444; line-height:1.6;">
-                    Your dashboard is ready whenever you are.
-                    Connect your accounts to unlock the full power of Renvo.
+                    Your dashboard is ready whenever you are. Start adding your subscriptions to take control of your recurring expenses.
                   </td>
                 </tr>
 
@@ -186,8 +185,7 @@ What's next?
 • Once you link your accounts, Renvo sends early alerts before charges hit.
 • See a clear forecast of upcoming expenses — no surprises.
 
-Your dashboard is ready whenever you are.
-Connect your accounts to unlock the full power of Renvo.
+Your dashboard is ready whenever you are. Start adding your subscriptions to take control of your recurring expenses.
 
 Have questions? We're here to help!
 Contact us at: support@therenvo.com
