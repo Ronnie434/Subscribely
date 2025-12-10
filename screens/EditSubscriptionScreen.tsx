@@ -23,6 +23,7 @@ import { getIntervalLabel } from '../utils/repeatInterval';
 import * as Haptics from 'expo-haptics';
 import { LogoSource, getNextLogoSource, getLogoUrlForSource } from '../utils/logoHelpers';
 import { subscriptionLimitService } from '../services/subscriptionLimitService';
+import { pastDueService } from '../services/pastDueService';
 import CalendarModal from '../components/CalendarModal';
 
 // Type definitions for navigation
@@ -55,6 +56,7 @@ export default function EditSubscriptionScreen() {
   const [loading, setLoading] = useState(false);
   const [logoSource, setLogoSource] = useState<LogoSource>('primary');
   const [calendarModalVisible, setCalendarModalVisible] = useState(false);
+  const [recordingPayment, setRecordingPayment] = useState(false);
 
   // Refresh subscription data when screen comes into focus
   useEffect(() => {
@@ -117,6 +119,96 @@ export default function EditSubscriptionScreen() {
 
   const handleCloseCalendar = () => {
     setCalendarModalVisible(false);
+  };
+
+  // Handle log payment
+  const handleLogPayment = () => {
+    if (Platform.OS === 'ios') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+
+    // Calculate what the new renewal date will be
+    const isOneTime = subscription.repeat_interval === 'never';
+    const currentRenewalDate = dateHelpers.formatFullDate(subscription.renewalDate);
+    
+    let newRenewalDate = '';
+    if (!isOneTime) {
+      // Calculate next renewal date based on interval
+      const intervalDaysMap: { [key: string]: number } = {
+        weekly: 7,
+        biweekly: 14,
+        semimonthly: 15,
+        monthly: 30,
+        bimonthly: 60,
+        quarterly: 90,
+        semiannually: 180,
+        yearly: 365,
+      };
+      
+      const intervalDays = intervalDaysMap[subscription.repeat_interval] || 30;
+      const currentDate = new Date(subscription.renewalDate);
+      const nextDate = new Date(currentDate.getTime() + intervalDays * 24 * 60 * 60 * 1000);
+      newRenewalDate = dateHelpers.formatFullDate(nextDate.toISOString().split('T')[0]);
+    }
+
+    const confirmationMessage = isOneTime
+      ? `Amount: $${subscription.cost.toFixed(2)}\nDue Date: ${currentRenewalDate}\n\nThis will record the payment in your history.`
+      : `Amount: $${subscription.cost.toFixed(2)}\nCurrent Due Date: ${currentRenewalDate}\nNew Due Date: ${newRenewalDate}\n\nThis will record the payment and update your next renewal date.`;
+
+    Alert.alert(
+      'Log Payment',
+      confirmationMessage,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Confirm Payment',
+          style: 'default',
+          onPress: async () => {
+            setRecordingPayment(true);
+            try {
+              const { data, error } = await pastDueService.recordPayment(
+                subscription.id,
+                'paid'
+              );
+
+              if (error) {
+                throw new Error(error);
+              }
+
+              if (Platform.OS === 'ios') {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              }
+
+              // Refresh subscription data
+              const updatedSubscription = await storage.getById(subscription.id);
+              if (updatedSubscription) {
+                setSubscription(updatedSubscription);
+              }
+
+              Alert.alert(
+                'Payment Logged',
+                subscription.repeat_interval === 'never'
+                  ? 'Payment has been recorded.'
+                  : `Payment logged successfully. Next renewal date: ${dateHelpers.formatFullDate(updatedSubscription?.renewalDate || subscription.renewalDate)}`,
+                [{ text: 'OK' }]
+              );
+            } catch (error) {
+              console.error('Error logging payment:', error);
+              if (Platform.OS === 'ios') {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+              }
+              Alert.alert(
+                'Failed to Log Payment',
+                'Could not record payment. Please try again.',
+                [{ text: 'OK' }]
+              );
+            } finally {
+              setRecordingPayment(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   // Handle delete subscription
@@ -453,6 +545,25 @@ export default function EditSubscriptionScreen() {
       color: theme.colors.primary,
       fontWeight: '600',
     },
+    logPaymentButton: {
+      backgroundColor: theme.isDark ? 'rgba(52, 199, 89, 0.15)' : 'rgba(52, 199, 89, 0.1)',
+      borderRadius: 16,
+      paddingVertical: 16,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.success,
+    },
+    logPaymentButtonPressed: {
+      opacity: 0.7,
+    },
+    logPaymentButtonText: {
+      fontSize: 17,
+      color: theme.colors.success,
+      fontWeight: '600',
+    },
     renewalBadge: {
       backgroundColor: daysUntilRenewal <= 7 
         ? theme.isDark ? 'rgba(255, 159, 10, 0.15)' : 'rgba(255, 149, 0, 0.1)'
@@ -573,6 +684,25 @@ export default function EditSubscriptionScreen() {
               <Text style={styles.calendarButtonText}>View Calendar</Text>
             </Pressable>
           )}
+
+          {/* Log Payment Button */}
+          <Pressable
+            style={({ pressed }) => [
+              styles.logPaymentButton,
+              pressed && styles.logPaymentButtonPressed,
+              recordingPayment && { opacity: 0.5 },
+            ]}
+            onPress={handleLogPayment}
+            disabled={recordingPayment}>
+            {recordingPayment ? (
+              <ActivityIndicator size="small" color={theme.colors.success} />
+            ) : (
+              <Ionicons name="checkmark-circle-outline" size={20} color={theme.colors.success} />
+            )}
+            <Text style={styles.logPaymentButtonText}>
+              {recordingPayment ? 'Recording...' : 'Log Payment'}
+            </Text>
+          </Pressable>
 
           <Pressable
             style={({ pressed }) => [

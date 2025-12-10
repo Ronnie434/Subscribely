@@ -1,9 +1,9 @@
 /**
  * Past Due Service
- * 
+ *
  * Service for detecting and managing past due recurring items.
  * Handles payment confirmation and renewal date updates.
- * 
+ *
  * @since v3.1.0
  */
 
@@ -15,6 +15,7 @@ import {
   PaymentStats,
   PaymentHistoryStatus,
 } from '../types';
+import { parseLocalDate } from '../utils/dateHelpers';
 
 /**
  * Get all past due recurring items for the current user
@@ -218,7 +219,7 @@ export function isPastDue(renewalDate: string): boolean {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   
-  const renewal = new Date(renewalDate);
+  const renewal = parseLocalDate(renewalDate);
   renewal.setHours(0, 0, 0, 0);
   
   return renewal < today;
@@ -234,7 +235,7 @@ export function getDaysPastDue(renewalDate: string): number {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   
-  const renewal = new Date(renewalDate);
+  const renewal = parseLocalDate(renewalDate);
   renewal.setHours(0, 0, 0, 0);
   
   if (renewal >= today) {
@@ -248,6 +249,44 @@ export function getDaysPastDue(renewalDate: string): number {
 }
 
 /**
+ * Dismiss a one-time charge forever (mark as cancelled)
+ *
+ * @param recurringItemId - ID of the one-time charge
+ * @returns Promise with result
+ */
+export async function dismissOneTimeCharge(
+  recurringItemId: string
+): Promise<{
+  data: boolean | null;
+  error: string | null;
+}> {
+  try {
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    
+    if (sessionError || !session) {
+      return { data: null, error: 'No active session' };
+    }
+
+    const { data, error } = await supabase
+      .rpc('dismiss_one_time_charge', {
+        p_recurring_item_id: recurringItemId,
+        p_user_id: session.user.id,
+      });
+
+    if (error) {
+      console.error('Error dismissing one-time charge:', error);
+      return { data: null, error: error.message };
+    }
+
+    return { data: data, error: null };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to dismiss charge';
+    console.error('Error in dismissOneTimeCharge:', err);
+    return { data: null, error: message };
+  }
+}
+
+/**
  * Export all service functions as a single object
  */
 export const pastDueService = {
@@ -255,6 +294,7 @@ export const pastDueService = {
   recordPayment,
   getPaymentHistory,
   getPaymentStats,
+  dismissOneTimeCharge,
   isPastDue,
   getDaysPastDue,
 };

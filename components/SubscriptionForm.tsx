@@ -220,7 +220,7 @@ export default function SubscriptionForm({ subscription, onSubmit, onCancel, isS
       domain: finalDomain,
       description: description.trim() || undefined,
       isCustomRenewalDate: true, // Always true since user always selects the date
-      reminders: repeatInterval !== 'never' ? enableReminders : false,
+      reminders: enableReminders,
       reminderDaysBefore: enableReminders ? reminderDaysBefore : 1,
       // Include legacy fields for backward compatibility
       billingCycle,
@@ -1006,9 +1006,8 @@ export default function SubscriptionForm({ subscription, onSubmit, onCancel, isS
             </Pressable>
           </View>
 
-          {/* Enable Reminders Toggle - Only show for recurring charges */}
-          {repeatInterval !== 'never' && (
-            <View style={styles.field}>
+          {/* Enable Reminders Toggle */}
+          <View style={styles.field}>
             <View style={styles.switchRow}>
               <Text style={styles.label}>Renewal Reminders</Text>
               <Switch
@@ -1078,7 +1077,6 @@ export default function SubscriptionForm({ subscription, onSubmit, onCancel, isS
               </View>
             )}
           </View>
-          )}
 
           {/* Calculated Cost Display - Only show suffix for recurring charges */}
           {cost && !isNaN(parseFloat(cost)) && parseFloat(cost) > 0 && (

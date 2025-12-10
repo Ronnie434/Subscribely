@@ -70,7 +70,7 @@ export const REPEAT_INTERVAL_CONFIG: Record<RepeatInterval, RepeatIntervalConfig
  * Payment status for a recurring item renewal
  * @since v3.1.0
  */
-export type PaymentHistoryStatus = 'paid' | 'skipped' | 'pending';
+export type PaymentHistoryStatus = 'paid' | 'skipped' | 'pending' | 'cancelled';
 
 /**
  * Payment history record
@@ -96,6 +96,7 @@ export interface PaymentHistory {
  */
 export interface PastDueItem extends RecurringItem {
   days_past_due: number;
+  is_one_time?: boolean; // Computed: repeat_interval === 'never'
 }
 
 /**

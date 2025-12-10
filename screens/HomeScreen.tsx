@@ -34,6 +34,7 @@ import { useRealtimeSubscriptions } from '../hooks/useRealtimeSubscriptions';
 import { supabase } from '../config/supabase';
 import { pastDueService } from '../services/pastDueService';
 import PastDueModal from '../components/PastDueModal';
+import OneTimeChargeModal from '../components/OneTimeChargeModal';
 import { PastDueItem } from '../types';
 
 type SubscriptionsStackParamList = {
@@ -202,13 +203,25 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       }
       
       if (data && data.length > 0) {
+        // Filter items using LOCAL time to handle timezone differences
+        // Database uses server time (UTC), but we need user's local time
+        const actuallyPastDue = data.filter(item =>
+          pastDueService.isPastDue(item.renewal_date)
+        );
+        
         if (__DEV__) {
-          console.log(`Found ${data.length} past due items`);
+          console.log(`Database returned ${data.length} items, ${actuallyPastDue.length} actually past due in local time`);
         }
-        setPastDueItems(data);
-        // Show modal for the first past due item
-        setCurrentPastDueItem(data[0]);
-        setPastDueModalVisible(true);
+        
+        if (actuallyPastDue.length > 0) {
+          setPastDueItems(actuallyPastDue);
+          // Show modal for the first past due item
+          setCurrentPastDueItem(actuallyPastDue[0]);
+          setPastDueModalVisible(true);
+        } else {
+          setPastDueItems([]);
+          setCurrentPastDueItem(null);
+        }
       } else {
         setPastDueItems([]);
         setCurrentPastDueItem(null);
@@ -292,6 +305,44 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       }
     } catch (error) {
       console.error('Error recording skip:', error);
+      throw error;
+    }
+  }, [pastDueItems, loadSubscriptions]);
+
+  // Handle dismiss forever for one-time charges
+  const handleDismissOneTime = useCallback(async (itemId: string) => {
+    try {
+      const { data, error } = await pastDueService.dismissOneTimeCharge(itemId);
+      
+      if (error) {
+        throw new Error(error);
+      }
+      
+      if (__DEV__) {
+        console.log('One-time charge dismissed successfully');
+      }
+      
+      // Close current modal
+      setPastDueModalVisible(false);
+      
+      // Remove from past due list
+      const remainingItems = pastDueItems.filter(item => item.id !== itemId);
+      setPastDueItems(remainingItems);
+      
+      // Refresh to update UI
+      await loadSubscriptions(true);
+      
+      // Show next item if available
+      if (remainingItems.length > 0) {
+        setTimeout(() => {
+          setCurrentPastDueItem(remainingItems[0]);
+          setPastDueModalVisible(true);
+        }, 500);
+      } else {
+        setCurrentPastDueItem(null);
+      }
+    } catch (error) {
+      console.error('Error dismissing one-time charge:', error);
       throw error;
     }
   }, [pastDueItems, loadSubscriptions]);
@@ -763,14 +814,25 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         />
       )}
 
-      {/* Past Due Modal */}
-      <PastDueModal
-        visible={pastDueModalVisible}
-        item={currentPastDueItem}
-        onPaid={handlePaymentPaid}
-        onSkipped={handlePaymentSkipped}
-        onClose={() => setPastDueModalVisible(false)}
-      />
+      {/* Past Due Modal - Dynamic based on item type */}
+      {currentPastDueItem?.repeat_interval === 'never' ? (
+        <OneTimeChargeModal
+          visible={pastDueModalVisible}
+          item={currentPastDueItem}
+          onPaid={handlePaymentPaid}
+          onSkipped={handlePaymentSkipped}
+          onDismiss={handleDismissOneTime}
+          onClose={() => setPastDueModalVisible(false)}
+        />
+      ) : (
+        <PastDueModal
+          visible={pastDueModalVisible}
+          item={currentPastDueItem}
+          onPaid={handlePaymentPaid}
+          onSkipped={handlePaymentSkipped}
+          onClose={() => setPastDueModalVisible(false)}
+        />
+      )}
     </View>
   );
 }
