@@ -806,7 +806,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       )}
 
       {/* Limit Reached Banner (sticky, can't be dismissed) */}
-      {!loading && limitStatus.atLimit && (
+      {!loading && limitStatus.atLimit && !limitStatus.isPremium && (
         <LimitReachedBanner
           currentCount={limitStatus.currentCount}
           maxCount={limitStatus.maxCount}

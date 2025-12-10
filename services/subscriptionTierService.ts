@@ -102,11 +102,15 @@ class SubscriptionTierService {
         .single();
 
       if (error) {
-        console.error('Error fetching current tier:', error);
-        // If no subscription found, return free tier
+        // PGRST116 means no rows found - this is expected for free tier users
         if (error.code === 'PGRST116') {
+          if (__DEV__) {
+            console.log('[SubscriptionTier] No subscription record found, returning free tier');
+          }
           return this.getFreeTier();
         }
+        // Other errors are unexpected
+        console.error('Error fetching current tier:', error);
         throw error;
       }
 
@@ -456,7 +460,7 @@ class SubscriptionTierService {
 
   /**
    * Refresh tier information for current user
-   * 
+   *
    * Call this after:
    * - Successful payment
    * - Subscription cancellation
@@ -467,9 +471,28 @@ class SubscriptionTierService {
       const userId = await this.getUserId();
       this.clearUserCache(userId);
       
-      // Pre-fetch fresh data
-      await this.getCurrentTier();
-      await this.isPremiumUser();
+      // Add small delay to allow database commit to complete
+      // This prevents race conditions after subscription updates
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Pre-fetch fresh data with retry logic
+      let attempts = 0;
+      const maxAttempts = 3;
+      
+      while (attempts < maxAttempts) {
+        try {
+          await this.getCurrentTier();
+          await this.isPremiumUser();
+          break; // Success, exit loop
+        } catch (error: any) {
+          attempts++;
+          if (attempts >= maxAttempts) {
+            throw error; // Give up after max attempts
+          }
+          // Wait before retry
+          await new Promise(resolve => setTimeout(resolve, 200 * attempts));
+        }
+      }
     } catch (error) {
       console.error('Error refreshing tier info:', error);
       // Don't throw - refresh is best-effort
