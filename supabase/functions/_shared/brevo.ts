@@ -134,13 +134,23 @@ export function generateWelcomeEmail(firstName: string): { html: string; text: s
                 </tr>
 
                 <tr>
-                  <td style="padding-top: 40px; font-size:16px; color:#444;">
-                    Have questions? Just reply — we actually read every message.
+                  <td align="center" style="padding-top: 40px;">
+                    <a href="mailto:support@therenvo.com?subject=Question%20About%20Renvo"
+                       style="background:#f0f0f0; color:#007AFF; padding:12px 24px; text-decoration:none;
+                              border-radius:8px; font-size:14px; font-weight:600; display:inline-block; border:1px solid #007AFF;">
+                      Contact Support
+                    </a>
                   </td>
                 </tr>
 
                 <tr>
-                  <td style="padding-top: 20px; font-size:16px; color:#111; font-weight:600;">
+                  <td style="padding-top: 20px; font-size:14px; color:#666; text-align:center;">
+                    Have questions? We're here to help!
+                  </td>
+                </tr>
+
+                <tr>
+                  <td style="padding-top: 30px; font-size:16px; color:#111; font-weight:600;">
                     Welcome aboard,<br>
                     The Renvo Team
                   </td>
@@ -179,7 +189,8 @@ What's next?
 Your dashboard is ready whenever you are.
 Connect your accounts to unlock the full power of Renvo.
 
-Have questions? Just reply — we actually read every message.
+Have questions? We're here to help!
+Contact us at: support@therenvo.com
 
 Welcome aboard,
 The Renvo Team
