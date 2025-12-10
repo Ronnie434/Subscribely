@@ -96,8 +96,11 @@ class SubscriptionLimitService {
         .rpc('can_user_add_subscription', { p_user_id: userId })
         .single();
 
+      console.log('[checkCanAddSubscription] 🔍 === RPC CALL MADE ===');
+      console.log('[checkCanAddSubscription] 📊 Raw RPC response:', JSON.stringify(data, null, 2));
+
       if (error) {
-        console.error('Error checking subscription limit:', error);
+        console.error('[checkCanAddSubscription] ❌ Error checking subscription limit:', error);
         // On error, default to allowing (graceful degradation)
         return {
           canAdd: true,
@@ -110,11 +113,20 @@ class SubscriptionLimitService {
 
       // Cache the result with proper type assertion
       const responseData = data as any;
+      
+      // Calculate isPremium from RPC tier name
+      const isPremiumFromRPC = responseData.tier === 'premium_tier' || responseData.tier === 'premium';
+      console.log('[checkCanAddSubscription] 🎯 isPremium calculation:', {
+        tierFromRPC: responseData.tier,
+        isPremiumFromRPC,
+        calculation: `tier === 'premium_tier' || tier === 'premium'`
+      });
+      
       const result: CheckSubscriptionLimitResponse = {
         can_add: responseData.allowed,
         current_count: responseData.current_count,
         limit: responseData.limit_count,
-        is_premium: responseData.tier === 'premium_tier' || responseData.tier === 'premium',
+        is_premium: isPremiumFromRPC,
         tier_name: responseData.tier,
         reason: responseData.allowed
           ? undefined
@@ -167,24 +179,68 @@ class SubscriptionLimitService {
 
       // Get limit check data
       const check = await this.checkCanAddSubscription();
+      
+      console.log('[getSubscriptionLimitStatus] 📋 Result from checkCanAddSubscription:', {
+        isPremium: check.isPremium,
+        currentCount: check.currentCount,
+        limit: check.limit,
+        canAdd: check.canAdd
+      });
+
+      // Now compare with what isPremiumUser() would return
+      let isPremiumFromTierService = check.isPremium; // Default to RPC value
+      try {
+        const { subscriptionTierService } = await import('./subscriptionTierService');
+        isPremiumFromTierService = await subscriptionTierService.isPremiumUser();
+        
+        const comparison = {
+          isPremiumFromRPC: check.isPremium,
+          isPremiumFromTierService: isPremiumFromTierService,
+          MATCH: check.isPremium === isPremiumFromTierService,
+          discrepancy: check.isPremium === isPremiumFromTierService
+            ? '✅ Values match'
+            : '⚠️ MISMATCH DETECTED!'
+        };
+
+        console.log('[getSubscriptionLimitStatus] 🔄 COMPARISON:', comparison);
+
+        // ✅ NEW: If there's a mismatch, prefer isPremiumUser() result (more sophisticated logic)
+        if (!comparison.MATCH) {
+          console.log('[getSubscriptionLimitStatus] 🔧 MISMATCH FIX: Using isPremiumUser() result instead of RPC');
+          console.log('[getSubscriptionLimitStatus] 📝 Reason: isPremiumUser() has more sophisticated canceled subscription handling');
+          check.isPremium = isPremiumFromTierService;  // Override with the correct value
+        }
+      } catch (error) {
+        console.error('[getSubscriptionLimitStatus] ⚠️ Could not compare with isPremiumUser():', error);
+      }
 
       // Calculate remaining count
       const maxAllowed = check.limit === -1 ? null : check.limit;
-      const remainingCount = maxAllowed === null 
-        ? null 
+      const remainingCount = maxAllowed === null
+        ? null
         : Math.max(0, check.limit - check.currentCount);
 
+      // Build status with corrected isPremium value
+      const tierName = check.isPremium ? 'premium' : 'free';
+      
       const status: SubscriptionLimitStatus = {
         currentCount: check.currentCount,
         maxAllowed,
         remainingCount,
         isPremium: check.isPremium,
         canAddMore: check.canAdd,
-        tierName: check.isPremium ? 'premium' : 'free',
+        tierName: tierName,
       };
 
       // Cache the result
       subscriptionCache.set(cacheKey, status, CacheTTL.MEDIUM);
+      
+      console.log('[getSubscriptionLimitStatus] 📤 Returning status:', {
+        isPremium: status.isPremium,
+        tierName: status.tierName,
+        currentCount: status.currentCount,
+        maxAllowed: status.maxAllowed
+      });
 
       return status;
     } catch (error) {

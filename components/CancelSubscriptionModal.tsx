@@ -81,9 +81,6 @@ export default function CancelSubscriptionModal({
           
           console.log('[CancelSubscriptionModal] ✅ Subscription status refreshed');
           
-          // Close modal first
-          onClose();
-          
           // Wait a bit for modal animation, then trigger parent navigation
           setTimeout(() => {
             console.log('[CancelSubscriptionModal] 📱 Calling onSuccess to navigate back...');
@@ -91,8 +88,7 @@ export default function CancelSubscriptionModal({
           }, 300);
         } catch (error) {
           console.error('[CancelSubscriptionModal] ❌ Error refreshing subscription status:', error);
-          // Still close modal and navigate even if refresh fails
-          onClose();
+          // Still navigate even if refresh fails
           setTimeout(() => {
             onSuccess();
           }, 300);

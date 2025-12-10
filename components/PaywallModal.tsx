@@ -222,6 +222,8 @@ export default function PaywallModal({
         // This prevents race condition where AppState fires before error listener
         // We use 1 second to ensure error listener has time to process
         setTimeout(async () => {
+          console.log('[PaywallModal] 🔄 App returned to foreground, refreshing subscription status...');
+          
           // Check if purchase was cancelled (set by timeout or error detection)
           if (purchaseCancelledRef.current) {
             console.log('[PaywallModal] ℹ️ Purchase was cancelled, skipping premium check');
@@ -235,20 +237,40 @@ export default function PaywallModal({
           }
           
           try {
-            // Get previous premium status before refresh
+            // Get status before refresh
             const wasPremium = await subscriptionTierService.isPremiumUser();
+            console.log('[PaywallModal] ℹ️ Premium status before refresh:', wasPremium);
             
-            // Refresh subscription status
+            // Force refresh with cache clear
+            console.log('[PaywallModal] 🗑️ Clearing cache and refreshing...');
             await Promise.all([
               subscriptionLimitService.refreshLimitStatus(),
               subscriptionTierService.refreshTierInfo(),
             ]);
             
-            // Get updated premium status after refresh
-            const isNowPremium = await subscriptionTierService.isPremiumUser();
+            // Poll for premium status change (handle database replication lag)
+            let isNowPremium = await subscriptionTierService.isPremiumUser();
+            const maxAttempts = 15; // Up to 15 attempts
+            let attempts = 1;
             
-            console.log('[PaywallModal] ✅ Subscription status refreshed');
-            console.log(`[PaywallModal] 📊 Premium status: ${wasPremium} → ${isNowPremium}`);
+            console.log('[PaywallModal] 🔍 Starting premium status polling...');
+            
+            while (!isNowPremium && attempts < maxAttempts) {
+              console.log(`[PaywallModal] ⏳ Poll attempt ${attempts}/${maxAttempts} - still not premium, waiting...`);
+              await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second between attempts
+              
+              // Force cache clear and re-check
+              await subscriptionTierService.refreshTierInfo();
+              isNowPremium = await subscriptionTierService.isPremiumUser();
+              attempts++;
+            }
+            
+            console.log('[PaywallModal] 📊 Premium status after polling:', {
+              wasPremium,
+              isNowPremium,
+              attempts,
+              upgraded: !wasPremium && isNowPremium
+            });
             
             // Check if user just upgraded to premium
             if (!wasPremium && isNowPremium) {

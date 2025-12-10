@@ -335,22 +335,45 @@ class SubscriptionTierService {
    * ```
    */
   async isPremiumUser(): Promise<boolean> {
+    console.log('[isPremiumUser] 🚀 === FUNCTION CALLED ===');
+    
     try {
       const userId = await this.getUserId();
+      console.log('[isPremiumUser] 👤 User ID:', userId);
+      console.log('[isPremiumUser] ⚠️ NOTE: If you cancelled subscription but still seeing free tier, run database/fix_rpc_canceled_subscription.sql migration');
+      
+      // Clear cache for debugging
       const cacheKey = CacheKeys.isPremium(userId);
+      console.log('[isPremiumUser] 🧹 FORCE CLEARING CACHE (debugging)');
+      subscriptionCache.invalidate(cacheKey);
+      
+      console.log('[isPremiumUser] 🔑 Cache key:', cacheKey);
 
       // Check cache first
       const cached = subscriptionCache.get<boolean>(cacheKey);
+      console.log('[isPremiumUser] 💾 Cache check result:', cached, '(null means not cached)');
+      
       if (cached !== null) {
+        console.log('[isPremiumUser] ⚡ RETURNING CACHED VALUE:', cached);
         return cached;
       }
+
+      console.log('[isPremiumUser] 🔍 Cache miss, querying database...');
 
       // Check user's subscription status
       const { data, error } = await supabase
         .from('user_subscriptions')
-        .select('tier_id, status')
+        .select('tier_id, status, cancel_at_period_end, current_period_end')
         .eq('user_id', userId)
         .single();
+
+      console.log('[isPremiumUser] 📊 Raw database result:', JSON.stringify({
+        tier_id: data?.tier_id,
+        status: data?.status,
+        cancel_at_period_end: data?.cancel_at_period_end,
+        current_period_end: data?.current_period_end,
+        has_data: !!data
+      }, null, 2));
 
       if (error) {
         // If no subscription record, user is free tier
@@ -361,8 +384,82 @@ class SubscriptionTierService {
         throw error;
       }
 
-      const isPremium = data.tier_id === 'premium_tier' &&
-                        ['active', 'trialing', 'incomplete', 'past_due', 'paused'].includes(data.status);
+      // Check if premium tier
+      if (data.tier_id !== 'premium_tier') {
+        subscriptionCache.set(cacheKey, false, CacheTTL.MEDIUM);
+        return false;
+      }
+
+      // Handle canceled subscriptions that are still valid
+      if (data.status === 'canceled') {
+        console.log('[isPremiumUser] ⚠️ === CANCELED SUBSCRIPTION DETECTED ===');
+        console.log('[isPremiumUser] 📋 Checking payment provider...');
+        
+        // Check if this is an Apple IAP subscription
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('payment_provider')
+          .eq('id', userId)
+          .maybeSingle();
+        
+        console.log('[isPremiumUser] 💳 Payment provider:', profile?.payment_provider);
+        
+        // For Apple IAP, check apple_transactions for authoritative expiry date
+        if (profile?.payment_provider === 'apple') {
+          const { data: appleData } = await supabase
+            .from('apple_transactions')
+            .select('expiration_date, notification_type')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          
+          if (appleData?.expiration_date) {
+            const expiryDate = new Date(appleData.expiration_date);
+            const now = new Date();
+            const isStillValid = expiryDate > now;
+            
+            if (__DEV__) {
+              console.log('[SubscriptionTier] 🍎 Apple canceled subscription check:', {
+                expiryDate: expiryDate.toISOString(),
+                now: now.toISOString(),
+                isStillValid,
+                daysRemaining: Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)),
+                notification_type: appleData.notification_type
+              });
+            }
+            
+            subscriptionCache.set(cacheKey, isStillValid, 300000);
+            return isStillValid;
+          }
+        }
+        
+        // For Stripe or other providers, check user_subscriptions.current_period_end
+        if (data.cancel_at_period_end && data.current_period_end) {
+          const expiryDate = new Date(data.current_period_end);
+          const now = new Date();
+          const isStillValid = expiryDate > now;
+          
+          if (__DEV__) {
+            console.log('[SubscriptionTier] 💳 Stripe/other canceled subscription check:', {
+              expiryDate: expiryDate.toISOString(),
+              now: now.toISOString(),
+              isStillValid,
+              daysRemaining: Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+            });
+          }
+          
+          subscriptionCache.set(cacheKey, isStillValid, 300000);
+          return isStillValid;
+        }
+        
+        // If neither Apple data nor Stripe current_period_end available, treat as expired
+        subscriptionCache.set(cacheKey, false, 300000);
+        return false;
+      }
+
+      // Check active statuses
+      const isPremium = ['active', 'trialing', 'incomplete', 'past_due', 'paused'].includes(data.status);
 
       // Cache the result
       subscriptionCache.set(cacheKey, isPremium, CacheTTL.MEDIUM);
@@ -471,13 +568,13 @@ class SubscriptionTierService {
       const userId = await this.getUserId();
       this.clearUserCache(userId);
       
-      // Add small delay to allow database commit to complete
+      // Add delay to allow database commit to complete
       // This prevents race conditions after subscription updates
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 500));
       
       // Pre-fetch fresh data with retry logic
       let attempts = 0;
-      const maxAttempts = 3;
+      const maxAttempts = 5;
       
       while (attempts < maxAttempts) {
         try {
@@ -489,8 +586,9 @@ class SubscriptionTierService {
           if (attempts >= maxAttempts) {
             throw error; // Give up after max attempts
           }
-          // Wait before retry
-          await new Promise(resolve => setTimeout(resolve, 200 * attempts));
+          // Wait before retry with increasing delays
+          const delay = attempts === 1 ? 500 : attempts === 2 ? 1000 : attempts === 3 ? 1500 : 2000;
+          await new Promise(resolve => setTimeout(resolve, delay));
         }
       }
     } catch (error) {
