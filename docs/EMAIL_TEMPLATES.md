@@ -127,6 +127,138 @@ Confirm your email address: {{ .ConfirmationURL }}
 If you didn't create a Renvo account, you can safely ignore this email.
 ```
 
+
+## 2. Password Reset Email (Supabase Auth Template)
+
+### Configuration Location
+Supabase Dashboard → Authentication → Email Templates → **"Reset password"**
+
+### Subject Line
+```
+Reset Your Renvo Password
+```
+
+### HTML Template
+
+```html
+<!DOCTYPE html>
+<html lang="en" style="margin:0; padding:0; background:#f5f7fb;">
+  <body style="margin:0; padding:0; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background:#f5f7fb; color:#111;">
+    
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        <td align="center" style="padding: 40px 20px;">
+          
+          <!-- Card -->
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; background:#fff; border-radius:14px; padding: 40px; box-shadow: 0 4px 18px rgba(0,0,0,0.06);">
+            
+            <tr>
+              <td style="font-size:24px; font-weight:600; margin-bottom:20px; color:#111;">
+                Reset Your Password
+              </td>
+            </tr>
+
+            <tr>
+              <td style="font-size:16px; line-height:1.6; color:#444; padding-top:10px;">
+                Hi there,
+              </td>
+            </tr>
+
+            <tr>
+              <td style="font-size:16px; line-height:1.6; color:#444; padding-top:10px;">
+                We received a request to reset your password for your Renvo account.
+                Click the button below to create a new password.
+              </td>
+            </tr>
+
+            <tr>
+              <td align="center" style="padding-top: 35px;">
+                <a href="{{ .ConfirmationURL }}" 
+                   style="background:#007AFF; color:#fff; padding:14px 28px; text-decoration:none; 
+                          border-radius:8px; font-size:16px; font-weight:600; display:inline-block;">
+                  Reset Password
+                </a>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding-top: 30px; padding: 20px; background:#fff3cd; border-radius:8px; margin-top:20px;">
+                <p style="font-size:14px; font-weight:600; color:#856404; margin:0 0 8px 0;">🔒 Security Notice</p>
+                <p style="font-size:14px; color:#856404; margin:0; line-height:1.5;">
+                  This link will expire in <strong>1 hour</strong>. If you didn't request this password reset, you can safely ignore this email.
+                </p>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding-top: 30px; font-size:14px; color:#666; line-height:1.6;">
+                <strong>Trouble clicking the button?</strong><br>
+                Copy and paste this URL into your browser:<br>
+                <span style="color:#007AFF; word-break: break-all;">{{ .ConfirmationURL }}</span>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding-top: 30px; font-size:16px; color:#111; font-weight:600;">
+                Stay secure,<br>
+                The Renvo Team
+              </td>
+            </tr>
+
+          </table>
+
+          <!-- Footer -->
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px; margin-top:20px;">
+            <tr>
+              <td style="text-align:center; font-size:12px; color:#777; line-height:1.4;">
+                If you didn't request a password reset, please ignore this email or contact support if you're concerned about your account security.
+              </td>
+            </tr>
+            <tr>
+              <td align="center" style="padding-top: 15px;">
+                <a href="mailto:support@therenvo.com" style="color:#007AFF; font-size:12px; text-decoration:none;">
+                  Contact Support
+                </a>
+              </td>
+            </tr>
+          </table>
+
+        </td>
+      </tr>
+    </table>
+
+  </body>
+</html>
+```
+
+### Text Version (Fallback)
+
+```
+Reset Your Password
+
+Hi there,
+
+We received a request to reset your password for your Renvo account.
+Click the link below to create a new password:
+
+{{ .ConfirmationURL }}
+
+🔒 SECURITY NOTICE
+This link will expire in 1 hour. If you didn't request this password reset, you can safely ignore this email.
+
+If you're having trouble with the link, copy and paste the full URL into your browser.
+
+If you didn't request this reset, please contact us at support@therenvo.com
+
+Stay secure,
+The Renvo Team
+
+---
+If you didn't request a password reset, please ignore this email or contact support if you're concerned about your account security.
+```
+
+---
+
 ---
 
 ## 2. Account Deletion Email (Brevo via Edge Function)
