@@ -790,6 +790,76 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
+  /**
+   * Helper function to check if user's account is marked for deletion
+   * Uses Edge Function to bypass RLS policies that block reading deleted accounts
+   * @param session - Supabase session object
+   * @param email - User's email address
+   * @returns true if account is deleted, false otherwise
+   */
+  const checkAccountDeletionStatus = async (
+    session: Session,
+    email: string
+  ): Promise<boolean> => {
+    try {
+      if (__DEV__) {
+        console.log('[checkAccountDeletionStatus] Checking account deletion status via Edge Function');
+      }
+
+      // Call check-account-status Edge Function with service role access
+      const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
+      const functionUrl = `${supabaseUrl}/functions/v1/check-account-status`;
+      const response = await fetch(functionUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        if (__DEV__) {
+          console.warn('[checkAccountDeletionStatus] Edge Function error:', errorText);
+        }
+        // Return false on error (non-blocking)
+        return false;
+      }
+
+      const accountStatus = await response.json();
+      
+      if (__DEV__) {
+        console.log('[checkAccountDeletionStatus] Account status:', accountStatus);
+      }
+
+      // If account is marked for deletion, store info for recovery flow
+      if (accountStatus.deleted && accountStatus.deletedAt) {
+        if (__DEV__) {
+          console.log('[checkAccountDeletionStatus] ✅ Deleted account detected, setting info for recovery');
+        }
+        
+        setDeletedAccountInfo({
+          deletedAt: accountStatus.deletedAt,
+          email: accountStatus.email || email,
+        });
+        
+        return true;
+      }
+
+      if (__DEV__) {
+        console.log('[checkAccountDeletionStatus] Account is active (not deleted)');
+      }
+      
+      return false;
+    } catch (checkError) {
+      if (__DEV__) {
+        console.warn('[checkAccountDeletionStatus] Error checking account status:', checkError);
+      }
+      // Return false on error (non-blocking)
+      return false;
+    }
+  };
+
   const signIn = async (
     email: string,
     password: string
@@ -818,64 +888,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
         };
       }
 
-      // Check if user's account is marked for deletion using Edge Function
-      // We must use Edge Function because RLS policies block reading deleted accounts
+      // Check if user's account is marked for deletion using helper function
       if (data.user && data.session) {
-        try {
-          if (__DEV__) {
-            console.log('[AuthContext.signIn] Checking account deletion status via Edge Function');
-          }
-
-          // Call check-account-status Edge Function with service role access
-          const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
-          const functionUrl = `${supabaseUrl}/functions/v1/check-account-status`;
-          const response = await fetch(functionUrl, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${data.session.access_token}`,
-              'Content-Type': 'application/json',
-            },
-          });
-
-          if (!response.ok) {
-            const errorText = await response.text();
-            if (__DEV__) {
-              console.warn('[AuthContext.signIn] Edge Function error:', errorText);
-            }
-            // Continue with login if check fails (non-blocking)
-          } else {
-            const accountStatus = await response.json();
-            
-            if (__DEV__) {
-              console.log('[AuthContext.signIn] Account status:', accountStatus);
-            }
-
-            // If account is marked for deletion, store info for recovery flow
-            if (accountStatus.deleted && accountStatus.deletedAt) {
-              if (__DEV__) {
-                console.log('[AuthContext.signIn] ✅ Deleted account detected, setting info for recovery');
-              }
-              
-              setDeletedAccountInfo({
-                deletedAt: accountStatus.deletedAt,
-                email: accountStatus.email || data.user.email || email,
-              });
-              
-              // Don't clear the session yet - let AppNavigator handle the redirect
-              await persistSessionState(data.session);
-              
-              return { success: true };
-            } else {
-              if (__DEV__) {
-                console.log('[AuthContext.signIn] Account is active (not deleted)');
-              }
-            }
-          }
-        } catch (checkError) {
-          if (__DEV__) {
-            console.warn('[AuthContext.signIn] Error checking account status:', checkError);
-          }
-          // Continue with login if check fails (non-blocking)
+        const isDeleted = await checkAccountDeletionStatus(data.session, email);
+        if (isDeleted) {
+          // Don't clear the session yet - let AppNavigator handle the redirect
+          await persistSessionState(data.session);
+          return { success: true };
         }
       }
 
@@ -1217,6 +1236,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if (sessionData.session) {
           await persistSessionState(sessionData.session);
           
+          // Check if account is marked for deletion
+          const userEmail = sessionData.session.user.email || '';
+          const isDeleted = await checkAccountDeletionStatus(sessionData.session, userEmail);
+          if (isDeleted) {
+            // Account is deleted - return early to trigger recovery flow
+            return { success: true };
+          }
+          
           // Send welcome email for NEW OAuth users only (not returning users)
           try {
             const userEmail = sessionData.session.user.email;
@@ -1446,11 +1473,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
             }
           }
 
+          
           await persistSessionState(sessionData.session);
+          
+          // Check if account is marked for deletion
+          const userEmail = sessionData.session.user.email || '';
+          const isDeleted = await checkAccountDeletionStatus(sessionData.session, userEmail);
+          if (isDeleted) {
+            // Account is deleted - return early to trigger recovery flow
+            return { success: true };
+          }
           
           // Send welcome email for NEW OAuth users only (not returning users)
           try {
-            const userEmail = sessionData.session.user.email;
             const userCreatedAt = new Date(sessionData.session.user.created_at);
             const now = new Date();
             const secondsSinceCreation = (now.getTime() - userCreatedAt.getTime()) / 1000;
