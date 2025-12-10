@@ -3,7 +3,7 @@
     "name": "Renvo",
     "sdkVersion": "54.0.0",
     "slug": "smart-subscription-tracker",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/Composed_Icon Exports/Composed_Icon-iOS-Default-1024x1024@1x.png",
     "userInterfaceStyle": "automatic",
@@ -16,7 +16,7 @@
       "**/*"
     ],
     "ios": {
-      "buildNumber": "1",
+      "buildNumber": "2",
       "supportsTablet": true,
       "bundleIdentifier": "com.ronnie39.renvo",
       "infoPlist": {
