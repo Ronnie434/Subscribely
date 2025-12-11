@@ -56,6 +56,7 @@ export default function PaywallModal({
   const [purchaseState, setPurchaseState] = useState<PurchaseState>(PurchaseState.IDLE);
   const [restoringPurchases, setRestoringPurchases] = useState(false);
   const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
+  const [checkingSubscription, setCheckingSubscription] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('yearly');
   const appState = useRef(AppState.currentState);
   const successScale = useRef(new RNAnimated.Value(0)).current;
@@ -310,6 +311,54 @@ export default function PaywallModal({
     };
   }, [visible, purchaseState, onClose, onSuccess]);
 
+  // Check if user upgraded to premium with polling
+  const checkSubscriptionUpgrade = async (): Promise<boolean> => {
+    try {
+      console.log('[PaywallModal] 🔍 Checking subscription status...');
+      
+      // Get status before refresh
+      const wasPremium = await subscriptionTierService.isPremiumUser();
+      console.log('[PaywallModal] ℹ️ Premium status before refresh:', wasPremium);
+      
+      // Force refresh with cache clear
+      console.log('[PaywallModal] 🗑️ Clearing cache and refreshing...');
+      await Promise.all([
+        subscriptionLimitService.refreshLimitStatus(),
+        subscriptionTierService.refreshTierInfo(),
+      ]);
+      
+      // Poll for premium status change (handle database replication lag)
+      let isNowPremium = await subscriptionTierService.isPremiumUser();
+      const maxAttempts = 15; // Up to 15 attempts (15 seconds)
+      let attempts = 1;
+      
+      console.log('[PaywallModal] 🔍 Starting premium status polling...');
+      
+      while (!isNowPremium && attempts < maxAttempts) {
+        console.log(`[PaywallModal] ⏳ Poll attempt ${attempts}/${maxAttempts} - still not premium, waiting...`);
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second between attempts
+        
+        // Force cache clear and re-check
+        await subscriptionTierService.refreshTierInfo();
+        isNowPremium = await subscriptionTierService.isPremiumUser();
+        attempts++;
+      }
+      
+      console.log('[PaywallModal] 📊 Premium status after polling:', {
+        wasPremium,
+        isNowPremium,
+        attempts,
+        upgraded: !wasPremium && isNowPremium
+      });
+      
+      // Return true if user just upgraded to premium
+      return !wasPremium && isNowPremium;
+    } catch (error) {
+      console.error('[PaywallModal] ❌ Error checking subscription status:', error);
+      return false;
+    }
+  };
+
   // Animate success checkmark
   const showSuccessCheckmark = () => {
     setShowSuccessAnimation(true);
@@ -464,31 +513,26 @@ export default function PaywallModal({
           return;
         }
         
-        // Purchase request was sent - popup is showing to user
-        // Stay in PURCHASING state and wait for actual completion
-        console.log('[PaywallModal] ⏳ Purchase popup shown, waiting for user action...');
-        console.log('[PaywallModal] ℹ️ Success will be detected via AppState listener when subscription updates');
+        // Purchase request was sent - StoreKit alert is now showing to user
+        console.log('[PaywallModal] ⏳ Purchase popup shown, waiting for user interaction...');
         
         // Reset cancellation flag for new purchase
         purchaseCancelledRef.current = false;
         
-        // Set a timeout to reset state if nothing happens (user cancelled)
-        // This will fire if user cancels and error listener doesn't reset state quickly enough
-        setTimeout(() => {
-          if (purchaseStateRef.current === PurchaseState.PURCHASING) {
-            console.log('[PaywallModal] ⏱️ Purchase timeout - user likely cancelled, resetting state');
-            purchaseCancelledRef.current = true;
-            setPurchaseState(PurchaseState.IDLE);
-          }
-        }, 15000); // 15 second timeout
-        
-        // The actual success handling happens in the AppState listener above
-        // When user completes purchase:
-        // 1. Purchase listener updates subscription in database
-        // 2. User closes Apple popup and returns to app
-        // 3. AppState listener detects foreground
-        // 4. Checks if user is now premium
-        // 5. Shows success animation if upgrade detected
+        // ⚠️ IMPORTANT: We do NOT check subscription status here!
+        // The native StoreKit alert "You're all set. Your purchase was successful."
+        // is currently showing and blocking our UI. If we check now and show the
+        // Premium animation, the user won't see it because it's behind the alert.
+        //
+        // Instead, we rely on the AppState listener (lines 204-312) which waits
+        // for the user to dismiss the alert (app goes background → active), then
+        // checks subscription status and shows the Premium animation.
+        //
+        // This ensures:
+        // 1. User sees and dismisses the StoreKit alert first
+        // 2. THEN they see our Premium animation (not blocked)
+        // 3. Proper user experience flow
+        console.log('[PaywallModal] 📋 Subscription check will occur after StoreKit alert dismissal');
       } catch (error: any) {
         console.error('[PaywallModal] ❌ Purchase exception:', error);
         console.error('[PaywallModal] ❌ Error details:', {
@@ -1060,6 +1104,10 @@ export default function PaywallModal({
 
             {loadingProducts && (
               <Text style={styles.loadingText}>Loading subscription options...</Text>
+            )}
+            
+            {checkingSubscription && (
+              <Text style={styles.loadingText}>Verifying your subscription...</Text>
             )}
 
             {/* Restore Purchases Button (iOS only) - Hidden for now */}

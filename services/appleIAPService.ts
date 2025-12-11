@@ -707,9 +707,18 @@ class AppleIAPService {
               console.log('[AppleIAP] ✅ Retrieved legacy receipt for validation');
             }
           } catch (receiptError) {
-            // Receipt might not be available immediately in sandbox or local testing
-            // This is common/expected in Xcode StoreKit testing
-            console.log('[AppleIAP] ℹ️ Legacy receipt not available (expected in local testing)');
+            // ⚠️ EXPECTED ERROR IN SANDBOX/TESTING
+            // You may see "[RN-IAP] [getReceiptDataIOS] Failed: Error: Pur..." in logs
+            // This is normal in:
+            // - Xcode StoreKit Configuration testing
+            // - TestFlight sandbox
+            // - First app launch after purchase
+            //
+            // The error does NOT block the purchase flow because:
+            // - The webhook handles validation authoritatively
+            // - We fall back to direct database updates
+            // - User still gets premium access
+            console.log('[AppleIAP] ℹ️ Receipt not available (expected in sandbox/testing - purchase still processes)');
           }
         }
 
