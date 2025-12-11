@@ -244,7 +244,7 @@ export default function SubscriptionManagementScreen({
     }
   };
 
-  const handleCancelSuccess = () => {
+  const handleCancelSuccess = async () => {
     console.log('[SubscriptionManagement] ✅ Cancel success callback received');
     setShowCancelModal(false);
     
@@ -252,9 +252,10 @@ export default function SubscriptionManagementScreen({
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
     
-    console.log('[SubscriptionManagement] ⬅️ Navigating back to Settings...');
+    console.log('[SubscriptionManagement] 🔙 Navigating back to Settings after cancellation');
+    // Navigate back to Settings screen after cancellation
+    // This avoids race conditions with webhook processing and provides clear user feedback
     navigation.goBack();
-    // Status will refresh automatically when SettingsScreen comes into focus
   };
 
   const handleUpgrade = () => {

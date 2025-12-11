@@ -36,6 +36,7 @@ enum NotificationType {
   REVOKED = 'REVOKED',
   GRACE_PERIOD_EXPIRED = 'GRACE_PERIOD_EXPIRED',
   PRICE_INCREASE_CONSENT = 'PRICE_INCREASE_CONSENT',
+  PURCHASE = 'PURCHASE',
 }
 
 /**
@@ -203,8 +204,14 @@ async function handleSubscriptionEvent(
   const userId = await findUserByTransactionId(supabase, originalTransactionId);
   
   if (!userId) {
-    console.error('[apple-webhook] ❌ User not found for transaction:', originalTransactionId);
-    throw new Error('User not found for transaction');
+    // In sandbox testing, webhook can arrive before client finishes database update
+    // This is expected - client-side will handle subscription activation
+    console.log(`[apple-webhook] ℹ️ User not found for transaction ${originalTransactionId} - likely race condition in sandbox.`);
+    console.log('[apple-webhook] ℹ️ Client-side update will handle subscription activation.');
+    console.log('[apple-webhook] ℹ️ Returning 200 to prevent Apple webhook retries.');
+    
+    // Return null to signal caller to skip processing gracefully
+    return;
   }
 
   console.log('[apple-webhook] ✅ User found:', userId);
@@ -219,22 +226,44 @@ async function handleSubscriptionEvent(
   console.log('[apple-webhook] 📝   Purchase Date:', purchaseDateStr);
   console.log('[apple-webhook] 📝   Expires Date:', expiresDateStr || 'N/A');
 
-  // Record transaction in audit table
-  console.log('[apple-webhook] 💾 Recording transaction...');
-  const { error: transactionError } = await supabase.rpc('record_apple_transaction', {
-    p_user_id: userId,
-    p_transaction_id: transactionId,
-    p_original_transaction_id: originalTransactionId,
-    p_product_id: productId,
-    p_purchase_date: purchaseDateStr,
-    p_expiration_date: expiresDateStr,
-    p_notification_type: notificationType,
-  });
+  // Check for existing PURCHASE to avoid duplicates
+  console.log('[apple-webhook] 🔍 Checking for existing PURCHASE...');
+  const { data: existingPurchase } = await supabase
+    .from('apple_transactions')
+    .select('id, notification_type, transaction_id')
+    .eq('original_transaction_id', originalTransactionId)
+    .eq('notification_type', 'PURCHASE')
+    .maybeSingle();
 
-  if (transactionError) {
-    console.error('[apple-webhook] ❌ Failed to record transaction:', transactionError);
+  if (existingPurchase && (notificationType === 'SUBSCRIBED' || notificationType === 'PURCHASE')) {
+    console.log(`[apple-webhook] ℹ️ PURCHASE already recorded (txn: ${existingPurchase.transaction_id}), skipping duplicate ${notificationType}`);
+    console.log(`[apple-webhook] ℹ️ Existing PURCHASE ID: ${existingPurchase.id}`);
+    console.log(`[apple-webhook] ℹ️ Current notification type: ${notificationType}`);
+    console.log(`[apple-webhook] ℹ️ Current transaction ID: ${transactionId}`);
+    console.log(`[apple-webhook] ℹ️ Original transaction ID: ${originalTransactionId}`);
+    // Skip recording transaction but continue to process subscription update below
   } else {
-    console.log('[apple-webhook] ✅ Transaction recorded');
+    // Record transaction in audit table
+    console.log('[apple-webhook] 💾 Recording transaction...');
+    console.log('[apple-webhook] 💾 Notification type:', notificationType);
+    console.log('[apple-webhook] 💾 Transaction ID:', transactionId);
+    console.log('[apple-webhook] 💾 Original Transaction ID:', originalTransactionId);
+    
+    const { error: transactionError } = await supabase.rpc('record_apple_transaction', {
+      p_user_id: userId,
+      p_transaction_id: transactionId,
+      p_original_transaction_id: originalTransactionId,
+      p_product_id: productId,
+      p_purchase_date: purchaseDateStr,
+      p_expiration_date: expiresDateStr,
+      p_notification_type: notificationType,
+    });
+
+    if (transactionError) {
+      console.error('[apple-webhook] ❌ Failed to record transaction:', transactionError);
+    } else {
+      console.log('[apple-webhook] ✅ Transaction recorded');
+    }
   }
 
   // Update user profile based on notification type

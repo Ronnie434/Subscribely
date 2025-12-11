@@ -127,7 +127,8 @@ export default function CancelSubscriptionModal({
         
         if (result) {
           // Successfully opened the subscription management screen
-          onClose(); // Close modal after redirect
+          console.log('[CancelSubscriptionModal] ✅ Opened Settings, navigating back to Settings screen...');
+          onSuccess(); // Navigate back to Settings screen
         } else {
           // If native method fails, fall back to manual instructions
           console.warn('[CancelSubscriptionModal] Native method failed, showing manual instructions');
@@ -146,7 +147,7 @@ export default function CancelSubscriptionModal({
                   Linking.openURL('app-settings:').catch((err) => {
                     console.error('Failed to open settings:', err);
                   });
-                  onClose();
+                  onSuccess(); // Navigate back after opening Settings
                 },
               },
               {
@@ -175,7 +176,7 @@ export default function CancelSubscriptionModal({
                 Linking.openURL('app-settings:').catch((err) => {
                   console.error('Failed to open settings:', err);
                 });
-                onClose();
+                onSuccess(); // Navigate back after opening Settings
               },
             },
             {
