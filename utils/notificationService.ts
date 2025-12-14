@@ -105,16 +105,16 @@ export async function scheduleRenewalNotification(
     const daysUntilNotification = Math.ceil((triggerDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
     console.log(`  Days until notification: ${daysUntilNotification}`);
 
-    // Format the renewal date for the notification message
-    const formattedRenewalDate = dateHelpers.formatDate(renewalDate);
+    // Format the renewal date for the notification message (use local date for correct display)
+    const formattedRenewalDate = dateHelpers.formatDate(renewalDateLocal);
 
     // Create notification title and body based on days before
     const title = daysBefore === 1
-      ? 'Subscription Renews Tomorrow'
-      : `Subscription Renews in ${daysBefore} Days`;
+      ? 'Payment Due Tomorrow'
+      : `Payment Due in ${daysBefore} Days`;
     
     const daysText = daysBefore === 1 ? 'tomorrow' : `in ${daysBefore} days`;
-    const body = `Your ${subscription.name} subscription ($${subscription.cost.toFixed(2)}) renews ${daysText} on ${formattedRenewalDate}`;
+    const body = `Your ${subscription.name} ($${subscription.cost.toFixed(2)}) is due ${daysText} on ${formattedRenewalDate}`;
 
     // Schedule the notification
     const notificationId = await Notifications.scheduleNotificationAsync({
@@ -165,7 +165,7 @@ export async function cancelNotification(notificationId: string): Promise<void> 
 /**
  * Reschedules a notification for a subscription.
  * Cancels the existing notification (if present) and schedules a new one.
- * 
+ *
  * @param {Subscription} subscription - The subscription to reschedule notification for
  * @returns {Promise<string | null>} The new notification identifier if scheduled, null otherwise
  */
