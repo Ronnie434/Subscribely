@@ -166,12 +166,12 @@ export default function StatsScreen() {
     setExporting(true);
     try {
       await exportSubscriptionsToExcel(subscriptions);
-      Alert.alert('Success', 'Your subscriptions have been exported successfully!');
+      Alert.alert('Success', 'Your data has been exported successfully!');
     } catch (error) {
       console.error('Export error:', error);
       Alert.alert(
         'Export Failed',
-        'Failed to export subscriptions. Please try again.'
+        'Failed to export data. Please try again.'
       );
     } finally {
       setExporting(false);
